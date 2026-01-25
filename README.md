@@ -1,5 +1,5 @@
 # 🍡 团子画板 | Dango
-[English README](./README_EN.md) | [在线使用](https://dango.ink) | [Firefox Extension](https://addons.mozilla.org/en-US/firefox/addon/dango-canvas)
+[English README](./README_EN.md) | [在线使用](https://dango.ink) | [Firefox 拓展](https://addons.mozilla.org/zh-CN/firefox/addon/dango-canvas)
 
     
 <div align="center">
