@@ -62,6 +62,7 @@ const TRANSLATIONS = {
         help_smart_align: "智能自动对齐",
         img_zoom_in: "图像放大",
         img_zoom_out: "图像缩小",
+        theme_tooltip: "切换主题"
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -125,6 +126,7 @@ const TRANSLATIONS = {
         help_smart_align: "Smart Auto-align",
         img_zoom_in: "Zoom In Image",
         img_zoom_out: "Zoom Out Image",
+        theme_tooltip: "Toggle Theme"
     }
 };
 
