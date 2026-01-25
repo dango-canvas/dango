@@ -84,10 +84,13 @@ export function redo(renderCallback) {
 const LS_KEY = 'cc-canvas-data';
 
 export function initializeData(loadFromUrlFn) {
+    // 1. 总是先从 LocalStorage 加载本地数据，作为“基础”状态
+    loadData();
+
+    // 2. 然后尝试从 URL Hash 加载（如果存在，则覆盖本地数据，但本地数据已在 history 之前加载）
     if (loadFromUrlFn && loadFromUrlFn()) {
         return;
     }
-    loadData();
 }
 
 export function loadData() {

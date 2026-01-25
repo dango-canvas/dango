@@ -88,13 +88,15 @@ export function loadFromUrl() {
         if (!decompressed) return false;
         const dataRaw = JSON.parse(decompressed);
         const data = Array.isArray(dataRaw) ? unpackData(dataRaw) : dataRaw;
-        const oldSnapshot = {
+        const hasContent = state.nodes.length > 0;
+        const oldSnapshot = hasContent ? {
             nodes: [...state.nodes],
             groups: [...state.groups],
             links: [...state.links],
             selection: Array.from(state.selection)
-        };
-        pushHistory(JSON.stringify(oldSnapshot));
+        } : null;
+
+        pushHistory();
         state.nodes = data.nodes || [];
         state.groups = data.groups || [];
         state.links = data.links || [];
