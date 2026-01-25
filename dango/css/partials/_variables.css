@@ -58,6 +58,13 @@
     --c-danger: #ef4444;
     --c-danger-text: #ffffff;
     --text-selection-bg: rgba(37, 130, 146, 0.3);
+
+    /* 滚动条 */
+    --scrollbar-width: 6px;
+    --scrollbar-track: #f1f5f9;
+    --scrollbar-thumb: #258292;
+    --scrollbar-thumb-hover: #1d6a77;
+    --scrollbar-thumb-active: #15515b;
 }
 
 /* 🌙 Dark Mode */
@@ -110,4 +117,10 @@
     --c-cyan-border: #164e63;
     --c-cyan-text: #67e8f9;
     --text-selection-bg: rgba(56, 178, 172, 0.4);
+
+    /* 滚动条 */
+    --scrollbar-track: #1f2937;
+    --scrollbar-thumb: #38b2ac;
+    --scrollbar-thumb-hover: #2c8e8a;
+    --scrollbar-thumb-active: #206b68;
 }

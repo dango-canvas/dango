@@ -13,6 +13,38 @@ textarea::selection {
     background-color: var(--text-selection-bg);
 }
 
+/* --- 全局滚动条样式优化 --- */
+* {
+    /* Firefox 兼容性 */
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent; /* 轨道设为透明，避免遮挡圆角 */
+}
+
+/* Webkit 兼容性 (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: var(--scrollbar-width);
+    height: var(--scrollbar-width);
+}
+
+::-webkit-scrollbar-track {
+    background: transparent; /* 轨道完全透明 */
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 10px;
+    /* 移除之前的 border 缩进，直接通过 width 控制粗细，增加兼容性 */
+    transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: var(--scrollbar-thumb-active);
+}
+
 body,
 html {
     margin: 0;
