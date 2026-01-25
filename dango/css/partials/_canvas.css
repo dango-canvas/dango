@@ -89,6 +89,8 @@
     transition: none !important;
     font-variant-ligatures: none;
     text-align: center !important;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 /* 既然用了 ::after 做高亮，编辑时我们可以隐藏那个动画光圈，或者让它保持常亮 */

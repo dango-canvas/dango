@@ -230,7 +230,7 @@ export function initInteractions() {
         const tapLength = currentTime - lastTapTime;
         const nodeEl = e.target.closest('.node');
         if (tapLength < 300 && tapLength > 0 && nodeEl && lastTapTarget === nodeEl) {
-            handleNodeEdit(nodeEl);
+            if (!nodeEl.isContentEditable) handleNodeEdit(nodeEl);
             lastTapTarget = null;
             lastTapTime = 0;
             return;
@@ -328,6 +328,8 @@ export function initInteractions() {
     });
 
     els.container.addEventListener('dblclick', e => {
+        const editingNodeEl = e.target.closest('.node');
+        if (editingNodeEl?.isContentEditable) return;
         const nodeEl = e.target.closest('.node');
         if (nodeEl) {
             handleNodeEdit(nodeEl);
@@ -354,33 +356,47 @@ export function initInteractions() {
 
 export function handleNodeEdit(nodeEl) {
     if (!nodeEl) return;
+    if (nodeEl.isContentEditable || nodeEl.classList.contains('editing')) {
+        nodeEl.focus();
+        return;
+    }
     const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
     if (node) {
         if (mode === 'move' || hasMovedDuringDrag) return;
         pushHistory();
-        nodeEl.innerText = node.text;
+        const originalText = node.text ?? '';
+        const isVisuallyEmpty = !originalText.replace(/\u200B/g, '').trim();
+        nodeEl.innerText = isVisuallyEmpty ? '\u200B' : originalText;
         nodeEl.classList.remove('is-link', 'has-multiline');
         nodeEl.contentEditable = true;
         nodeEl.classList.add('editing');
         // 编辑时立刻清除固定尺寸，让其自适应 Markdown 文本
         nodeEl.style.width = '';
         nodeEl.style.height = '';
-        nodeEl.focus();
+        try {
+            nodeEl.focus({ preventScroll: true });
+        } catch {
+            nodeEl.focus();
+        }
         
         // 将光标移至末尾
-        const range = document.createRange();
-        range.selectNodeContents(nodeEl);
-        range.collapse(false); // collapse to end
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
+        requestAnimationFrame(() => {
+            if (!nodeEl.isConnected) return;
+            const range = document.createRange();
+            range.selectNodeContents(nodeEl);
+            range.collapse(false); // collapse to end
+            const sel = window.getSelection();
+            if (!sel) return;
+            sel.removeAllRanges();
+            sel.addRange(range);
+        });
 
         const finishEdit = () => {
             nodeEl.contentEditable = false;
             nodeEl.classList.remove('editing');
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
-            let newText = nodeEl.innerText.replace(/\u00a0/g, ' ');
+            let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
             
             // 如果新节点没有输入文字，失去焦点后让它消失
             if (!newText.trim()) {
