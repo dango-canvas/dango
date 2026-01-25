@@ -1,18 +1,17 @@
 // modules/render.js
 
 import { isUrl, getEdgeIntersection } from './utils.js';
+import { getTexts } from './i18n.js';
 import { els } from './dom.js';
 
 // --- 模块内部变量 ---
 let appState;
 let callbacks;
 
-const IMAGE_SIZE_ORDER = ['s', 'm', 'l'];
-const IMAGE_SIZE_WIDTHS = { s: 200, m: 400, l: 600 };
+const IMAGE_SIZE_WIDTHS = { s: 100, l: 200 };
 const IMAGE_SIZE_ICONS = {
-    s: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 3 5 3 5 7"></polyline><line x1="5" y1="3" x2="9" y2="7"></line><polyline points="15 3 19 3 19 7"></polyline><line x1="19" y1="3" x2="15" y2="7"></line><polyline points="9 21 5 21 5 17"></polyline><line x1="5" y1="21" x2="9" y2="17"></line><polyline points="15 21 19 21 19 17"></polyline><line x1="19" y1="21" x2="15" y2="17"></line></svg>',
-    m: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 3 3 3 3 7"></polyline><line x1="3" y1="3" x2="10" y2="10"></line><polyline points="17 21 21 21 21 17"></polyline><line x1="14" y1="14" x2="21" y2="21"></line><polyline points="17 3 21 3 21 7"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><polyline points="7 21 3 21 3 17"></polyline><line x1="3" y1="21" x2="10" y2="14"></line></svg>',
-    l: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 9 3 3 9 3"></polyline><line x1="3" y1="3" x2="9" y2="9"></line><polyline points="21 9 21 3 15 3"></polyline><line x1="21" y1="3" x2="15" y2="9"></line><polyline points="3 15 3 21 9 21"></polyline><line x1="3" y1="21" x2="9" y2="15"></line><polyline points="21 15 21 21 15 21"></polyline><line x1="21" y1="21" x2="15" y2="15"></line></svg>'
+    s: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 10 10 10 10 4"></polyline><polyline points="20 10 14 10 14 4"></polyline><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 14 14 14 14 20"></polyline></svg>',
+    l: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 4 4 4 4 10"></polyline><polyline points="14 4 20 4 20 10"></polyline><polyline points="10 20 4 20 4 14"></polyline><polyline points="14 20 20 20 20 14"></polyline></svg>'
 };
 
 function syncDomElements(dataArray, parent, className, renderFn) {
@@ -66,27 +65,20 @@ function parseImageMarkdown(text) {
 }
 
 function getImageSizeKey(width) {
-    if (!width) return 'm';
-    let closest = 'm';
-    let minDiff = Infinity;
-    Object.keys(IMAGE_SIZE_WIDTHS).forEach(key => {
-        const diff = Math.abs(width - IMAGE_SIZE_WIDTHS[key]);
-        if (diff < minDiff) {
-            minDiff = diff;
-            closest = key;
-        }
-    });
-    return closest;
+    if (!width) return 's';
+    return width >= 200 ? 'l' : 's';
 }
 
 function getNextImageSizeKey(currentKey) {
-    const index = IMAGE_SIZE_ORDER.indexOf(currentKey);
-    if (index === -1) return 'm';
-    return IMAGE_SIZE_ORDER[(index + 1) % IMAGE_SIZE_ORDER.length];
+    return currentKey === 's' ? 'l' : 's';
 }
 
 function applyImageSize(node, img, width) {
-    if (!img || !img.naturalWidth) return false;
+    if (!img || !img.naturalWidth) {
+        // 如果图片还没加载好，先只设置宽度，高度等加载完再算
+        node.w = width;
+        return true;
+    }
     const ratio = img.naturalHeight / img.naturalWidth;
     const height = Math.round(width * ratio);
     if (node.w === width && node.h === height) return false;
@@ -98,9 +90,14 @@ function applyImageSize(node, img, width) {
 function renderNode(el, node) {
     el.setAttribute('role', 'button');
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
+    
+    // 编辑模式：优先处理
     if (el.classList.contains('editing') || el === document.activeElement) {
         const isSelected = appState.selection.has(node.id);
         el.className = ['node', node.color || 'c-white', isSelected ? 'selected' : '', 'editing'].filter(Boolean).join(' ');
+        // 编辑时，清除固定宽高，让它自适应文字
+        el.style.width = '';
+        el.style.height = '';
         return;
     }
 
@@ -120,18 +117,31 @@ function renderNode(el, node) {
         if (img.getAttribute('src') !== imageData.url) img.setAttribute('src', imageData.url);
         if (img.getAttribute('alt') !== imageData.alt) img.setAttribute('alt', imageData.alt);
 
+        // 如果没有 w，或者 w 太小（可能是从文本节点转过来的），设为默认 S (100px)
+        if (!node.w || node.w < 100) {
+            node.w = IMAGE_SIZE_WIDTHS.s;
+            const updateH = () => {
+                if (img.naturalWidth) {
+                    node.h = Math.round(node.w * (img.naturalHeight / img.naturalWidth));
+                    el.style.height = `${node.h}px`;
+                }
+            };
+            if (img.complete) updateH();
+            else img.onload = updateH;
+        }
+
         let sizeBtn = el.querySelector('.image-size-btn');
         if (!sizeBtn) {
             sizeBtn = document.createElement('button');
             sizeBtn.type = 'button';
             sizeBtn.className = 'image-size-btn';
-            sizeBtn.title = '切换尺寸';
             sizeBtn.onmousedown = (e) => e.stopPropagation();
             sizeBtn.onclick = (e) => {
                 e.stopPropagation();
-                const currentKey = getImageSizeKey(node.w || IMAGE_SIZE_WIDTHS.m);
+                const currentKey = getImageSizeKey(node.w);
                 const nextKey = getNextImageSizeKey(currentKey);
                 const targetWidth = IMAGE_SIZE_WIDTHS[nextKey];
+                
                 const applySize = () => {
                     if (applyImageSize(node, img, targetWidth)) {
                         el.style.width = `${node.w}px`;
@@ -147,29 +157,18 @@ function renderNode(el, node) {
             };
             el.appendChild(sizeBtn);
         }
-        const currentKey = getImageSizeKey(node.w || IMAGE_SIZE_WIDTHS.m);
+        
+        const currentKey = getImageSizeKey(node.w);
         const nextKey = getNextImageSizeKey(currentKey);
+        const texts = getTexts();
+        // 用户要求：此按钮的图标会动态变化，以直观地反映节点点击后的尺寸
+        // 如果当前是 S，点击后变 L，所以显示 L 的图标（向外发散）
+        // 如果当前是 L，点击后变 S，所以显示 S 的图标（向内收缩）
         sizeBtn.innerHTML = IMAGE_SIZE_ICONS[nextKey];
+        sizeBtn.title = currentKey === 's' ? texts.img_zoom_in : texts.img_zoom_out;
 
-        if (!node.w || !node.h) {
-            const defaultWidth = IMAGE_SIZE_WIDTHS.m;
-            const applyDefault = () => {
-                if (applyImageSize(node, img, defaultWidth)) {
-                    el.style.width = `${node.w}px`;
-                    el.style.height = `${node.h}px`;
-                    render();
-                }
-            };
-            if (img.complete && img.naturalWidth) {
-                applyDefault();
-            } else {
-                img.onload = () => applyDefault();
-            }
-        }
-        if (node.w && node.h) {
-            el.style.width = `${node.w}px`;
-            el.style.height = `${node.h}px`;
-        }
+        if (node.w) el.style.width = `${node.w}px`;
+        if (node.h) el.style.height = `${node.h}px`;
     }
 
     if (isLink) {
@@ -213,6 +212,8 @@ function renderNode(el, node) {
     if (isLink) classes.push('is-link');
     if (isSelected) classes.push('selected');
     el.className = classes.join(' ');
+    
+    // 非图片节点才自动同步 DOM 尺寸到数据
     if (!isImage && (!node.w || !node.h || el.offsetWidth !== node.w || el.offsetHeight !== node.h)) {
         node.w = el.offsetWidth;
         node.h = el.offsetHeight;

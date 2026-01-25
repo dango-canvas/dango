@@ -366,6 +366,9 @@ export function handleNodeEdit(nodeEl) {
         nodeEl.classList.remove('is-link', 'has-multiline');
         nodeEl.contentEditable = true;
         nodeEl.classList.add('editing');
+        // 编辑时立刻清除固定尺寸，让其自适应 Markdown 文本
+        nodeEl.style.width = '';
+        nodeEl.style.height = '';
         nodeEl.focus();
         const range = document.createRange();
         range.selectNodeContents(nodeEl);
@@ -378,8 +381,12 @@ export function handleNodeEdit(nodeEl) {
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
             let newText = nodeEl.innerText.replace(/\u00a0/g, ' ');
-            if (!newText.trim()) newText = '';
-            if (node.text !== newText) {
+            
+            // 如果新节点没有输入文字，失去焦点后让它消失
+            if (!newText.trim()) {
+                state.nodes = state.nodes.filter(n => n.id !== node.id);
+                state.selection.delete(node.id);
+            } else if (node.text !== newText) {
                 node.text = newText;
             }
             render();

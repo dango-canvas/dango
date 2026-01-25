@@ -60,6 +60,8 @@ const TRANSLATIONS = {
         embed_open_tooltip: "在团子画板中打开并编辑",
         toast_copy_embed_success: "嵌入代码已复制 ✨",
         help_smart_align: "智能自动对齐",
+        img_zoom_in: "图像放大",
+        img_zoom_out: "图像缩小",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -120,7 +122,9 @@ const TRANSLATIONS = {
         embed_info_tooltip: "About Preview Mode",
         embed_open_tooltip: "Open in Dango to Edit",
         toast_copy_embed_success: "Embed code copied ✨",
-        help_smart_align: "Smart Auto-Align",
+        help_smart_align: "Smart Auto-align",
+        img_zoom_in: "Zoom In Image",
+        img_zoom_out: "Zoom Out Image",
     }
 };
 

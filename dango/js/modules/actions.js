@@ -40,23 +40,17 @@ export function createNodesFromInput(text) {
     const lines = inputText.split('\n').map(line => line.trim()).filter(Boolean);
     if (lines.length === 0) return;
 
-    let startX;
-    let startY;
-    if (state.nodes.length > 0) {
-        let minY = Infinity;
-        let maxX = -Infinity;
-        state.nodes.forEach(n => {
-            minY = Math.min(minY, n.y);
-            maxX = Math.max(maxX, n.x + (n.w || 0));
-        });
-        startX = maxX + 200;
-        startY = minY === Infinity ? 0 : minY;
-    } else {
-        const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
-        const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
-        startX = centerX - 50;
-        startY = centerY - ((lines.length - 1) * spacingY) / 2;
-    }
+    const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
+    const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
+
+    // 为了防止完全重叠，给一个基于节点数量的微小偏移
+    // 不需要随机，使用固定步长循环即可
+    const offsetStep = 20;
+    const maxOffsets = 5;
+    const currentOffset = (state.nodes.length % maxOffsets) * offsetStep;
+
+    const startX = centerX - 50 + currentOffset;
+    const startY = centerY - ((lines.length - 1) * spacingY) / 2 + currentOffset;
 
     lines.forEach((str, index) => {
         state.nodes.push({
