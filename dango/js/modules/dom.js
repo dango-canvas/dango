@@ -22,7 +22,7 @@ export const els = {
 export function setSafeHTML(el, html) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
-    el.innerHTML = '';
+    el.textContent = '';
     while (doc.body.firstChild) {
         el.appendChild(doc.body.firstChild);
     }
@@ -52,7 +52,10 @@ export function setSafeSVG(el, svgString) {
         if (doc.querySelector('parsererror')) return;
 
         const svgElement = doc.documentElement;
-        el.innerHTML = svgElement.innerHTML;
+        el.textContent = '';
+        while (svgElement.firstChild) {
+            el.appendChild(svgElement.firstChild);
+        }
         Array.from(svgElement.attributes).forEach(attr => {
             if (attr.name !== 'xmlns') {
                 el.setAttribute(attr.name, attr.value);
@@ -61,7 +64,7 @@ export function setSafeSVG(el, svgString) {
     } else {
         // 情况 B：目标是容器（如 button），直接设置 innerHTML
         // 现代浏览器会自动处理 HTML5 中的 SVG 标签，但可能会将 viewBox 误认为 viewbox (小写)
-        el.innerHTML = trimmed;
+        setSafeHTML(el, trimmed);
         const svg = el.querySelector('svg');
         if (svg) {
             // 强制修复 viewBox 大小写问题，这在 HTML 环境下很常见

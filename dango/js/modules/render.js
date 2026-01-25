@@ -109,7 +109,7 @@ function renderNode(el, node) {
         el.classList.remove('is-link');
         let img = el.querySelector('.node-image');
         if (!img) {
-            el.innerHTML = '';
+            el.textContent = '';
             img = document.createElement('img');
             img.className = 'node-image';
             el.appendChild(img);
@@ -188,7 +188,7 @@ function renderNode(el, node) {
         el.classList.remove('has-multiline');
         let textEl = el.querySelector('.node-text');
         if (!textEl) {
-            el.innerHTML = '';
+            el.textContent = '';
             textEl = document.createElement('div');
             textEl.className = 'node-text';
             el.appendChild(textEl);
