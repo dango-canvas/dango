@@ -80,7 +80,21 @@ function updateSeasonalLogo() {
 }
 
 // --- Toast 通知 ---
+const toastQueue = [];
+let activeToasts = 0;
+const MAX_VISIBLE_TOASTS = 3;
+
 export function showToast(message, safetySnapshot = null) {
+    toastQueue.push({ message, safetySnapshot });
+    processToastQueue();
+}
+
+function processToastQueue() {
+    if (activeToasts >= MAX_VISIBLE_TOASTS || toastQueue.length === 0) return;
+
+    const { message, safetySnapshot } = toastQueue.shift();
+    activeToasts++;
+
     const texts = getTexts();
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
@@ -89,34 +103,47 @@ export function showToast(message, safetySnapshot = null) {
     textNode.innerText = message;
     toast.appendChild(textNode);
 
+    const removeToast = () => {
+        if (toast.parentNode) {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                    activeToasts--;
+                    processToastQueue();
+                }
+            }, 400);
+        }
+    };
+
     if (safetySnapshot) {
         const actions = document.createElement('div');
         actions.className = 'toast-actions';
         const btnUndo = document.createElement('button');
         btnUndo.className = 'btn-toast';
         btnUndo.innerText = texts.toast_undo;
-        btnUndo.onclick = () => { callbacks.undo(); toast.remove(); };
+        btnUndo.onclick = () => { 
+            callbacks.undo(); 
+            removeToast();
+        };
         const btnExport = document.createElement('button');
         btnExport.className = 'btn-toast';
         btnExport.innerText = texts.toast_export_prev;
         btnExport.onclick = () => {
             const data = JSON.stringify(safetySnapshot, null, 2);
             downloadBlob(data, `safety-backup_${getTimestamp()}.dango`, 'application/json');
-            toast.remove();
+            removeToast();
         };
         actions.appendChild(btnUndo);
         actions.appendChild(btnExport);
         toast.appendChild(actions);
     }
+
     container.appendChild(toast);
     setTimeout(() => toast.classList.add('show'), 10);
+
     const delay = safetySnapshot ? 6000 : 3000;
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 400);
-        }
-    }, delay);
+    setTimeout(removeToast, delay);
 }
 
 
