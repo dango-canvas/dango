@@ -30,33 +30,43 @@ export function setSafeHTML(el, html) {
 
 /**
  * 安全地设置 SVG 内容
- * @param {SVGElement} el 
+ * @param {SVGElement|HTMLElement} el 
  * @param {string} svgString 
  */
 export function setSafeSVG(el, svgString) {
-    const parser = new DOMParser();
-    // 如果 svgString 包含 <svg> 标签，我们解析整个 SVG
-    // 如果不包含，我们把它包装在 <svg> 中解析，然后取其子节点
-    const wrappedString = svgString.trim().startsWith('<svg') ? svgString : `<svg xmlns="http://www.w3.org/2000/svg">${svgString}</svg>`;
-    const doc = parser.parseFromString(wrappedString, 'image/svg+xml');
-    const svgElement = doc.querySelector('svg');
+    if (!el) return;
     
-    if (svgElement) {
-        if (svgString.trim().startsWith('<svg')) {
-            // 如果原本就是 <svg>，则替换整个元素内容或追加
-            el.innerHTML = '';
-            while (svgElement.firstChild) {
-                el.appendChild(svgElement.firstChild);
-            }
-            // 还要复制属性
-            Array.from(svgElement.attributes).forEach(attr => {
+    const isTargetSVG = el.tagName.toLowerCase() === 'svg';
+    const trimmed = svgString.trim();
+    
+    if (isTargetSVG) {
+        // 情况 A：目标本身就是 SVG 元素，同步内容和属性
+        // 为了保留 viewBox 等大小写敏感属性，使用 image/svg+xml 解析
+        let xmlString = trimmed;
+        if (!xmlString.includes('xmlns=')) {
+            xmlString = xmlString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+        
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlString, 'image/svg+xml');
+        if (doc.querySelector('parsererror')) return;
+
+        const svgElement = doc.documentElement;
+        el.innerHTML = svgElement.innerHTML;
+        Array.from(svgElement.attributes).forEach(attr => {
+            if (attr.name !== 'xmlns') {
                 el.setAttribute(attr.name, attr.value);
-            });
-        } else {
-            // 如果是 <defs> 等内容，则追加其子节点
-            el.innerHTML = '';
-            while (svgElement.firstChild) {
-                el.appendChild(svgElement.firstChild);
+            }
+        });
+    } else {
+        // 情况 B：目标是容器（如 button），直接设置 innerHTML
+        // 现代浏览器会自动处理 HTML5 中的 SVG 标签，但可能会将 viewBox 误认为 viewbox (小写)
+        el.innerHTML = trimmed;
+        const svg = el.querySelector('svg');
+        if (svg) {
+            // 强制修复 viewBox 大小写问题，这在 HTML 环境下很常见
+            if (svg.hasAttribute('viewbox') && !svg.hasAttribute('viewBox')) {
+                svg.setAttribute('viewBox', svg.getAttribute('viewbox'));
             }
         }
     }

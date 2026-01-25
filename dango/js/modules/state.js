@@ -131,7 +131,10 @@ export function unpackData(packed) {
         delete g._tempMemberIds;
     });
     const links = pLinks.map(l => ({
-        id: uid(), sourceId: shortToLongId[l[0]], targetId: shortToLongId[l[1]]
+        id: uid(), 
+        sourceId: shortToLongId[l[0]], 
+        targetId: shortToLongId[l[1]],
+        direction: l[2] === 1 ? 'target' : (l[2] === 2 ? 'source' : 'none')
     })).filter(l => l.sourceId && l.targetId);
     let settings = state.settings;
     if (pSettings) {
@@ -165,7 +168,10 @@ export function packData() {
         idMap[g.id], Math.round(g.x), Math.round(g.y),
         Math.round(g.w), Math.round(g.h), g.memberIds.map(mid => idMap[mid])
     ]);
-    const pLinks = state.links.map(l => [idMap[l.sourceId], idMap[l.targetId]]);
+    const pLinks = state.links.map(l => {
+        const d = l.direction === 'target' ? 1 : (l.direction === 'source' ? 2 : 0);
+        return [idMap[l.sourceId], idMap[l.targetId], d];
+    });
     const pSettings = [
         state.settings.hideGrid ? 1 : 0,
         state.settings.handDrawn ? 1 : 0,

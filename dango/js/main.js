@@ -15,7 +15,6 @@ import { initInteractions, handleNodeEdit } from './modules/interactions.js';
 
 // 1. Initialize
 initI18n();
-initializeData(loadFromUrl);
 
 // 2. Wire Core Modules
 initRender(state, {
@@ -25,6 +24,9 @@ initRender(state, {
 initIO(render);
 initView(state, render);
 initInteractions();
+
+// 3. Load Initial Data (MUST be after initIO as it uses renderRef)
+initializeData(loadFromUrl);
 
 // 4. Define and Wire Shared Actions
 const actions = {
