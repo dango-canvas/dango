@@ -142,7 +142,7 @@ export function initInteractions() {
                     const item = findItem(id);
                     if (item) {
                         item.x = init.x + dx; item.y = init.y + dy;
-                        if (init.type === 'group') {
+                        if (init.type === 'group' && item.memberIds) {
                             item.memberIds.forEach(mid => {
                                 const member = state.nodes.find(n => n.id === mid);
                                 if (member && !dragStart.initialPos[mid]) {
@@ -291,7 +291,7 @@ export function initInteractions() {
                     if (item) {
                         item.x = init.x + dx; 
                         item.y = init.y + dy;
-                        if (init.type === 'group') {
+                        if (init.type === 'group' && item.memberIds) {
                             item.memberIds.forEach(mid => {
                                 const member = state.nodes.find(n => n.id === mid);
                                 if (member && !dragStart.initialPos[mid]) {
@@ -338,20 +338,16 @@ export function initInteractions() {
         const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
         const newNode = createNodeAt(worldPos);
         if (!newNode) return;
+
+        // 核心修复：直接给定一个合理的初始 w/h 默认值，而不是依赖 DOM 测量
+        // 这样可以确保 newNode.x/y 计算是稳定的，不会因为 offsetWidth 为 0 导致怪异尺寸
+        newNode.w = 120; // 默认宽度
+        newNode.h = 44;  // 默认高度
+        newNode.x = worldPos.x - newNode.w / 2;
+        newNode.y = worldPos.y - newNode.h / 2;
+
         render();
-        let createdEl = document.querySelector(`.node[data-id="${newNode.id}"]`);
-        if (createdEl) {
-            const width = createdEl.offsetWidth;
-            const height = createdEl.offsetHeight;
-            if (width && height) {
-                newNode.x = worldPos.x - width / 2;
-                newNode.y = worldPos.y - height / 2;
-                newNode.w = width;
-                newNode.h = height;
-                render();
-                createdEl = document.querySelector(`.node[data-id="${newNode.id}"]`);
-            }
-        }
+        const createdEl = document.querySelector(`.node[data-id="${newNode.id}"]`);
         if (createdEl) handleNodeEdit(createdEl);
     });
 }
@@ -370,11 +366,15 @@ export function handleNodeEdit(nodeEl) {
         nodeEl.style.width = '';
         nodeEl.style.height = '';
         nodeEl.focus();
+        
+        // 将光标移至末尾
         const range = document.createRange();
         range.selectNodeContents(nodeEl);
+        range.collapse(false); // collapse to end
         const sel = window.getSelection();
         sel.removeAllRanges();
         sel.addRange(range);
+
         const finishEdit = () => {
             nodeEl.contentEditable = false;
             nodeEl.classList.remove('editing');
@@ -410,8 +410,10 @@ function getSelectionPositions() {
     state.selection.forEach(id => {
         const item = findItem(id);
         if (item) {
-            pos[id] = { x: item.x, y: item.y, type: item.text ? 'node' : 'group' };
-            if (!item.text && item.memberIds) {
+            // 改进类型检测：直接检查是否存在 memberIds，而非依赖 text 是否为空
+            const isGroup = 'memberIds' in item;
+            pos[id] = { x: item.x, y: item.y, type: isGroup ? 'group' : 'node' };
+            if (isGroup && item.memberIds) {
                 item.memberIds.forEach(mid => { const m = state.nodes.find(n => n.id === mid); if (m) pos[`member_${mid}`] = { x: m.x, y: m.y }; });
             }
         }

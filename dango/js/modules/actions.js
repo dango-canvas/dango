@@ -16,7 +16,7 @@ function setItemPos(item, newX, newY) {
     const dy = newY - item.y;
     item.x = newX;
     item.y = newY;
-    if (!item.text && item.memberIds) { // It's a group
+    if ('memberIds' in item && item.memberIds) { // It's a group
         item.memberIds.forEach(mid => {
             const m = state.nodes.find(n => n.id === mid);
             if (m) {
@@ -36,27 +36,73 @@ export function createNodesFromInput(text) {
 
     pushHistory();
 
-    const spacingY = 80;
-    const lines = inputText.split('\n').map(line => line.trim()).filter(Boolean);
-    if (lines.length === 0) return;
+    // 智能拆分逻辑：保留引号内的完整内容，同时识别换行和逗号
+    const parseGrid = (str) => {
+        const rows = [];
+        let currentRow = [];
+        let currentItem = "";
+        let inQuotes = false;
+        let quoteChar = "";
+        const openQuotes = ['"', "'", '“', '‘'];
+        const closeQuotes = { '"': '"', "'": "'", '“': '”', '‘': '’' };
 
+        for (let i = 0; i < str.length; i++) {
+            const char = str[i];
+            if (inQuotes) {
+                if (char === quoteChar) {
+                    inQuotes = false;
+                    quoteChar = "";
+                } else {
+                    currentItem += char;
+                }
+            } else {
+                if (openQuotes.includes(char)) {
+                    inQuotes = true;
+                    quoteChar = closeQuotes[char];
+                } else if (char === '\n') {
+                    if (currentItem.trim()) currentRow.push(currentItem.trim());
+                    if (currentRow.length > 0) rows.push(currentRow);
+                    currentRow = [];
+                    currentItem = "";
+                } else if (char === ',' || char === '，') {
+                    if (currentItem.trim()) currentRow.push(currentItem.trim());
+                    currentItem = "";
+                } else {
+                    currentItem += char;
+                }
+            }
+        }
+        if (currentItem.trim()) currentRow.push(currentItem.trim());
+        if (currentRow.length > 0) rows.push(currentRow);
+        return rows;
+    };
+
+    const grid = parseGrid(inputText);
+    if (grid.length === 0) return;
+
+    const spacingX = 160;
+    const spacingY = 80;
     const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
     const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
 
-    // 为了防止完全重叠，给一个基于节点数量的微小偏移
-    // 不需要随机，使用固定步长循环即可
     const offsetStep = 20;
     const maxOffsets = 5;
     const currentOffset = (state.nodes.length % maxOffsets) * offsetStep;
 
-    const startX = centerX - 50 + currentOffset;
-    const startY = centerY - ((lines.length - 1) * spacingY) / 2 + currentOffset;
+    const totalH = (grid.length - 1) * spacingY;
+    const startY = centerY - totalH / 2 + currentOffset;
 
-    lines.forEach((str, index) => {
-        state.nodes.push({
-            id: uid(), text: str,
-            x: startX, y: startY + index * spacingY,
-            w: 0, h: 0, color: 'c-white'
+    grid.forEach((row, rowIndex) => {
+        const totalW = (row.length - 1) * spacingX;
+        const startX = centerX - totalW / 2 + currentOffset;
+        
+        row.forEach((str, colIndex) => {
+            state.nodes.push({
+                id: uid(), text: str,
+                x: startX + colIndex * spacingX,
+                y: startY + rowIndex * spacingY,
+                w: 0, h: 0, color: 'c-white'
+            });
         });
     });
 

@@ -113,22 +113,33 @@ function renderNode(el, node) {
             img = document.createElement('img');
             img.className = 'node-image';
             el.appendChild(img);
+            
+            // 首次转为图片节点时，强制设为 100 宽
+            node.w = IMAGE_SIZE_WIDTHS.s;
+            el.style.width = `${node.w}px`;
         }
         if (img.getAttribute('src') !== imageData.url) img.setAttribute('src', imageData.url);
         if (img.getAttribute('alt') !== imageData.alt) img.setAttribute('alt', imageData.alt);
 
-        // 如果没有 w，或者 w 太小（可能是从文本节点转过来的），设为默认 S (100px)
+        // 如果 w 太小（可能是从之前的文本节点继承来的），设为默认 S (100px)
         if (!node.w || node.w < 100) {
             node.w = IMAGE_SIZE_WIDTHS.s;
-            const updateH = () => {
-                if (img.naturalWidth) {
-                    node.h = Math.round(node.w * (img.naturalHeight / img.naturalWidth));
-                    el.style.height = `${node.h}px`;
-                }
-            };
-            if (img.complete) updateH();
-            else img.onload = updateH;
+            el.style.width = `${node.w}px`;
         }
+
+        const updateH = () => {
+            if (img.naturalWidth) {
+                const newH = Math.round(node.w * (img.naturalHeight / img.naturalWidth));
+                if (node.h !== newH) {
+                    node.h = newH;
+                    el.style.height = `${node.h}px`;
+                    render(); // 重新渲染以更新连线
+                }
+            }
+        };
+        
+        if (img.complete) updateH();
+        else img.onload = updateH;
 
         let sizeBtn = el.querySelector('.image-size-btn');
         if (!sizeBtn) {
@@ -167,8 +178,9 @@ function renderNode(el, node) {
         sizeBtn.innerHTML = IMAGE_SIZE_ICONS[nextKey];
         sizeBtn.title = currentKey === 's' ? texts.img_zoom_in : texts.img_zoom_out;
 
-        if (node.w) el.style.width = `${node.w}px`;
+        el.style.width = `${node.w}px`;
         if (node.h) el.style.height = `${node.h}px`;
+        else el.style.height = 'auto'; // 加载中或无高度时自适应，防止塌陷为 0
     }
 
     if (isLink) {
