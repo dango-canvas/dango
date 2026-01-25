@@ -1,6 +1,6 @@
 # 🍡 Dango
 
-[Web App](https://dango.ink)
+[中文 README](./README.md) | [Web App](https://dango.ink) | [Firefox Extension](https://addons.mozilla.org/en-US/firefox/addon/dango-canvas)
 
 <div align="center">
   <img height="800" alt="Image" src="https://github.com/user-attachments/assets/949089ff-5b03-4e00-85ec-ebe39dba8feb" />
@@ -11,11 +11,11 @@
   <br />
 </div>
 
+---
+
 Dango is an lightweight, atomic canvas for your thoughts.
 
 It doesn't try to be a complex drawing tool or a heavy note-taking app. It is built to catch fragmented ideas the moment inspiration strikes and organize their relationships instantly.
-
----
 
 ### ✨ Key Features
 

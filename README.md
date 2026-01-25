@@ -1,5 +1,5 @@
 # 🍡 团子画板 | Dango
-[English Version](./README_EN.md) | [在线使用](https://dango.ink)
+[English README](./README_EN.md) | [在线使用](https://dango.ink) | [Firefox Extension](https://addons.mozilla.org/en-US/firefox/addon/dango-canvas)
 
     
 <div align="center">
@@ -11,13 +11,11 @@
   <br />
 </div>
 
+---
 
 团子画板是一个轻量、原子化的思维整理工具。
 
 它不试图成为复杂的绘图软件或笔记应用，它可以在灵感迸发瞬间，快速组织散乱的想法，并迅速理清关系。
-
-
----
 
 ### ✨ 核心特性
 
