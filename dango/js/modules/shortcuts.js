@@ -127,7 +127,17 @@ export function initShortcuts(callbacks) {
 
         // 对齐 (Alt + WASD...)
         if (e.altKey) {
-            const keyMap = { 'KeyA': 'left', 'KeyD': 'right', 'KeyW': 'top', 'KeyS': 'bottom', 'KeyH': 'centerX', 'KeyJ': 'centerY' };
+            const keyMap = { 
+                'KeyA': 'left', 
+                'ArrowLeft': 'left',
+                'KeyD': 'right', 
+                'ArrowRight': 'right',
+                'KeyW': 'top', 
+                'ArrowUp': 'top',
+                'ArrowDown': 'bottom', 
+                'KeyH': 'centerX', 
+                'KeyJ': 'centerY' 
+            };
             if (keyMap[e.code]) {
                 e.preventDefault(); pushHistory();
                 if ((e.code === 'KeyH' || e.code === 'KeyJ') && e.shiftKey) {
