@@ -58,7 +58,7 @@ html {
     background-size: 24px 24px;
     color: var(--ui-text);
     user-select: none;
-    transition: background-color 0.3s, color 0.3s;
+    transition: background-color 0.3s, color 0.3s, opacity 0.3s ease;
 }
 
 body.mode-space {

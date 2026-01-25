@@ -50,3 +50,6 @@ applyHandDrawnStyle();
 applySettings(state);
 render();
 updateI18n();
+
+// 6. Final UI Reveal
+document.body.classList.remove('cloak');
