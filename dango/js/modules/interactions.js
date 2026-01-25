@@ -499,7 +499,7 @@ function getNearestNodeColor(pos) {
             nearest = n;
         }
     });
-    if (nearest && minDist <= 500) return nearest.color || 'c-white';
+    if (nearest && minDist <= 300) return nearest.color || 'c-white';
     return 'c-white';
 }
 
