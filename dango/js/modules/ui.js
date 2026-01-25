@@ -3,7 +3,7 @@
 import { getTexts, toggleLang, updateI18n } from './i18n.js';
 import { downloadBlob, getTimestamp } from './utils.js';
 import { processDangoFile } from './io.js';
-import { els } from './dom.js';
+import { els, setSafeSVG } from './dom.js';
 
 // --- 模块内部变量 ---
 let appState; // 用于访问 state.settings 等
@@ -23,7 +23,7 @@ function updateTheme(themeBtn) {
     } else {
         document.documentElement.removeAttribute('data-theme');
     }
-    themeBtn.innerHTML = isAuto ? ICON_AUTO : (isDark ? ICON_SUN : ICON_MOON);
+    setSafeSVG(themeBtn, isAuto ? ICON_AUTO : (isDark ? ICON_SUN : ICON_MOON));
     localStorage.setItem('cc-theme', appState.theme);
 }
 

@@ -2,7 +2,7 @@
 
 import { isUrl, getEdgeIntersection } from './utils.js';
 import { getTexts } from './i18n.js';
-import { els } from './dom.js';
+import { els, setSafeHTML, setSafeSVG } from './dom.js';
 
 // --- 模块内部变量 ---
 let appState;
@@ -175,7 +175,7 @@ function renderNode(el, node) {
         // 用户要求：此按钮的图标会动态变化，以直观地反映节点点击后的尺寸
         // 如果当前是 S，点击后变 L，所以显示 L 的图标（向外发散）
         // 如果当前是 L，点击后变 S，所以显示 S 的图标（向内收缩）
-        sizeBtn.innerHTML = IMAGE_SIZE_ICONS[nextKey];
+        setSafeSVG(sizeBtn, IMAGE_SIZE_ICONS[nextKey]);
         sizeBtn.title = currentKey === 's' ? texts.img_zoom_in : texts.img_zoom_out;
 
         el.style.width = `${node.w}px`;
@@ -198,7 +198,7 @@ function renderNode(el, node) {
         if (!btnEl) {
             btnEl = document.createElement('div');
             btnEl.className = 'link-btn';
-            btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
+            setSafeSVG(btnEl, '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>');
             btnEl.onmousedown = (e) => e.stopPropagation();
             btnEl.onclick = (e) => {
                 e.stopPropagation();
@@ -212,7 +212,7 @@ function renderNode(el, node) {
         if (!isImage) {
             el.classList.remove('is-link');
             const newHtml = parseMarkdown(node.text);
-            if (el.innerHTML !== newHtml) el.innerHTML = newHtml;
+            if (el.innerHTML !== newHtml) setSafeHTML(el, newHtml);
             el.style.width = '';
             el.style.height = '';
         }
@@ -248,7 +248,7 @@ export function render() {
 
     const linkColor = getComputedStyle(document.body).getPropertyValue('--link-color').trim();
     const defsContent = `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 8 5 L 0 10" stroke="${linkColor}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></marker></defs>`;
-    els.connectionsLayer.innerHTML = defsContent;
+    setSafeSVG(els.connectionsLayer, defsContent);
 
     appState.links.forEach(l => {
         const n1 = appState.nodes.find(n => n.id === l.sourceId);
