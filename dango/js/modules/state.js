@@ -15,12 +15,9 @@ export const state = {
     clipboard: [],
     theme: 'light',
     settings: {
-        preciseLayout: localStorage.getItem('cc-precise-layout') === 'true',
         hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
         altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
         handDrawn: localStorage.getItem('cc-hand-drawn') === 'true',
-        copyMode: localStorage.getItem('cc-copy-mode') === 'true',
-        copyAsEmbed: localStorage.getItem('cc-copy-as-embed') === 'true',
     },
     isEmbed: urlParams.has('embed') // ✨ 在这里添加
 };
@@ -136,10 +133,22 @@ export function unpackData(packed) {
     const links = pLinks.map(l => ({
         id: uid(), sourceId: shortToLongId[l[0]], targetId: shortToLongId[l[1]]
     })).filter(l => l.sourceId && l.targetId);
-    const settings = pSettings ? {
-        preciseLayout: pSettings[0] === 1, hideGrid: pSettings[1] === 1,
-        handDrawn: pSettings[2] === 1, copyMode: pSettings[3] === 1
-    } : state.settings;
+    let settings = state.settings;
+    if (pSettings) {
+        if (version >= 2) {
+            settings = {
+                hideGrid: pSettings[0] === 1,
+                handDrawn: pSettings[1] === 1,
+                altAsCtrl: pSettings[2] === 1
+            };
+        } else {
+            settings = {
+                hideGrid: pSettings[1] === 1,
+                handDrawn: pSettings[2] === 1,
+                altAsCtrl: state.settings.altAsCtrl
+            };
+        }
+    }
     return { nodes, groups, links, settings };
 }
 
@@ -158,8 +167,9 @@ export function packData() {
     ]);
     const pLinks = state.links.map(l => [idMap[l.sourceId], idMap[l.targetId]]);
     const pSettings = [
-        state.settings.preciseLayout ? 1 : 0, state.settings.hideGrid ? 1 : 0,
-        state.settings.handDrawn ? 1 : 0, state.settings.copyMode ? 1 : 0
+        state.settings.hideGrid ? 1 : 0,
+        state.settings.handDrawn ? 1 : 0,
+        state.settings.altAsCtrl ? 1 : 0
     ];
-    return [1, pNodes, pGroups, pLinks, pSettings];
+    return [2, pNodes, pGroups, pLinks, pSettings];
 }

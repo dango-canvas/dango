@@ -106,15 +106,6 @@ export function getTimestamp() {
 }
 
 /**
- * 转义 HTML 特殊字符，用于 SVG 导出。
- * @param {string} text
- * @returns {string}
- */
-export function escapeHtml(text) {
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
-
-/**
  * 触发浏览器下载 Blob 内容。
  * @param {string|Blob} content
  * @param {string} filename

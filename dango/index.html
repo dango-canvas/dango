@@ -45,10 +45,6 @@
                     <!-- 设置弹窗 -->
                     <div id="settings-modal" class="help-modal-style">
                         <div class="settings-item">
-                            <span data-i18n="settings_precise">精准映射 (回车换行)</span>
-                            <input type="checkbox" id="check-precise">
-                        </div>
-                        <div class="settings-item">
                             <span data-i18n="settings_hide_grid">隐藏网格点</span>
                             <input type="checkbox" id="check-hide-grid">
                         </div>
@@ -59,14 +55,6 @@
                         <div class="settings-item">
                             <span data-i18n="settings_hand_drawn">手写风格 (实验性)</span>
                             <input type="checkbox" id="check-hand-drawn">
-                        </div>
-                        <div class="settings-item">
-                            <span data-i18n="settings_copy_mode">导出 PNG 为复制 (不下载)</span>
-                            <input type="checkbox" id="check-copy-mode">
-                        </div>
-                        <div class="settings-item">
-                            <span data-i18n="settings_copy_as_embed">导出链接为嵌入代码 (iframe)</span>
-                            <input type="checkbox" id="check-copy-as-embed">
                         </div>
                     </div>
                 </div>
@@ -157,7 +145,7 @@
 
         <div id="ui-content">
             <textarea id="input-text" data-i18n-placeholder="input_placeholder"
-                placeholder="输入想法... (空格/逗号/换行分隔)"></textarea>
+                placeholder="输入想法... (换行分隔)"></textarea>
             <button id="btn-add" class="primary" data-i18n="btn_add">✨ 生成节点 ✨</button>
             <div class="action-stack" id="action-stack">
                 <!-- 第一层：默认按钮 -->
@@ -171,8 +159,7 @@
                     <!-- LINK 放在第一个，完美承接“导出”按钮的双击 -->
                     <button class="secondary" id="opt-link" data-i18n="btn_export_link">LINK</button>
                     <button class="secondary" id="opt-json" data-i18n="btn_export_file">DANGO</button>
-                    <button class="secondary" id="opt-png" data-i18n="btn_export_png">PNG</button>
-                    <!-- <button class="secondary" id="opt-svg" data-i18n="btn_export_svg">SVG</button> -->
+                    <button class="secondary" id="opt-embed" data-i18n="btn_export_embed">EMBED</button>
                 </div>
             </div>
             <input type="file" id="file-input" style="display:none" accept=".dango">

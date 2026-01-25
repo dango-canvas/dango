@@ -329,7 +329,30 @@ export function initInteractions() {
 
     els.container.addEventListener('dblclick', e => {
         const nodeEl = e.target.closest('.node');
-        handleNodeEdit(nodeEl);
+        if (nodeEl) {
+            handleNodeEdit(nodeEl);
+            return;
+        }
+        if (e.target.closest('.group')) return;
+        if (e.target.closest('#ui-layer')) return;
+        const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
+        const newNode = createNodeAt(worldPos);
+        if (!newNode) return;
+        render();
+        let createdEl = document.querySelector(`.node[data-id="${newNode.id}"]`);
+        if (createdEl) {
+            const width = createdEl.offsetWidth;
+            const height = createdEl.offsetHeight;
+            if (width && height) {
+                newNode.x = worldPos.x - width / 2;
+                newNode.y = worldPos.y - height / 2;
+                newNode.w = width;
+                newNode.h = height;
+                render();
+                createdEl = document.querySelector(`.node[data-id="${newNode.id}"]`);
+            }
+        }
+        if (createdEl) handleNodeEdit(createdEl);
     });
 }
 
@@ -354,7 +377,8 @@ export function handleNodeEdit(nodeEl) {
             nodeEl.classList.remove('editing');
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
-            const newText = nodeEl.innerText;
+            let newText = nodeEl.innerText.replace(/\u00a0/g, ' ');
+            if (!newText.trim()) newText = '';
             if (node.text !== newText) {
                 node.text = newText;
             }
@@ -426,6 +450,32 @@ function cloneSelectionInPlace() {
     state.nodes.push(...newNodes);
     state.groups.push(...newGroups);
     state.selection = newSelection;
+}
+
+function createNodeAt(pos) {
+    pushHistory();
+    const color = getNearestNodeColor(pos);
+    const node = { id: uid(), text: '', x: pos.x, y: pos.y, w: 0, h: 0, color };
+    state.nodes.push(node);
+    state.selection.clear();
+    state.selection.add(node.id);
+    return node;
+}
+
+function getNearestNodeColor(pos) {
+    let nearest = null;
+    let minDist = Infinity;
+    state.nodes.forEach(n => {
+        const cx = n.x + (n.w || 0) / 2;
+        const cy = n.y + (n.h || 0) / 2;
+        const dist = Math.hypot(pos.x - cx, pos.y - cy);
+        if (dist < minDist) {
+            minDist = dist;
+            nearest = n;
+        }
+    });
+    if (nearest && minDist <= 500) return nearest.color || 'c-white';
+    return 'c-white';
 }
 
 function getTouchPos(e) {

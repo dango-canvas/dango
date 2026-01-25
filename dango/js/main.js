@@ -3,7 +3,7 @@ import { initUI, applySettings, applyHandDrawnStyle } from './modules/ui.js';
 import { state, initializeData, saveData, undo, redo } from './modules/state.js';
 import { initRender, render } from './modules/render.js';
 import { createNodesFromInput, clearCanvas } from './modules/actions.js';
-import { initIO, exportJson, downloadImage, createShareLink, loadFromUrl, updateOpenFullLink } from './modules/io.js';
+import { initIO, exportJson, createShareLink, createEmbedCode, loadFromUrl, updateOpenFullLink } from './modules/io.js';
 import { initView } from './modules/view.js';
 import { initShortcuts } from './modules/shortcuts.js';
 import { initInteractions, handleNodeEdit } from './modules/interactions.js';
@@ -33,8 +33,8 @@ const actions = {
     createNodesFromInput,
     clearCanvas,
     exportJson,
-    downloadImage,
     createShareLink,
+    createEmbedCode,
     applyHandDrawnStyle,
     handleNodeEdit,
     render

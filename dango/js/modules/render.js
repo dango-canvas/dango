@@ -7,6 +7,14 @@ import { els } from './dom.js';
 let appState;
 let callbacks;
 
+const IMAGE_SIZE_ORDER = ['s', 'm', 'l'];
+const IMAGE_SIZE_WIDTHS = { s: 200, m: 400, l: 600 };
+const IMAGE_SIZE_ICONS = {
+    s: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 3 5 3 5 7"></polyline><line x1="5" y1="3" x2="9" y2="7"></line><polyline points="15 3 19 3 19 7"></polyline><line x1="19" y1="3" x2="15" y2="7"></line><polyline points="9 21 5 21 5 17"></polyline><line x1="5" y1="21" x2="9" y2="17"></line><polyline points="15 21 19 21 19 17"></polyline><line x1="19" y1="21" x2="15" y2="17"></line></svg>',
+    m: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 3 3 3 3 7"></polyline><line x1="3" y1="3" x2="10" y2="10"></line><polyline points="17 21 21 21 21 17"></polyline><line x1="14" y1="14" x2="21" y2="21"></line><polyline points="17 3 21 3 21 7"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><polyline points="7 21 3 21 3 17"></polyline><line x1="3" y1="21" x2="10" y2="14"></line></svg>',
+    l: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 9 3 3 9 3"></polyline><line x1="3" y1="3" x2="9" y2="9"></line><polyline points="21 9 21 3 15 3"></polyline><line x1="21" y1="3" x2="15" y2="9"></line><polyline points="3 15 3 21 9 21"></polyline><line x1="3" y1="21" x2="9" y2="15"></line><polyline points="21 15 21 21 15 21"></polyline><line x1="21" y1="21" x2="15" y2="15"></line></svg>'
+};
+
 function syncDomElements(dataArray, parent, className, renderFn) {
     const existing = new Map();
     Array.from(parent.children).forEach(el => existing.set(el.dataset.id, el));
@@ -50,6 +58,43 @@ function parseMarkdown(text) {
     return htmlLines.join('<br>');
 }
 
+function parseImageMarkdown(text) {
+    const trimmed = text.trim();
+    const match = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (!match) return null;
+    return { alt: match[1], url: match[2].trim() };
+}
+
+function getImageSizeKey(width) {
+    if (!width) return 'm';
+    let closest = 'm';
+    let minDiff = Infinity;
+    Object.keys(IMAGE_SIZE_WIDTHS).forEach(key => {
+        const diff = Math.abs(width - IMAGE_SIZE_WIDTHS[key]);
+        if (diff < minDiff) {
+            minDiff = diff;
+            closest = key;
+        }
+    });
+    return closest;
+}
+
+function getNextImageSizeKey(currentKey) {
+    const index = IMAGE_SIZE_ORDER.indexOf(currentKey);
+    if (index === -1) return 'm';
+    return IMAGE_SIZE_ORDER[(index + 1) % IMAGE_SIZE_ORDER.length];
+}
+
+function applyImageSize(node, img, width) {
+    if (!img || !img.naturalWidth) return false;
+    const ratio = img.naturalHeight / img.naturalWidth;
+    const height = Math.round(width * ratio);
+    if (node.w === width && node.h === height) return false;
+    node.w = width;
+    node.h = height;
+    return true;
+}
+
 function renderNode(el, node) {
     el.setAttribute('role', 'button');
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
@@ -59,7 +104,74 @@ function renderNode(el, node) {
         return;
     }
 
-    const isLink = isUrl(node.text);
+    const imageData = parseImageMarkdown(node.text);
+    const isImage = !!imageData;
+    const isLink = !isImage && isUrl(node.text);
+
+    if (isImage) {
+        el.classList.remove('is-link');
+        let img = el.querySelector('.node-image');
+        if (!img) {
+            el.innerHTML = '';
+            img = document.createElement('img');
+            img.className = 'node-image';
+            el.appendChild(img);
+        }
+        if (img.getAttribute('src') !== imageData.url) img.setAttribute('src', imageData.url);
+        if (img.getAttribute('alt') !== imageData.alt) img.setAttribute('alt', imageData.alt);
+
+        let sizeBtn = el.querySelector('.image-size-btn');
+        if (!sizeBtn) {
+            sizeBtn = document.createElement('button');
+            sizeBtn.type = 'button';
+            sizeBtn.className = 'image-size-btn';
+            sizeBtn.title = '切换尺寸';
+            sizeBtn.onmousedown = (e) => e.stopPropagation();
+            sizeBtn.onclick = (e) => {
+                e.stopPropagation();
+                const currentKey = getImageSizeKey(node.w || IMAGE_SIZE_WIDTHS.m);
+                const nextKey = getNextImageSizeKey(currentKey);
+                const targetWidth = IMAGE_SIZE_WIDTHS[nextKey];
+                const applySize = () => {
+                    if (applyImageSize(node, img, targetWidth)) {
+                        el.style.width = `${node.w}px`;
+                        el.style.height = `${node.h}px`;
+                        render();
+                    }
+                };
+                if (img.complete && img.naturalWidth) {
+                    applySize();
+                } else {
+                    img.onload = () => applySize();
+                }
+            };
+            el.appendChild(sizeBtn);
+        }
+        const currentKey = getImageSizeKey(node.w || IMAGE_SIZE_WIDTHS.m);
+        const nextKey = getNextImageSizeKey(currentKey);
+        sizeBtn.innerHTML = IMAGE_SIZE_ICONS[nextKey];
+
+        if (!node.w || !node.h) {
+            const defaultWidth = IMAGE_SIZE_WIDTHS.m;
+            const applyDefault = () => {
+                if (applyImageSize(node, img, defaultWidth)) {
+                    el.style.width = `${node.w}px`;
+                    el.style.height = `${node.h}px`;
+                    render();
+                }
+            };
+            if (img.complete && img.naturalWidth) {
+                applyDefault();
+            } else {
+                img.onload = () => applyDefault();
+            }
+        }
+        if (node.w && node.h) {
+            el.style.width = `${node.w}px`;
+            el.style.height = `${node.h}px`;
+        }
+    }
+
     if (isLink) {
         el.classList.add('is-link');
         el.classList.remove('has-multiline');
@@ -86,17 +198,22 @@ function renderNode(el, node) {
             el.appendChild(btnEl);
         }
     } else {
-        el.classList.remove('is-link');
-        const newHtml = parseMarkdown(node.text);
-        if (el.innerHTML !== newHtml) el.innerHTML = newHtml;
+        if (!isImage) {
+            el.classList.remove('is-link');
+            const newHtml = parseMarkdown(node.text);
+            if (el.innerHTML !== newHtml) el.innerHTML = newHtml;
+            el.style.width = '';
+            el.style.height = '';
+        }
     }
 
     const isSelected = appState.selection.has(node.id);
     const classes = ['node', node.color || 'c-white'];
+    if (isImage) classes.push('image-node');
     if (isLink) classes.push('is-link');
     if (isSelected) classes.push('selected');
     el.className = classes.join(' ');
-    if (!node.w || !node.h || el.offsetWidth !== node.w || el.offsetHeight !== node.h) {
+    if (!isImage && (!node.w || !node.h || el.offsetWidth !== node.w || el.offsetHeight !== node.h)) {
         node.w = el.offsetWidth;
         node.h = el.offsetHeight;
     }

@@ -36,62 +36,35 @@ export function createNodesFromInput(text) {
 
     pushHistory();
 
-    const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
-    const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
-    const spacingX = 140;
     const spacingY = 80;
+    const lines = inputText.split('\n').map(line => line.trim()).filter(Boolean);
+    if (lines.length === 0) return;
 
-    function parsePhrases(input) {
-        const regex = /"([^"]*)"|'([^']*)'|“([^”]*)”|‘([^’]*)’|([^\s,，\n]+)/g;
-        let result = [];
-        let match;
-        while ((match = regex.exec(input)) !== null) {
-            const phrase = match[1] || match[2] || match[3] || match[4] || match[5];
-            if (phrase && phrase.trim()) result.push(phrase.trim());
-        }
-        return result;
-    }
-
-    let nodesToCreate = [];
-
-    if (state.settings.preciseLayout) {
-        const lines = inputText.split('\n');
-        lines.forEach((line, rowIndex) => {
-            const phrases = parsePhrases(line);
-            phrases.forEach((phrase, colIndex) => {
-                nodesToCreate.push({ text: phrase, row: rowIndex, col: colIndex });
-            });
+    let startX;
+    let startY;
+    if (state.nodes.length > 0) {
+        let minY = Infinity;
+        let maxX = -Infinity;
+        state.nodes.forEach(n => {
+            minY = Math.min(minY, n.y);
+            maxX = Math.max(maxX, n.x + (n.w || 0));
         });
-
-        if (nodesToCreate.length === 0) return;
-        const maxRow = Math.max(...nodesToCreate.map(n => n.row));
-        const maxCol = Math.max(...nodesToCreate.map(n => n.col));
-        const startX = centerX - (maxCol * spacingX) / 2 - 50;
-        const startY = centerY - (maxRow * spacingY) / 2 - 20;
-
-        nodesToCreate.forEach(n => {
-            state.nodes.push({
-                id: uid(), text: n.text,
-                x: startX + n.col * spacingX, y: startY + n.row * spacingY,
-                w: 0, h: 0, color: 'c-white'
-            });
-        });
+        startX = maxX + 200;
+        startY = minY === Infinity ? 0 : minY;
     } else {
-        const phrases = parsePhrases(inputText);
-        if (phrases.length === 0) return;
-        const colCount = Math.min(phrases.length, 5);
-        const rowCount = Math.ceil(phrases.length / 5);
-        const startX = centerX - ((colCount - 1) * spacingX) / 2 - 50;
-        const startY = centerY - ((rowCount - 1) * spacingY) / 2 - 20;
-
-        phrases.forEach((str, index) => {
-            state.nodes.push({
-                id: uid(), text: str,
-                x: startX + (index % 5) * spacingX, y: startY + Math.floor(index / 5) * spacingY,
-                w: 0, h: 0, color: 'c-white'
-            });
-        });
+        const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
+        const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
+        startX = centerX - 50;
+        startY = centerY - ((lines.length - 1) * spacingY) / 2;
     }
+
+    lines.forEach((str, index) => {
+        state.nodes.push({
+            id: uid(), text: str,
+            x: startX, y: startY + index * spacingY,
+            w: 0, h: 0, color: 'c-white'
+        });
+    });
 
     if (els && els.input) {
         els.input.value = '';

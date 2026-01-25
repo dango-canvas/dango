@@ -19,7 +19,10 @@ export function initShortcuts(callbacks) {
     const { render, undo, redo, handleNodeEdit, exportJson } = callbacks;
 
     window.addEventListener('keydown', e => {
-        const isEditing = e.target.isContentEditable || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT';
+        const isContentEditable = e.target.isContentEditable;
+        const isTextArea = e.target.tagName === 'TEXTAREA';
+        const isInput = e.target.tagName === 'INPUT';
+        const isEditing = isContentEditable || isTextArea || isInput;
         
         // 1. 编辑状态下的特殊处理
         if (isEditing) {
@@ -28,7 +31,7 @@ export function initShortcuts(callbacks) {
                 e.stopPropagation();
                 return;
             }
-            if (e.code === 'Enter' && !e.shiftKey) {
+            if (isContentEditable && e.code === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 e.target.blur();
                 return;

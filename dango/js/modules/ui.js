@@ -11,13 +11,20 @@ let callbacks; // 用于执行 main.js 中的动作，如 undo
 
 const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
 const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+const ICON_AUTO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"></rect><line x1="8" y1="20" x2="16" y2="20"></line><line x1="12" y1="16" x2="12" y2="20"></line></svg>';
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
 
 // --- 主题切换 ---
 function updateTheme(themeBtn) {
-    const isDark = appState.theme === 'dark';
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    themeBtn.innerHTML = isDark ? ICON_SUN : ICON_MOON;
-    localStorage.setItem('cc-theme', isDark ? 'dark' : 'light');
+    const isAuto = appState.theme === 'auto';
+    const isDark = isAuto ? prefersDark.matches : appState.theme === 'dark';
+    if (isDark) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+    themeBtn.innerHTML = isAuto ? ICON_AUTO : (isDark ? ICON_SUN : ICON_MOON);
+    localStorage.setItem('cc-theme', appState.theme);
 }
 
 // --- 关于弹窗 ---
@@ -31,12 +38,9 @@ export function applySettings(currentState) {
     const s = currentState || appState; 
     if (!s) return; // 如果都没有，直接返回，防止错误
 
-    document.getElementById('check-precise').checked = s.settings.preciseLayout;
     document.getElementById('check-hide-grid').checked = s.settings.hideGrid;
     document.getElementById('check-alt-as-ctrl').checked = s.settings.altAsCtrl;
     document.getElementById('check-hand-drawn').checked = s.settings.handDrawn;
-    document.getElementById('check-copy-mode').checked = s.settings.copyMode;
-    document.getElementById('check-copy-as-embed').checked = s.settings.copyAsEmbed;
     document.body.classList.toggle('hide-grid', s.settings.hideGrid);
 }
 
@@ -158,10 +162,15 @@ export function initUI(_state, _callbacks) {
     appState.theme = localStorage.getItem('cc-theme') || 'light';
     updateTheme(themeBtn);
     themeBtn.onclick = (e) => {
-        appState.theme = appState.theme === 'dark' ? 'light' : 'dark';
+        const themes = ['light', 'dark', 'auto'];
+        const nextIndex = (themes.indexOf(appState.theme) + 1) % themes.length;
+        appState.theme = themes[nextIndex];
         updateTheme(themeBtn);
         e.currentTarget.blur();
     };
+    prefersDark.addEventListener('change', () => {
+        if (appState.theme === 'auto') updateTheme(themeBtn);
+    });
 
     // 2.5 添加按钮
     const btnAdd = document.getElementById('btn-add');
@@ -170,6 +179,14 @@ export function initUI(_state, _callbacks) {
             e.stopPropagation();
             callbacks.createNodesFromInput();
         };
+    }
+    if (els.input && callbacks.createNodesFromInput) {
+        els.input.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                callbacks.createNodesFromInput();
+            }
+        });
     }
 
     // 3. 设置面板
@@ -184,11 +201,8 @@ export function initUI(_state, _callbacks) {
             els.btnHelp.classList.remove('active');
         }
     };
-    document.getElementById('check-precise').onchange = (e) => { appState.settings.preciseLayout = e.target.checked; localStorage.setItem('cc-precise-layout', e.target.checked); };
     document.getElementById('check-hide-grid').onchange = (e) => { appState.settings.hideGrid = e.target.checked; localStorage.setItem('cc-hide-grid', e.target.checked); document.body.classList.toggle('hide-grid', e.target.checked); };
     document.getElementById('check-alt-as-ctrl').onchange = (e) => { appState.settings.altAsCtrl = e.target.checked; localStorage.setItem('cc-alt-as-ctrl', e.target.checked); };
-    document.getElementById('check-copy-mode').onchange = (e) => { appState.settings.copyMode = e.target.checked; localStorage.setItem('cc-copy-mode', e.target.checked); };
-    document.getElementById('check-copy-as-embed').onchange = (e) => { appState.settings.copyAsEmbed = e.target.checked; localStorage.setItem('cc-copy-as-embed', e.target.checked); };
     
     const checkHandDrawn = document.getElementById('check-hand-drawn');
     checkHandDrawn.onchange = (e) => {
@@ -273,8 +287,8 @@ export function initUI(_state, _callbacks) {
     const resetActionStack = () => { actionStack.classList.remove('is-exporting'); clearTimeout(exportResetTimer); };
     btnExportMain.onclick = (e) => { e.stopPropagation(); actionStack.classList.add('is-exporting'); exportResetTimer = setTimeout(resetActionStack, 5000); };
     document.getElementById('opt-json').onclick = (e) => { e.stopPropagation(); callbacks.exportJson(); resetActionStack(); };
-    document.getElementById('opt-png').onclick = (e) => { e.stopPropagation(); callbacks.downloadImage(); resetActionStack(); };
     document.getElementById('opt-link').onclick = (e) => { e.stopPropagation(); callbacks.createShareLink(); resetActionStack(); };
+    document.getElementById('opt-embed').onclick = (e) => { e.stopPropagation(); callbacks.createEmbedCode(); resetActionStack(); };
     window.addEventListener('click', () => { if (actionStack.classList.contains('is-exporting')) resetActionStack(); });
     document.getElementById('btn-import-main').onclick = () => { document.getElementById('file-input').click(); };
 
