@@ -35,7 +35,7 @@
     font-weight: 500;
     cursor: grab;
     z-index: 10;
-    will-change: transform;
+    /* will-change: transform; Removed to fix blur on zoom in Chrome */
     text-align: center;
     white-space: nowrap;
     line-height: 1.2;
