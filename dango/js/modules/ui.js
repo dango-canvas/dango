@@ -11,19 +11,16 @@ let callbacks; // 用于执行 main.js 中的动作，如 undo
 
 const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
 const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
-const ICON_AUTO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"></path><path d="M12 3v18a9 9 0 0 0 0-18z" fill="currentColor"></path></svg>';
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
 
 // --- 主题切换 ---
 function updateTheme(themeBtn) {
-    const isAuto = appState.theme === 'auto';
-    const isDark = isAuto ? prefersDark.matches : appState.theme === 'dark';
+    const isDark = appState.theme === 'dark';
     if (isDark) {
         document.documentElement.setAttribute('data-theme', 'dark');
     } else {
         document.documentElement.removeAttribute('data-theme');
     }
-    setSafeSVG(themeBtn, isAuto ? ICON_AUTO : (isDark ? ICON_SUN : ICON_MOON));
+    setSafeSVG(themeBtn, isDark ? ICON_SUN : ICON_MOON);
     localStorage.setItem('cc-theme', appState.theme);
 }
 
@@ -187,17 +184,13 @@ export function initUI(_state, _callbacks) {
     // 2. 主题切换
     const themeBtn = document.getElementById('btn-theme');
     appState.theme = localStorage.getItem('cc-theme') || 'light';
+    if (appState.theme === 'auto') appState.theme = 'light'; // 移除 auto
     updateTheme(themeBtn);
     themeBtn.onclick = (e) => {
-        const themes = ['light', 'dark', 'auto'];
-        const nextIndex = (themes.indexOf(appState.theme) + 1) % themes.length;
-        appState.theme = themes[nextIndex];
+        appState.theme = appState.theme === 'light' ? 'dark' : 'light';
         updateTheme(themeBtn);
         e.currentTarget.blur();
     };
-    prefersDark.addEventListener('change', () => {
-        if (appState.theme === 'auto') updateTheme(themeBtn);
-    });
 
     // 2.5 添加按钮
     const btnAdd = document.getElementById('btn-add');

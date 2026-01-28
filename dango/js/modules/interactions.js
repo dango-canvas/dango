@@ -77,6 +77,8 @@ export function initInteractions() {
         if (e.target.closest('.todo-checkbox-wrapper')) return;
         if (e.target.isContentEditable) return;
         cancelViewAnimation();
+        hasMovedDuringDrag = false; // 每次按下鼠标时重置移动状态
+
         if (e.target.closest('.node') && e.detail === 2) return;
         if (e.button === 1 || (e.button === 0 && keys.Space)) {
             mode = 'pan';
@@ -356,14 +358,25 @@ export function initInteractions() {
 
 export function handleNodeEdit(nodeEl) {
     if (!nodeEl) return;
+    const nodeId = nodeEl.dataset.id;
     if (nodeEl.isContentEditable || nodeEl.classList.contains('editing')) {
         nodeEl.focus();
         return;
     }
-    const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
+    const node = state.nodes.find(n => n.id === nodeId);
     if (node) {
-        if (mode === 'move' || hasMovedDuringDrag) return;
-        pushHistory();
+        if (mode === 'move' || hasMovedDuringDrag) {
+            console.log('[Interaction] Cancel edit due to move/drag:', { mode, hasMovedDuringDrag });
+            return;
+        }
+        
+        // 如果是新创建且尚无文字的节点，我们不需要在这里再次 pushHistory，
+        // 因为 dblclick 处理函数已经 push 过了。
+        // 如果是编辑已有文字的节点，我们需要 pushHistory。
+        if (node.text && node.text.trim()) {
+            pushHistory();
+        }
+
         const originalText = node.text ?? '';
         const isVisuallyEmpty = !originalText.replace(/\u200B/g, '').trim();
         nodeEl.innerText = isVisuallyEmpty ? '\u200B' : originalText;
