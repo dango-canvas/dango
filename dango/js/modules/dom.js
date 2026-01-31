@@ -43,8 +43,10 @@ export function setSafeSVG(el, svgString) {
         // 情况 A：目标本身就是 SVG 元素，同步内容和属性
         // 为了保留 viewBox 等大小写敏感属性，使用 image/svg+xml 解析
         let xmlString = trimmed;
-        if (!xmlString.includes('xmlns=')) {
-            xmlString = xmlString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+        if (!xmlString.toLowerCase().startsWith('<svg')) {
+            xmlString = `<svg xmlns="http://www.w3.org/2000/svg">${xmlString}</svg>`;
+        } else if (!xmlString.includes('xmlns=')) {
+            xmlString = xmlString.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
         }
         
         const parser = new DOMParser();

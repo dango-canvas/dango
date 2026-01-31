@@ -246,8 +246,8 @@ export function render() {
     document.body.classList.toggle('is-empty', appState.nodes.length === 0);
     els.world.style.transform = `translate(${appState.view.x}px, ${appState.view.y}px) scale(${appState.view.scale})`;
 
-    const linkColor = getComputedStyle(document.body).getPropertyValue('--link-color').trim();
-    const defsContent = `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 8 5 L 0 10" stroke="${linkColor}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></marker></defs>`;
+    // Use CSS variable for color to support theme switching without re-render
+    const defsContent = `<svg><defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 8 5 L 0 10" stroke="var(--link-color)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></marker></defs></svg>`;
     setSafeSVG(els.connectionsLayer, defsContent);
 
     appState.links.forEach(l => {
