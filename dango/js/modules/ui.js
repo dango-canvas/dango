@@ -76,6 +76,83 @@ function updateSeasonalLogo() {
     logoBox.innerText = emoji;
 }
 
+// --- 手动复制弹窗 (针对沙盒环境) ---
+function showManualCopyModal(url) {
+    const texts = getTexts();
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay show'; // 复用已有的 modal-overlay 样式
+    overlay.style.zIndex = '4000'; // 确保在最顶层
+    
+    const card = document.createElement('div');
+    card.className = 'about-card'; // 复用 about-card 样式
+    card.style.maxWidth = '400px';
+    card.style.padding = '24px';
+    card.style.textAlign = 'center';
+    
+    const title = document.createElement('h3');
+    title.innerText = texts.modal_copy_title;
+    title.style.marginTop = '0';
+    title.style.color = 'var(--ui-text)';
+    
+    const desc = document.createElement('p');
+    desc.innerText = texts.modal_copy_desc;
+    desc.style.fontSize = '14px';
+    desc.style.lineHeight = '1.6';
+    desc.style.color = 'var(--ui-text-dim)';
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = url;
+    input.readOnly = true;
+    input.style.width = '100%';
+    input.style.padding = '12px';
+    input.style.marginTop = '20px';
+    input.style.border = 'none';
+    input.style.borderRadius = '8px';
+    input.style.background = 'var(--ui-hover-bg)';
+    input.style.color = 'var(--ui-text)';
+    input.style.outline = 'none';
+    input.style.textAlign = 'center';
+    input.style.fontSize = '13px';
+    input.style.fontFamily = 'monospace';
+    
+    const btnClose = document.createElement('button');
+    btnClose.innerText = texts.modal_copy_btn;
+    // 模拟画板节点风格：无黑框，背景色对齐
+    btnClose.style.marginTop = '24px';
+    btnClose.style.padding = '10px 32px';
+    btnClose.style.borderRadius = '8px';
+    btnClose.style.border = 'none';
+    btnClose.style.background = 'var(--c-white-bg)';
+    btnClose.style.color = 'var(--c-white-text)';
+    btnClose.style.boxShadow = 'var(--node-shadow)';
+    btnClose.style.fontSize = '14px';
+    btnClose.style.fontWeight = '500';
+    btnClose.style.cursor = 'pointer';
+    btnClose.style.transition = 'opacity 0.2s ease';
+    btnClose.onmouseover = () => btnClose.style.opacity = '0.8';
+    btnClose.onmouseout = () => btnClose.style.opacity = '1';
+    btnClose.onclick = () => {
+        overlay.remove();
+        showToast(getTexts().toast_manual_copy_done);
+    };
+
+    card.appendChild(title);
+    card.appendChild(desc);
+    card.appendChild(input);
+    card.appendChild(btnClose);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    // 自动选中文字方便复制
+    setTimeout(() => {
+        input.focus();
+        input.select();
+    }, 100);
+
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+}
+
 // --- Toast 通知 ---
 const toastQueue = [];
 let activeToasts = 0;
@@ -191,6 +268,28 @@ export function initUI(_state, _callbacks) {
         updateTheme(themeBtn);
         e.currentTarget.blur();
     };
+
+    // 2.2 嵌入模式：处理打开完整页面的逻辑（针对 Obsidian 沙盒限制）
+    const btnOpenFull = document.getElementById('btn-open-full');
+    if (btnOpenFull) {
+        btnOpenFull.onclick = (e) => {
+            e.preventDefault();
+            const url = btnOpenFull.href;
+            
+            // 1. 第一级：尝试直接打开
+            try {
+                const newWindow = window.open(url, '_blank');
+                if (newWindow && !newWindow.closed && typeof newWindow.closed !== 'undefined') {
+                    return; // 成功打开
+                }
+            } catch (err) {
+                console.warn("window.open blocked:", err);
+            }
+
+            // 2. 第二级：降级到手动复制弹窗 (直接跳过不稳定的 clipboard API 自动复制)
+            showManualCopyModal(url);
+        };
+    }
 
     // 2.5 添加按钮
     const btnAdd = document.getElementById('btn-add');
