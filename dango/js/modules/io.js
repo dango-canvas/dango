@@ -3,6 +3,7 @@ import { state, pushHistory, packData, unpackData } from './state.js';
 import { getTexts } from './i18n.js';
 import { showToast, applySettings } from './ui.js';
 import { getTimestamp } from './utils.js';
+import { fitView } from './view.js';
 
 let renderRef = null;
 
@@ -104,7 +105,10 @@ export function loadFromUrl() {
         if (data.settings) Object.assign(state.settings, data.settings);
         renderRef();
         applySettings(state);
-        if (!state.isEmbed) {
+        if (state.isEmbed) {
+            // 嵌入模式下，加载完数据后自动缩放至合适大小
+            fitView(40, false);
+        } else {
             showToast(getTexts().toast_imported, oldSnapshot);
             window.history.replaceState(null, null, window.location.pathname);
         }

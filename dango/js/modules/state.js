@@ -4,13 +4,18 @@ import { uid } from './utils.js';
 
 export const MAX_HISTORY = 50;
 const urlParams = new URLSearchParams(window.location.search);
+const isEmbed = urlParams.has('embed');
 
 // --- App State ---
 export const state = {
     nodes: [],
     groups: [],
     links: [],
-    view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1.2 },
+    view: { 
+        x: window.innerWidth / 2, 
+        y: window.innerHeight / 2, 
+        scale: isEmbed ? 0.8 : 1.2 
+    },
     selection: new Set(),
     clipboard: [],
     theme: 'light',
@@ -19,7 +24,7 @@ export const state = {
         altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
         handDrawn: localStorage.getItem('cc-hand-drawn') === 'true',
     },
-    isEmbed: urlParams.has('embed') // ✨ 在这里添加
+    isEmbed: isEmbed
 };
 
 // --- Config ---
