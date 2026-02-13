@@ -25,7 +25,6 @@
         border-radius 0.3s;
 }
 
-#ui-layer:hover,
 #ui-layer:focus-within {
     width: 340px;
     height: auto;
@@ -33,6 +32,17 @@
     transition:
         width 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s,
         height 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s;
+}
+
+@media (hover: hover) {
+    #ui-layer:hover {
+        width: 340px;
+        height: auto;
+        border-radius: 18px;
+        transition:
+            width 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s,
+            height 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s;
+    }
 }
 
 #ui-layer.mobile-active {
@@ -72,12 +82,19 @@
     transition: opacity 0.15s ease-out 0s;
 }
 
-#ui-layer:hover #ui-header-content,
 #ui-layer:focus-within #ui-header-content,
 #ui-layer.mobile-active #ui-header-content {
     opacity: 1;
     pointer-events: auto;
     transition: opacity 0.3s ease-out 0.2s;
+}
+
+@media (hover: hover) {
+    #ui-layer:hover #ui-header-content {
+        opacity: 1;
+        pointer-events: auto;
+        transition: opacity 0.3s ease-out 0.2s;
+    }
 }
 
 #ui-layer.mobile-active #ui-header-content {
@@ -137,13 +154,21 @@
     height: 0;
 }
 
-#ui-layer:hover #ui-content,
 #ui-layer:focus-within #ui-content,
 #ui-layer.mobile-active #ui-content {
     opacity: 1;
     height: auto;
     overflow: visible;
     transition: opacity 0.3s ease-out 0.2s;
+}
+
+@media (hover: hover) {
+    #ui-layer:hover #ui-content {
+        opacity: 1;
+        height: auto;
+        overflow: visible;
+        transition: opacity 0.3s ease-out 0.2s;
+    }
 }
 
 #ui-layer.mobile-active #ui-content {

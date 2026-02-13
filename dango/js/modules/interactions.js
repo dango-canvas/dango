@@ -213,6 +213,15 @@ export function initInteractions() {
         els.uiLayer.classList.add('mobile-active');
     }, { passive: true });
 
+    document.addEventListener('touchstart', (e) => {
+        if (!els.uiLayer.contains(e.target)) {
+            els.uiLayer.classList.remove('mobile-active');
+            if (document.activeElement && els.uiLayer.contains(document.activeElement)) {
+                document.activeElement.blur();
+            }
+        }
+    }, { passive: true });
+
     els.container.addEventListener('touchstart', e => {
         els.uiLayer.classList.remove('mobile-active');
         if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
