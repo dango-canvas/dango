@@ -92,7 +92,7 @@ function renderNode(el, node) {
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
     
     // 编辑模式：优先处理
-    if (el.classList.contains('editing') || el === document.activeElement) {
+    if (el.classList.contains('editing')) {
         const isSelected = appState.selection.has(node.id);
         el.className = ['node', node.color || 'c-white', isSelected ? 'selected' : '', 'editing'].filter(Boolean).join(' ');
         // 编辑时，清除固定宽高，让它自适应文字

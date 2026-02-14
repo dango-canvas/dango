@@ -14,6 +14,47 @@ let isPrepareToClone = false;
 let targetAlreadySelectedAtStart = false;
 let targetIdAtMouseDown = null;
 let hasMovedDuringDrag = false;
+let activeEditFinish = null;
+
+function cancelTransientInteraction() {
+    mode = null;
+    dragStart = null;
+    stateBeforeDrag = null;
+    isPrepareToClone = false;
+    targetAlreadySelectedAtStart = false;
+    targetIdAtMouseDown = null;
+    hasMovedDuringDrag = false;
+    document.body.classList.remove('mode-pan');
+    if (els.selectBox) els.selectBox.style.display = 'none';
+}
+
+function forceFinishActiveEdit() {
+    if (typeof activeEditFinish === 'function') {
+        activeEditFinish();
+        return;
+    }
+    const editingNode = document.querySelector('.node.editing');
+    if (editingNode?.isContentEditable) {
+        editingNode.onblur = null;
+        editingNode.onkeydown = null;
+        editingNode.contentEditable = false;
+        editingNode.classList.remove('editing');
+        const sel = window.getSelection();
+        if (sel) sel.removeAllRanges();
+        const nodeId = editingNode.dataset.id;
+        const node = state.nodes.find(n => n.id === nodeId);
+        if (node) {
+            const newText = editingNode.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+            if (!newText.trim()) {
+                state.nodes = state.nodes.filter(n => n.id !== node.id);
+                state.selection.delete(node.id);
+            } else if (node.text !== newText) {
+                node.text = newText;
+            }
+        }
+        render();
+    }
+}
 
 export function initInteractions() {
 
@@ -71,6 +112,19 @@ export function initInteractions() {
     window.addEventListener('mousemove', (e) => {
         document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
         document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
+    });
+
+    const handleWindowDeactivate = () => {
+        forceFinishActiveEdit();
+        cancelTransientInteraction();
+        Object.keys(keys).forEach(k => { keys[k] = false; });
+        document.body.classList.remove('mode-space', 'spotlight-active');
+    };
+
+    window.addEventListener('blur', handleWindowDeactivate);
+    window.addEventListener('pagehide', handleWindowDeactivate);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') handleWindowDeactivate();
     });
 
     els.container.addEventListener('mousedown', e => {
@@ -413,9 +467,15 @@ export function handleNodeEdit(nodeEl) {
             sel.addRange(range);
         });
 
+        let finished = false;
         const finishEdit = () => {
+            if (finished) return;
+            finished = true;
+            if (activeEditFinish === finishEdit) activeEditFinish = null;
             nodeEl.contentEditable = false;
             nodeEl.classList.remove('editing');
+            nodeEl.onblur = null;
+            nodeEl.onkeydown = null;
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
             let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
@@ -429,10 +489,8 @@ export function handleNodeEdit(nodeEl) {
             }
             render();
         };
-        nodeEl.onblur = () => {
-            nodeEl.onblur = null;
-            finishEdit();
-        };
+        activeEditFinish = finishEdit;
+        nodeEl.onblur = finishEdit;
         nodeEl.onkeydown = (ev) => {
             if (ev.key === 'Enter' && !ev.shiftKey) {
                 ev.preventDefault();
