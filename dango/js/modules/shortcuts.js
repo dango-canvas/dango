@@ -92,6 +92,12 @@ export function initShortcuts(callbacks) {
             if (e.code === 'KeyC') { e.preventDefault(); copySelection(); return; }
             if (e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); render(); return; }
             if (e.code === 'KeyS') { e.preventDefault(); exportJson(); return; }
+            if (e.code === 'KeyA') {
+                e.preventDefault();
+                state.selection = new Set([...state.nodes.map(n => n.id), ...state.groups.map(g => g.id)]);
+                render();
+                return;
+            }
         }
 
         // 4. 其他操作

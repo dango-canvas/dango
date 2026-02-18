@@ -128,6 +128,12 @@ export function copySelection() {
     const selGroups = state.groups.filter(g => state.selection.has(g.id));
     if (selNodes.length > 0 || selGroups.length > 0) {
         state.clipboard = JSON.parse(JSON.stringify({ nodes: selNodes, groups: selGroups }));
+        
+        // 复制纯文本到系统剪贴板
+        const text = selNodes.map(n => n.text).join('\n');
+        if (text) {
+            navigator.clipboard.writeText(text).catch(err => console.error('Failed to copy text: ', err));
+        }
     }
 }
 

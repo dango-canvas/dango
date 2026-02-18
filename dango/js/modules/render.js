@@ -223,6 +223,7 @@ function renderNode(el, node) {
     if (isImage) classes.push('image-node');
     if (isLink) classes.push('is-link');
     if (isSelected) classes.push('selected');
+    if (node.text && node.text.includes('\n')) classes.push('has-multiline');
     el.className = classes.join(' ');
     
     // 非图片节点才自动同步 DOM 尺寸到数据

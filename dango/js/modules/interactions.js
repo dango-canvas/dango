@@ -444,6 +444,12 @@ export function handleNodeEdit(nodeEl) {
         const isVisuallyEmpty = !originalText.replace(/\u200B/g, '').trim();
         nodeEl.innerText = isVisuallyEmpty ? '\u200B' : originalText;
         nodeEl.classList.remove('is-link', 'has-multiline');
+
+        // 初始判断是否有多行
+        if (originalText.includes('\n')) {
+            nodeEl.classList.add('has-multiline');
+        }
+
         nodeEl.contentEditable = true;
         nodeEl.classList.add('editing');
         // 编辑时立刻清除固定尺寸，让其自适应 Markdown 文本
@@ -454,6 +460,16 @@ export function handleNodeEdit(nodeEl) {
         } catch {
             nodeEl.focus();
         }
+
+        // 监听输入，动态切换多行对齐样式
+        const handleInput = () => {
+            if (nodeEl.innerText.includes('\n')) {
+                nodeEl.classList.add('has-multiline');
+            } else {
+                nodeEl.classList.remove('has-multiline');
+            }
+        };
+        nodeEl.addEventListener('input', handleInput);
         
         // 将光标移至末尾
         requestAnimationFrame(() => {
@@ -476,6 +492,7 @@ export function handleNodeEdit(nodeEl) {
             nodeEl.classList.remove('editing');
             nodeEl.onblur = null;
             nodeEl.onkeydown = null;
+            nodeEl.removeEventListener('input', handleInput);
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
             let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');

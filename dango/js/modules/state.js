@@ -106,6 +106,9 @@ export function loadData() {
             state.nodes = data.nodes || [];
             state.groups = data.groups || [];
             state.links = data.links || [];
+            if (data.view) {
+                state.view = data.view;
+            }
         } catch (e) { console.error('Data load failed', e); }
     }
 }
@@ -115,7 +118,8 @@ export function saveData() {
     localStorage.setItem(LS_KEY, JSON.stringify({
         nodes: state.nodes,
         groups: state.groups,
-        links: state.links
+        links: state.links,
+        view: state.view
     }));
 }
 
