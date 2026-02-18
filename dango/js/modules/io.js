@@ -41,6 +41,14 @@ export function processDangoFile(file) {
             state.groups = data.groups || [];
             state.links = data.links || [];
             state.selection.clear();
+            
+            // 导入文件时重置视角到中心
+            state.view = { 
+                x: window.innerWidth / 2, 
+                y: window.innerHeight / 2, 
+                scale: 1.2 
+            };
+            
             renderRef();
             showToast(getTexts().toast_import_success, oldSnapshot);
         } catch (err) {
@@ -109,6 +117,12 @@ export function loadFromUrl() {
             // 嵌入模式下，加载完数据后自动缩放至合适大小
             fitView(40, false);
         } else {
+            // 从 URL 导入数据时，重置视角到中心
+            state.view = {
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+                scale: 1.2
+            };
             showToast(getTexts().toast_imported, oldSnapshot);
             window.history.replaceState(null, null, window.location.pathname);
         }
