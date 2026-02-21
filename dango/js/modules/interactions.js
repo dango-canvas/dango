@@ -463,7 +463,7 @@ export function handleNodeEdit(nodeEl) {
 
         // 监听输入，动态切换多行对齐样式
         const handleInput = () => {
-            if (nodeEl.innerText.includes('\n')) {
+            if (nodeEl.innerText.replace(/\u200B/g, '').trim() && nodeEl.innerText.includes('\n')) {
                 nodeEl.classList.add('has-multiline');
             } else {
                 nodeEl.classList.remove('has-multiline');
