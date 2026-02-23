@@ -1,6 +1,6 @@
 // modules/interactions.js
-import { state, history, pushHistory, MAX_HISTORY } from './state.js';
-import { render } from './render.js';
+import { state, history, pushHistory, MAX_HISTORY, saveData } from './state.js';
+import { render, updateViewTransform } from './render.js';
 import { uid, screenToWorld, getStandardRect, isIntersect } from './utils.js';
 import { changeZoom, cancelViewAnimation } from './view.js';
 import { keys, isModifier } from './shortcuts.js';
@@ -180,7 +180,7 @@ export function initInteractions() {
         if (mode === 'pan') {
             state.view.x = dragStart.viewX + (e.clientX - dragStart.x);
             state.view.y = dragStart.viewY + (e.clientY - dragStart.y);
-            render();
+            updateViewTransform();
         } else if (mode === 'move') {
             const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
             const dx = worldPos.x - dragStart.x;
@@ -242,12 +242,17 @@ export function initInteractions() {
             els.selectBox.style.display = 'none';
             render();
         }
+        if (mode === 'pan') {
+            saveData();
+        }
         mode = null;
         dragStart = null;
         isPrepareToClone = false;
         targetIdAtMouseDown = null;
         document.body.classList.remove('mode-pan');
     });
+
+let wheelSaveTimeout;
 
     els.container.addEventListener('wheel', e => {
         cancelViewAnimation();
@@ -258,7 +263,9 @@ export function initInteractions() {
         } else {
             state.view.x -= e.deltaX;
             state.view.y -= e.deltaY;
-            render();
+            updateViewTransform();
+            clearTimeout(wheelSaveTimeout);
+            wheelSaveTimeout = setTimeout(saveData, 500);
         }
     }, { passive: false });
 
@@ -504,6 +511,9 @@ export function handleNodeEdit(nodeEl) {
             } else if (node.text !== newText) {
                 node.text = newText;
             }
+            // 强制重新渲染：移除 lastText 标记，确保 renderNode 重新解析 Markdown 并恢复 HTML 结构
+            // 因为在编辑模式下，DOM 结构已被破坏（变成了纯文本）
+            delete nodeEl.dataset.lastText;
             render();
         };
         activeEditFinish = finishEdit;

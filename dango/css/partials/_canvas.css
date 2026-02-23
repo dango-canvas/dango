@@ -271,7 +271,7 @@ line.link {
     display: inline-flex;
     align-items: center;
     vertical-align: top;
-    line-height: 1;
+    line-height: 1.2;
     transition: all 0.2s;
 }
 .node .todo-item label {
@@ -292,6 +292,7 @@ line.link {
     height: 16px;
     border-radius: 4px;
     transition: background-color 0.2s;
+    transform: translateY(1px); /* 微调复选框位置，使其下沉以对齐文字 */
 }
 .node .todo-checkbox-wrapper:hover {
     background-color: var(--ui-hover-bg);

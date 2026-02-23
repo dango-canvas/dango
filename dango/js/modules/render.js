@@ -211,10 +211,14 @@ function renderNode(el, node) {
     } else {
         if (!isImage) {
             el.classList.remove('is-link');
-            const newHtml = parseMarkdown(node.text);
-            if (el.innerHTML !== newHtml) setSafeHTML(el, newHtml);
-            el.style.width = '';
-            el.style.height = '';
+            // 只有当文本真正发生变化时才重新解析 Markdown，避免大量正则计算
+            if (el.dataset.lastText !== node.text) {
+                const newHtml = parseMarkdown(node.text);
+                setSafeHTML(el, newHtml);
+                el.dataset.lastText = node.text;
+                el.style.width = '';
+                el.style.height = '';
+            }
         }
     }
 
@@ -240,34 +244,72 @@ function renderGroup(el, group) {
     el.className = `group ${appState.selection.has(group.id) ? 'selected' : ''}`;
 }
 
+export function updateViewTransform() {
+    if (!appState || !els.world) return;
+    els.world.style.transform = `translate(${appState.view.x}px, ${appState.view.y}px) scale(${appState.view.scale})`;
+}
+
 /**
  * 主渲染函数
  */
 export function render() {
     document.body.classList.toggle('is-empty', appState.nodes.length === 0);
-    els.world.style.transform = `translate(${appState.view.x}px, ${appState.view.y}px) scale(${appState.view.scale})`;
+    updateViewTransform();
 
-    // Use CSS variable for color to support theme switching without re-render
-    const defsContent = `<svg><defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 8 5 L 0 10" stroke="var(--link-color)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></marker></defs></svg>`;
-    setSafeSVG(els.connectionsLayer, defsContent);
+    // Ensure defs exists
+    let defs = els.connectionsLayer.querySelector('defs');
+    if (!defs) {
+        const defsContent = `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 8 5 L 0 10" stroke="var(--link-color)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></marker></defs>`;
+        els.connectionsLayer.innerHTML = defsContent;
+    }
+
+    // Sync Links
+    const existingLines = new Map();
+    Array.from(els.connectionsLayer.querySelectorAll('line.link')).forEach(line => {
+        if (line.dataset.id) existingLines.set(line.dataset.id, line);
+    });
 
     appState.links.forEach(l => {
         const n1 = appState.nodes.find(n => n.id === l.sourceId);
         const n2 = appState.nodes.find(n => n.id === l.targetId);
         if (n1 && n2 && n1.w && n1.h && n2.w && n2.h) {
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            let line = existingLines.get(l.id);
+            if (!line) {
+                line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.classList.add('link');
+                line.dataset.id = l.id;
+                els.connectionsLayer.appendChild(line);
+            }
+            
             const startPoint = getEdgeIntersection(n2, n1);
             const endPoint = getEdgeIntersection(n1, n2);
-            line.setAttribute('x1', startPoint.x);
-            line.setAttribute('y1', startPoint.y);
-            line.setAttribute('x2', endPoint.x);
-            line.setAttribute('y2', endPoint.y);
-            line.classList.add('link');
-            if (l.direction === 'target') line.setAttribute('marker-end', 'url(#arrowhead)');
-            else if (l.direction === 'source') line.setAttribute('marker-start', 'url(#arrowhead)');
-            els.connectionsLayer.appendChild(line);
+            
+            // Only update attributes if changed
+            const setAttr = (el, name, val) => {
+                if (el.getAttribute(name) != val) el.setAttribute(name, val);
+            };
+            
+            setAttr(line, 'x1', startPoint.x);
+            setAttr(line, 'y1', startPoint.y);
+            setAttr(line, 'x2', endPoint.x);
+            setAttr(line, 'y2', endPoint.y);
+            
+            if (l.direction === 'target') {
+                setAttr(line, 'marker-end', 'url(#arrowhead)');
+                line.removeAttribute('marker-start');
+            } else if (l.direction === 'source') {
+                setAttr(line, 'marker-start', 'url(#arrowhead)');
+                line.removeAttribute('marker-end');
+            } else {
+                line.removeAttribute('marker-end');
+                line.removeAttribute('marker-start');
+            }
+            
+            existingLines.delete(l.id);
         }
     });
+    
+    existingLines.forEach(line => line.remove());
 
     syncDomElements(appState.groups, els.groupsLayer, 'group', renderGroup);
     syncDomElements(appState.nodes, els.nodesLayer, 'node', renderNode);
