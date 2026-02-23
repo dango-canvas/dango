@@ -14,7 +14,7 @@ export const state = {
     view: { 
         x: window.innerWidth / 2, 
         y: window.innerHeight / 2, 
-        scale: isEmbed ? 0.8 : 1.2 
+        scale: 1.2 
     },
     selection: new Set(),
     clipboard: [],

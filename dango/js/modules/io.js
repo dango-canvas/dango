@@ -115,7 +115,7 @@ export function loadFromUrl() {
         applySettings(state);
         if (state.isEmbed) {
             // 嵌入模式下，加载完数据后自动缩放至合适大小
-            fitView(40, false);
+            fitView(10, false);
         } else {
             // 从 URL 导入数据时，重置视角到中心
             state.view = {

@@ -34,7 +34,7 @@ export function changeZoom(factor, mouseX = window.innerWidth / 2, mouseY = wind
 export function resetViewToCenter(animated = true) {
     const targetX = window.innerWidth / 2;
     const targetY = window.innerHeight / 2;
-    const targetScale = stateRef.isEmbed ? 0.8 : 1.2;
+    const targetScale = 1.2;
 
     if (animated) {
         animateView(targetX, targetY, targetScale);
@@ -82,7 +82,7 @@ export function fitView(padding = 40, animated = true) {
     // 计算适合的缩放比例
     let targetScale = Math.min(availableW / contentW, availableH / contentH);
     // 限制最大缩放比例，避免只有一两个节点时缩放太大
-    targetScale = Math.min(targetScale, stateRef.isEmbed ? 0.8 : 1.0);
+    targetScale = Math.min(targetScale, 1.0);
     // 限制最小缩放比例
     targetScale = Math.max(targetScale, 0.2);
 
