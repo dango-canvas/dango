@@ -138,7 +138,9 @@ export function copySelection() {
 }
 
 export function pasteClipboard() {
-    if (!state.clipboard || (!state.clipboard.nodes.length && !state.clipboard.groups.length)) return;
+    if (!state.clipboard || !state.clipboard.nodes || !state.clipboard.groups) return;
+    if (state.clipboard.nodes.length === 0 && state.clipboard.groups.length === 0) return;
+
     state.selection.clear();
     const mapping = {};
     state.clipboard.nodes.forEach(n => {

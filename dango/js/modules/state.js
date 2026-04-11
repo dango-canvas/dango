@@ -17,7 +17,7 @@ export const state = {
         scale: 1.2 
     },
     selection: new Set(),
-    clipboard: [],
+    clipboard: null,
     theme: 'light',
     settings: {
         hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
