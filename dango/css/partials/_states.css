@@ -6,13 +6,18 @@
     font-family: 'Architects Daughter', 'LXGW WenKai Mono TC', cursive !important;
     font-display: swap;
 }
-.hand-drawn-style .node {
+.hand-drawn-style .node,
+.hand-drawn-style .group {
     letter-spacing: 0.05em;
+    border-radius: 255px 15px 225px 15px/15px 225px 15px 255px !important;
+}
+.hand-drawn-style .node::after {
     border-radius: 255px 15px 225px 15px/15px 225px 15px 255px !important;
 }
 .hand-drawn-style button,
 .hand-drawn-style textarea {
     font-family: 'Architects Daughter', 'LXGW WenKai Mono TC', cursive !important;
+    border-radius: 255px 15px 225px 15px/15px 225px 15px 255px !important;
 }
 .hand-drawn-style .node-text {
     text-decoration-style: solid;
