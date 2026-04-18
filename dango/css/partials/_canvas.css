@@ -336,10 +336,38 @@ line.link {
     background: rgba(0, 0, 0, 0.06); /* 在彩色节点上使用中性的半透明黑作为背景 */
 }
 
+/* Header Node Styles */
+.node.node-h1 { font-size: 24px; padding: 16px 28px; }
+.node.node-h2 { font-size: 20px; padding: 14px 24px; }
+.node.node-h3 { font-size: 17px; padding: 12px 20px; }
+
 /* 确保编辑状态下恢复原状 */
 .node.editing.node-h1,
 .node.editing.node-h2,
 .node.editing.node-h3 {
     font-size: 14px;
     padding: 12px 20px;
+}
+
+/* Comment Node Styles (// prefix) */
+.node.node-comment {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 12px;
+    padding: 6px 12px;
+    color: var(--ui-text-dim); /* 默认使用较浅的文字颜色 */
+    min-width: unset;
+}
+
+/* 注释节点在选中时依然显示高亮光圈，以提示其存在 */
+.node.node-comment.selected::after {
+    opacity: 1;
+}
+
+/* 编辑时恢复背景和边框，方便输入 */
+.node.editing.node-comment {
+    background: var(--bg-color) !important;
+    border: 1px solid var(--select-color) !important;
+    font-size: 14px; /* 编辑时回到标准字号 */
 }
