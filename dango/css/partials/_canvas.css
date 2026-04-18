@@ -403,6 +403,7 @@ line.link {
     align-items: center;
     justify-content: space-between;
     padding: 0 12px;
+    border-radius: 11px 11px 0 0; /* 修复尖角：与父级圆角同步 */
 }
 
 .node.node-code .code-dots {
