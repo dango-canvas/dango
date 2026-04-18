@@ -390,10 +390,10 @@ line.link {
 }
 
 /* 针对代码块，禁用选中光圈的缩放动画，改用纯透明度渐变，增加稳重感 */
-/* .node.node-code::after {
+.node.node-code::after {
     transition: opacity 0.2s ease;
     transform: scale(1) !important;
-} */
+}
 
 .node.node-code .code-header {
     height: 28px;
