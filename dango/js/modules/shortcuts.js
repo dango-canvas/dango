@@ -1,7 +1,7 @@
 // modules/shortcuts.js
 import { state, CONFIG, pushHistory } from './state.js';
 import { 
-    createGroup, dissolveGroup, toggleLink, deleteSelection, 
+    toggleGroup, toggleLink, deleteSelection, 
     nudgeSelection, colorSelection, alignSelection, distributeSelection,
     copySelection, pasteClipboard
 } from './actions.js';
@@ -85,7 +85,7 @@ export function initShortcuts(callbacks) {
             // 基础操作
             if (e.code === 'KeyG') {
                 e.preventDefault(); pushHistory();
-                e.shiftKey ? dissolveGroup() : createGroup();
+                toggleGroup();
                 render(); return;
             }
             if (e.code === 'KeyL') { e.preventDefault(); pushHistory(); toggleLink(); render(); return; }

@@ -196,6 +196,19 @@ export function dissolveGroup() {
     }
 }
 
+export function toggleGroup() {
+    const selItems = Array.from(state.selection);
+    if (selItems.length === 0) return;
+    
+    // 如果选中的所有元素都是 group，则执行解组
+    const allGroups = selItems.every(id => state.groups.some(g => g.id === id));
+    if (allGroups) {
+        dissolveGroup();
+    } else {
+        createGroup();
+    }
+}
+
 export function toggleLink() {
     const sel = Array.from(state.selection);
     const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(n => n);
