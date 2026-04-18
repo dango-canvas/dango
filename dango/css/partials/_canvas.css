@@ -375,49 +375,69 @@ line.link {
 /* Code Card Styles (```prefix) */
 .node.node-code {
     padding: 0;
-    min-width: 140px;
-    background: rgba(15, 23, 42, 0.04); /* 轻微深色底 */
-    border: 1px solid var(--dot-color);
+    min-width: 180px;
+    background: #1e293b !important; /* 专业深色背景，无视主题 */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
     overflow: hidden;
-}
-
-[data-theme="dark"] .node.node-code {
-    background: rgba(0, 0, 0, 0.3);
+    color: #e2e8f0;
 }
 
 .node.node-code .code-header {
-    height: 24px;
-    background: rgba(0, 0, 0, 0.03);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    height: 28px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     align-items: center;
-    padding: 0 10px;
-    gap: 5px;
+    justify-content: space-between;
+    padding: 0 12px;
+}
+
+.node.node-code .code-dots {
+    display: flex;
+    gap: 6px;
 }
 
 .node.node-code .code-dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
 }
 .node.node-code .dot-r { background: #ff5f56; }
 .node.node-code .dot-y { background: #ffbd2e; }
 .node.node-code .dot-g { background: #27c93f; }
 
+.node.node-code .code-lang {
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.05em;
+}
+
 .node.node-code .code-content {
-    padding: 14px 18px;
+    padding: 16px 20px;
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     font-size: 13px;
     line-height: 1.6;
     text-align: left;
     white-space: pre;
-    color: var(--ui-text);
     tab-size: 4;
+    overflow-x: auto;
 }
+
+/* Syntax Highlighting Colors */
+.code-keyword { color: #93c5fd; font-weight: 600; }
+.code-string { color: #a7f3d0; }
+.code-comment { color: #64748b; font-style: italic; }
+.code-number { color: #fdba74; }
+.code-func { color: #d8b4fe; }
 
 .node.editing.node-code {
     background: var(--bg-color) !important;
     padding: 12px 20px;
+    color: var(--ui-text);
 }
 .node.editing.node-code .code-header,
 .node.editing.node-code .code-content {
