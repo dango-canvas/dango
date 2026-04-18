@@ -38,7 +38,7 @@ export function applyBackgroundImage(bgUrl) {
         document.documentElement.style.backgroundRepeat = 'no-repeat';
 
         // 在 body 上覆盖一层半透明的灰色遮罩，不加模糊
-        document.body.style.backgroundColor = 'rgba(127, 127, 127, 0.4)';
+        document.body.style.backgroundColor = 'rgba(127, 127, 127, 0.3)';
         document.body.style.backdropFilter = '';
         document.body.style.webkitBackdropFilter = '';
     } else {
@@ -70,7 +70,9 @@ export function applySettings(currentState) {
     }
 
     document.body.classList.toggle('hide-grid', s.settings.hideGrid);
-    applyBackgroundImage(s.settings.bgUrl);
+    
+    const finalBgUrl = s.settings.bgUrl || getTexts().bg_url;
+    applyBackgroundImage(finalBgUrl);
 }
 
 // --- 手写风格 ---
@@ -461,6 +463,7 @@ export function initUI(_state, _callbacks) {
     document.getElementById('btn-lang').onclick = (e) => {
         toggleLang();
         updateI18n();
+        applySettings();
         e.currentTarget.blur();
     };
 
