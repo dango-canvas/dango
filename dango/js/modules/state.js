@@ -23,6 +23,7 @@ export const state = {
         hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
         altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
         handDrawn: localStorage.getItem('cc-hand-drawn') === 'true',
+        bgUrl: localStorage.getItem('cc-bg-url') || '',
     },
     isEmbed: isEmbed
 };
