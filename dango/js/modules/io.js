@@ -12,7 +12,12 @@ export function initIO(render) {
 }
 
 export function exportJson() {
-    const data = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links }, null, 2);
+    const data = JSON.stringify({ 
+        nodes: state.nodes, 
+        groups: state.groups, 
+        links: state.links,
+        settings: state.settings
+    }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -34,12 +39,15 @@ export function processDangoFile(file) {
             const data = JSON.parse(ev.target.result);
             let oldSnapshot = null;
             if (state.nodes.length > 0) {
-                oldSnapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
+                oldSnapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links], settings: { ...state.settings } };
             }
             pushHistory();
             state.nodes = data.nodes || [];
             state.groups = data.groups || [];
             state.links = data.links || [];
+            if (data.settings) {
+                Object.assign(state.settings, data.settings);
+            }
             state.selection.clear();
             
             // 导入文件时重置视角到中心
@@ -50,6 +58,7 @@ export function processDangoFile(file) {
             };
             
             renderRef();
+            applySettings(state);
             showToast(getTexts().toast_import_success, oldSnapshot);
         } catch (err) {
             console.error(err);
