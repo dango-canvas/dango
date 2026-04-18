@@ -45,24 +45,27 @@ export function applySettings(currentState) {
     }
 
     document.body.classList.toggle('hide-grid', s.settings.hideGrid);
-    
-    const canvasContainer = document.getElementById('canvas-container');
     if (s.settings.bgUrl) {
-        // Set background image, ensuring it covers the container and is centered
-        canvasContainer.style.backgroundImage = `url('${s.settings.bgUrl}')`;
-        canvasContainer.style.backgroundSize = 'cover';
-        canvasContainer.style.backgroundPosition = 'center';
-        canvasContainer.style.backgroundRepeat = 'no-repeat';
-        // 移除遮罩，显示最纯净的图片效果
-        canvasContainer.style.backgroundColor = ''; 
-        canvasContainer.style.backgroundBlendMode = '';
+        // 将背景图挂载在 html 元素上（最底层）
+        document.documentElement.style.backgroundImage = `url('${s.settings.bgUrl}')`;
+        document.documentElement.style.backgroundSize = 'cover';
+        document.documentElement.style.backgroundPosition = 'center';
+        document.documentElement.style.backgroundRepeat = 'no-repeat';
+
+        // 在 body 上覆盖一层半透明的灰色遮罩，不加模糊
+        document.body.style.backgroundColor = 'rgba(127, 127, 127, 0.4)';
+        document.body.style.backdropFilter = '';
+        document.body.style.webkitBackdropFilter = '';
     } else {
-        canvasContainer.style.backgroundImage = '';
-        canvasContainer.style.backgroundSize = '';
-        canvasContainer.style.backgroundPosition = '';
-        canvasContainer.style.backgroundRepeat = '';
-        canvasContainer.style.backgroundColor = '';
-        canvasContainer.style.backgroundBlendMode = '';
+        // 恢复默认
+        document.documentElement.style.backgroundImage = '';
+        document.documentElement.style.backgroundSize = '';
+        document.documentElement.style.backgroundPosition = '';
+        document.documentElement.style.backgroundRepeat = '';
+        
+        document.body.style.backgroundColor = '';
+        document.body.style.backdropFilter = '';
+        document.body.style.webkitBackdropFilter = '';
     }
 }
 

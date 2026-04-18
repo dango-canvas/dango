@@ -151,17 +151,26 @@ export function unpackData(packed) {
     })).filter(l => l.sourceId && l.targetId);
     let settings = state.settings;
     if (pSettings) {
-        if (version >= 2) {
+        if (version >= 3) {
             settings = {
                 hideGrid: pSettings[0] === 1,
                 handDrawn: pSettings[1] === 1,
-                altAsCtrl: pSettings[2] === 1
+                altAsCtrl: pSettings[2] === 1,
+                bgUrl: pSettings[3] || ''
+            };
+        } else if (version === 2) {
+            settings = {
+                hideGrid: pSettings[0] === 1,
+                handDrawn: pSettings[1] === 1,
+                altAsCtrl: pSettings[2] === 1,
+                bgUrl: state.settings.bgUrl
             };
         } else {
             settings = {
                 hideGrid: pSettings[1] === 1,
                 handDrawn: pSettings[2] === 1,
-                altAsCtrl: state.settings.altAsCtrl
+                altAsCtrl: state.settings.altAsCtrl,
+                bgUrl: state.settings.bgUrl
             };
         }
     }
@@ -188,7 +197,8 @@ export function packData() {
     const pSettings = [
         state.settings.hideGrid ? 1 : 0,
         state.settings.handDrawn ? 1 : 0,
-        state.settings.altAsCtrl ? 1 : 0
+        state.settings.altAsCtrl ? 1 : 0,
+        state.settings.bgUrl || ''
     ];
-    return [2, pNodes, pGroups, pLinks, pSettings];
+    return [3, pNodes, pGroups, pLinks, pSettings];
 }
