@@ -32,22 +32,60 @@ function syncDomElements(dataArray, parent, className, renderFn) {
     existing.forEach((el, id) => { if (!activeIds.has(id)) el.remove(); });
 }
 
-function parseMarkdown(text) {
-    let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function highlightCode(code) {
+    const escaped = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // 使用单次扫描正则，避免对已生成的 HTML 标签进行二次替换
+    const tokens = [
+        { type: 'comment', regex: /\/\/.*/g },
+        { type: 'comment', regex: /\/\*[\s\S]*?\*\//g },
+        { type: 'string', regex: /("(?:\\.|[^"\\])*")|('(?:\\.|[^'\\])*')|(`(?:\\.|[^`\\])*`)/g },
+        { type: 'keyword', regex: /\b(const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|class|extends|import|export|from|default|try|catch|finally|throw|new|this|super|static|async|await|yield|type|interface|public|private|protected|readonly)\b/g },
+        { type: 'number', regex: /\b(\d+)\b/g }
+    ];
+
+    const combinedRegex = new RegExp(tokens.map(t => `(${t.regex.source})`).join('|'), 'g');
+
+    return escaped.replace(combinedRegex, (match, ...args) => {
+        const index = args.findIndex((val, i) => val !== undefined && i < tokens.length);
+        if (index !== -1) {
+            return `<span class="code-${tokens[index].type}">${match}</span>`;
+        }
+        return match;
+    });
+}
+
+function renderCodeBlock(el, text) {
+    const fullContent = text.substring(3, text.length - 3).trim();
+    const firstNewLine = fullContent.indexOf('\n');
     
-    // 处理前缀：代码块、标题与注释
-    if (escapedText.startsWith('```') && escapedText.endsWith('```')) {
-        const code = escapedText.substring(3, escapedText.length - 3).trim();
-        return `
-            <div class="code-header">
+    let lang = '';
+    let code = fullContent;
+    
+    if (firstNewLine !== -1) {
+        const possibleLang = fullContent.substring(0, firstNewLine).trim();
+        if (possibleLang && !possibleLang.includes(' ')) {
+            lang = possibleLang;
+            code = fullContent.substring(firstNewLine + 1).trim();
+        }
+    }
+
+    const html = `
+        <div class="code-header">
+            <div class="code-dots">
                 <span class="code-dot dot-r"></span>
                 <span class="code-dot dot-y"></span>
                 <span class="code-dot dot-g"></span>
             </div>
-            <div class="code-content">${code}</div>
-        `;
-    }
+            <div class="code-lang">${lang}</div>
+        </div>
+        <div class="code-content">${highlightCode(code)}</div>
+    `;
+    setSafeHTML(el, html);
+}
 
+function parseMarkdown(text) {
+    let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    
     let processedText = escapedText;
     if (escapedText.startsWith('### ')) processedText = escapedText.substring(4);
     else if (escapedText.startsWith('## ')) processedText = escapedText.substring(3);
@@ -241,10 +279,17 @@ function renderNode(el, node) {
     } else {
         if (!isImage) {
             el.classList.remove('is-link');
-            // 只有当文本真正发生变化时才重新解析 Markdown，避免大量正则计算
+            const trimmedText = node.text.trim();
+            const isCode = trimmedText.startsWith('```') && trimmedText.endsWith('```');
+            
+            // 只有当文本真正发生变化或渲染逻辑改变时才更新
             if (el.dataset.lastText !== node.text) {
-                const newHtml = parseMarkdown(node.text);
-                setSafeHTML(el, newHtml);
+                if (isCode) {
+                    renderCodeBlock(el, trimmedText);
+                } else {
+                    const newHtml = parseMarkdown(node.text);
+                    setSafeHTML(el, newHtml);
+                }
                 el.dataset.lastText = node.text;
                 el.style.width = '';
                 el.style.height = '';
