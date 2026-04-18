@@ -379,9 +379,21 @@ line.link {
     background: #1e293b !important; /* 专业深色背景，无视主题 */
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-    overflow: hidden;
+    overflow: hidden; /* 初始隐藏溢出以保持圆角 */
     color: #e2e8f0;
 }
+
+/* 选中或编辑时，允许溢出以显示完整边框和高亮光圈 */
+.node.node-code.selected,
+.node.node-code.editing {
+    overflow: visible;
+}
+
+/* 针对代码块，禁用选中光圈的缩放动画，改用纯透明度渐变，增加稳重感 */
+/* .node.node-code::after {
+    transition: opacity 0.2s ease;
+    transform: scale(1) !important;
+} */
 
 .node.node-code .code-header {
     height: 28px;
