@@ -35,7 +35,19 @@ function syncDomElements(dataArray, parent, className, renderFn) {
 function parseMarkdown(text) {
     let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     
-    // 处理前缀：标题与注释
+    // 处理前缀：代码块、标题与注释
+    if (escapedText.startsWith('```') && escapedText.endsWith('```')) {
+        const code = escapedText.substring(3, escapedText.length - 3).trim();
+        return `
+            <div class="code-header">
+                <span class="code-dot dot-r"></span>
+                <span class="code-dot dot-y"></span>
+                <span class="code-dot dot-g"></span>
+            </div>
+            <div class="code-content">${code}</div>
+        `;
+    }
+
     let processedText = escapedText;
     if (escapedText.startsWith('### ')) processedText = escapedText.substring(4);
     else if (escapedText.startsWith('## ')) processedText = escapedText.substring(3);
@@ -254,6 +266,9 @@ function renderNode(el, node) {
     
     // 增加注释类支持
     if (node.text.startsWith('//')) classes.push('node-comment');
+    
+    // 增加代码块类支持
+    if (node.text.startsWith('```') && node.text.endsWith('```')) classes.push('node-code');
 
     el.className = classes.join(' ');
     
