@@ -369,6 +369,11 @@ export function initUI(_state, _callbacks) {
             }
             applySettings();
         };
+        inputBgUrl.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                e.target.blur();
+            }
+        };
     }
 
     const checkHandDrawn = document.getElementById('check-hand-drawn');
