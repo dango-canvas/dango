@@ -304,3 +304,16 @@ line.link {
     accent-color: var(--select-color);
     pointer-events: none;
 }
+
+/* Header Node Styles */
+.node.node-h1 { font-size: 24px; padding: 16px 28px; }
+.node.node-h2 { font-size: 20px; padding: 14px 24px; }
+.node.node-h3 { font-size: 17px; padding: 12px 20px; }
+
+/* 确保编辑状态下恢复原状 */
+.node.editing.node-h1,
+.node.editing.node-h2,
+.node.editing.node-h3 {
+    font-size: 14px;
+    padding: 12px 20px;
+}

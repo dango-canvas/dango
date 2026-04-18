@@ -34,7 +34,14 @@ function syncDomElements(dataArray, parent, className, renderFn) {
 
 function parseMarkdown(text) {
     let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const lines = escapedText.split('\n');
+    
+    // 处理标题前缀
+    let processedText = escapedText;
+    if (escapedText.startsWith('### ')) processedText = escapedText.substring(4);
+    else if (escapedText.startsWith('## ')) processedText = escapedText.substring(3);
+    else if (escapedText.startsWith('# ')) processedText = escapedText.substring(2);
+
+    const lines = processedText.split('\n');
     const htmlLines = lines.map(line => {
         let processedLine = line.replace(
             /^\[([ xX])\] (.*)/,
@@ -228,6 +235,12 @@ function renderNode(el, node) {
     if (isLink) classes.push('is-link');
     if (isSelected) classes.push('selected');
     if (node.text && node.text.includes('\n')) classes.push('has-multiline');
+    
+    // 增加标题类支持
+    if (node.text.startsWith('### ')) classes.push('node-h3');
+    else if (node.text.startsWith('## ')) classes.push('node-h2');
+    else if (node.text.startsWith('# ')) classes.push('node-h1');
+
     el.className = classes.join(' ');
     
     // 非图片节点才自动同步 DOM 尺寸到数据
