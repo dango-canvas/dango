@@ -449,7 +449,9 @@ export function handleNodeEdit(nodeEl) {
 
         const originalText = node.text ?? '';
         const isVisuallyEmpty = !originalText.replace(/\u200B/g, '').trim();
-        nodeEl.innerText = isVisuallyEmpty ? '\u200B' : originalText;
+        // 将连续空格替换为 \u00a0 以防止在 contenteditable 中视觉塌陷
+        const safeText = originalText.replace(/ ( +)/g, match => ' ' + '\u00a0'.repeat(match.length - 1));
+        nodeEl.innerText = isVisuallyEmpty ? '\u200B' : safeText;
         nodeEl.classList.remove('is-link', 'has-multiline');
 
         // 初始判断是否有多行
