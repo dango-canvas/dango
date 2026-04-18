@@ -35,11 +35,14 @@ function syncDomElements(dataArray, parent, className, renderFn) {
 function parseMarkdown(text) {
     let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     
-    // 处理标题前缀
+    // 处理前缀：标题与注释
     let processedText = escapedText;
     if (escapedText.startsWith('### ')) processedText = escapedText.substring(4);
     else if (escapedText.startsWith('## ')) processedText = escapedText.substring(3);
     else if (escapedText.startsWith('# ')) processedText = escapedText.substring(2);
+    
+    if (escapedText.startsWith('// ')) processedText = escapedText.substring(3);
+    else if (escapedText.startsWith('//')) processedText = escapedText.substring(2);
 
     const lines = processedText.split('\n');
     const htmlLines = lines.map(line => {
@@ -248,6 +251,9 @@ function renderNode(el, node) {
     if (node.text.startsWith('### ')) classes.push('node-h3');
     else if (node.text.startsWith('## ')) classes.push('node-h2');
     else if (node.text.startsWith('# ')) classes.push('node-h1');
+    
+    // 增加注释类支持
+    if (node.text.startsWith('//')) classes.push('node-comment');
 
     el.className = classes.join(' ');
     
