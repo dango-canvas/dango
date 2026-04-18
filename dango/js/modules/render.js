@@ -58,6 +58,14 @@ function parseMarkdown(text) {
         if (!processedLine.includes('class="todo-item"')) {
             processedLine = processedLine.replace(/\*\*(.*?)\*\*|__(.*?)__/g, '<strong>$1$2</strong>');
             processedLine = processedLine.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)|_(.*?)_/g, '<em>$1$2</em>');
+            // Inline Links: [text](url)
+            processedLine = processedLine.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+                let validUrl = url.trim();
+                if (!validUrl.startsWith('http') && !validUrl.startsWith('#')) {
+                    validUrl = 'https://' + validUrl;
+                }
+                return `<a href="${validUrl}" target="_blank" class="node-inline-link" onclick="event.stopPropagation()">${text}</a>`;
+            });
         }
         return processedLine;
     });

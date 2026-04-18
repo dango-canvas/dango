@@ -305,10 +305,36 @@ line.link {
     pointer-events: none;
 }
 
-/* Header Node Styles */
-.node.node-h1 { font-size: 24px; padding: 16px 28px; }
-.node.node-h2 { font-size: 20px; padding: 14px 24px; }
-.node.node-h3 { font-size: 17px; padding: 12px 20px; }
+/* Inline Markdown Link Styles */
+.node .node-inline-link {
+    color: var(--select-color); /* 默认白色节点使用品牌色 */
+    text-decoration: underline;
+    text-decoration-color: rgba(37, 130, 146, 0.4); /* 品牌色的半透明下划线 */
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+    transition: all 0.2s;
+    cursor: pointer;
+    font-weight: inherit; /* 移除强制加粗，继承节点字重 */
+}
+
+/* 彩色节点下的特殊处理：文字颜色自适应 */
+.node:not(.c-white) .node-inline-link {
+    color: inherit; 
+    text-decoration-color: currentColor; /* 自动使用当前文字颜色的下划线 */
+    opacity: 0.9; /* 稍微降一点透明度以产生微妙区别 */
+}
+
+.node .node-inline-link:hover {
+    background: var(--ui-selection-bg);
+    border-radius: 4px;
+    padding: 0 2px;
+    margin: 0 -2px;
+    opacity: 1;
+}
+
+.node:not(.c-white) .node-inline-link:hover {
+    background: rgba(0, 0, 0, 0.06); /* 在彩色节点上使用中性的半透明黑作为背景 */
+}
 
 /* 确保编辑状态下恢复原状 */
 .node.editing.node-h1,
