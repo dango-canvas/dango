@@ -7,6 +7,7 @@ import {
 } from './actions.js';
 import { smartAlignSelection } from './animation.js';
 import { changeZoom, resetViewToCenter } from './view.js';
+import { handleDirectionalCreateStart, handleDirectionalCreateEnd, clearDirectionalGhost, handleDirectionalModifierUp } from './directional.js';
 
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
 export const keys = {};
@@ -43,6 +44,7 @@ export function initShortcuts(callbacks) {
 
         // 2. 基础快捷键 (ESC / Space / Home)
         if (e.code === 'Escape') {
+            clearDirectionalGhost();
             // 依次关闭：关于面板 -> 设置/帮助 -> 清除选中
             const about = document.getElementById('about-overlay'); // 假设 ID
             if (about?.classList.contains('show')) {
@@ -65,6 +67,23 @@ export function initShortcuts(callbacks) {
         if (e.code === 'Home') {
             e.preventDefault();
             resetViewToCenter(true);
+        }
+
+        // 方向键处理：快捷生成与微移
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+            if (isModifier(e)) {
+                if (handleDirectionalCreateStart(e.code, e)) {
+                    e.preventDefault();
+                    return; // 拦截事件，避免触发后续操作
+                }
+            } else if (!e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                // 仅限于没有任何修饰键时进行 Nudge
+                e.preventDefault();
+                pushHistory();
+                nudgeSelection(e.code);
+                render();
+                return;
+            }
         }
 
         // 3. 修饰键组合 (Ctrl/Cmd + ...)
@@ -117,14 +136,6 @@ export function initShortcuts(callbacks) {
             return;
         }
 
-        // 微移 (Nudge)
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) && !e.altKey) {
-            e.preventDefault();
-            pushHistory();
-            nudgeSelection(e.code);
-            render();
-        }
-
         // 颜色 (Alt + 1-9)
         if (e.altKey && !e.shiftKey && e.code.startsWith('Digit')) {
             const num = parseInt(e.key);
@@ -170,5 +181,12 @@ export function initShortcuts(callbacks) {
         keys[e.code] = false;
         if (e.code === 'Space') document.body.classList.remove('mode-space');
         if (e.code === 'KeyQ') document.body.classList.remove('spotlight-active');
+        
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+            handleDirectionalCreateEnd(e.code, callbacks, 'arrow');
+        }
+        if (['ControlLeft', 'ControlRight', 'MetaLeft', 'MetaRight', 'AltLeft', 'AltRight'].includes(e.code)) {
+            handleDirectionalModifierUp(callbacks);
+        }
     });
 }
