@@ -91,7 +91,11 @@ export function initShortcuts(callbacks) {
             if (e.code === 'KeyL') { e.preventDefault(); pushHistory(); toggleLink(); render(); return; }
             if (e.code === 'KeyC') { e.preventDefault(); copySelection(); return; }
             if (e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); render(); return; }
-            if (e.code === 'KeyS') { e.preventDefault(); exportJson(); return; }
+            if (e.code === 'KeyS') { 
+                if (!e.altKey) { // 如果按了 Alt，让它无视这个区块，自然向下走到对齐逻辑
+                    e.preventDefault(); exportJson(); return; 
+                }
+            }
             if (e.code === 'KeyA') {
                 e.preventDefault();
                 state.selection = new Set([...state.nodes.map(n => n.id), ...state.groups.map(g => g.id)]);
@@ -140,6 +144,7 @@ export function initShortcuts(callbacks) {
                 'ArrowRight': 'right',
                 'KeyW': 'top', 
                 'ArrowUp': 'top',
+                'KeyS': 'bottom',
                 'ArrowDown': 'bottom', 
                 'KeyH': 'centerX', 
                 'KeyJ': 'centerY' 
