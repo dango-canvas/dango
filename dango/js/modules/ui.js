@@ -29,25 +29,10 @@ function closeAbout(aboutOverlay) {
     aboutOverlay.classList.remove('show');
 }
 
-// --- 设置 ---
-export function applySettings(currentState) {
-    // 如果没有传入 currentState，就使用模块内部的 appState（用于 initUI 后的常规调用）
-    const s = currentState || appState; 
-    if (!s) return; // 如果都没有，直接返回，防止错误
-
-    document.getElementById('check-hide-grid').checked = s.settings.hideGrid;
-    document.getElementById('check-alt-as-ctrl').checked = s.settings.altAsCtrl;
-    document.getElementById('check-hand-drawn').checked = s.settings.handDrawn;
-    
-    const bgUrlInput = document.getElementById('input-bg-url');
-    if (bgUrlInput) {
-        bgUrlInput.value = s.settings.bgUrl || '';
-    }
-
-    document.body.classList.toggle('hide-grid', s.settings.hideGrid);
-    if (s.settings.bgUrl) {
+export function applyBackgroundImage(bgUrl) {
+    if (bgUrl) {
         // 将背景图挂载在 html 元素上（最底层）
-        document.documentElement.style.backgroundImage = `url('${s.settings.bgUrl}')`;
+        document.documentElement.style.backgroundImage = `url('${bgUrl}')`;
         document.documentElement.style.backgroundSize = 'cover';
         document.documentElement.style.backgroundPosition = 'center';
         document.documentElement.style.backgroundRepeat = 'no-repeat';
@@ -67,6 +52,25 @@ export function applySettings(currentState) {
         document.body.style.backdropFilter = '';
         document.body.style.webkitBackdropFilter = '';
     }
+}
+
+// --- 设置 ---
+export function applySettings(currentState) {
+    // 如果没有传入 currentState，就使用模块内部的 appState（用于 initUI 后的常规调用）
+    const s = currentState || appState; 
+    if (!s) return; // 如果都没有，直接返回，防止错误
+
+    document.getElementById('check-hide-grid').checked = s.settings.hideGrid;
+    document.getElementById('check-alt-as-ctrl').checked = s.settings.altAsCtrl;
+    document.getElementById('check-hand-drawn').checked = s.settings.handDrawn;
+    
+    const bgUrlInput = document.getElementById('input-bg-url');
+    if (bgUrlInput) {
+        bgUrlInput.value = s.settings.bgUrl || '';
+    }
+
+    document.body.classList.toggle('hide-grid', s.settings.hideGrid);
+    applyBackgroundImage(s.settings.bgUrl);
 }
 
 // --- 手写风格 ---
