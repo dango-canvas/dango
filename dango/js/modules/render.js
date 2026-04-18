@@ -328,6 +328,28 @@ function renderNode(el, node) {
 }
 
 function renderGroup(el, group) {
+    if (group.memberIds && group.memberIds.length > 0) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let hasVisibleMembers = false;
+        group.memberIds.forEach(mid => {
+            const m = appState.nodes.find(n => n.id === mid);
+            if (m) {
+                hasVisibleMembers = true;
+                minX = Math.min(minX, m.x);
+                minY = Math.min(minY, m.y);
+                maxX = Math.max(maxX, m.x + (m.w || 0));
+                maxY = Math.max(maxY, m.y + (m.h || 0));
+            }
+        });
+        if (hasVisibleMembers) {
+            const padding = 20;
+            group.x = minX - padding;
+            group.y = minY - padding;
+            group.w = maxX - minX + padding * 2;
+            group.h = maxY - minY + padding * 2;
+        }
+    }
+
     el.style.transform = `translate(${group.x}px, ${group.y}px)`;
     el.style.width = `${group.w}px`;
     el.style.height = `${group.h}px`;
