@@ -86,6 +86,9 @@ function renderCodeBlock(el, text) {
 function parseMarkdown(text) {
     let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     
+    // 保留连续空格，防止 HTML 默认塌陷
+    escapedText = escapedText.replace(/ {2}/g, ' &nbsp;');
+
     let processedText = escapedText;
     if (escapedText.startsWith('### ')) processedText = escapedText.substring(4);
     else if (escapedText.startsWith('## ')) processedText = escapedText.substring(3);
