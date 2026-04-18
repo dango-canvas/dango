@@ -38,7 +38,32 @@ export function applySettings(currentState) {
     document.getElementById('check-hide-grid').checked = s.settings.hideGrid;
     document.getElementById('check-alt-as-ctrl').checked = s.settings.altAsCtrl;
     document.getElementById('check-hand-drawn').checked = s.settings.handDrawn;
+    
+    const bgUrlInput = document.getElementById('input-bg-url');
+    if (bgUrlInput) {
+        bgUrlInput.value = s.settings.bgUrl || '';
+    }
+
     document.body.classList.toggle('hide-grid', s.settings.hideGrid);
+    
+    const canvasContainer = document.getElementById('canvas-container');
+    if (s.settings.bgUrl) {
+        // Set background image, ensuring it covers the container and is centered
+        canvasContainer.style.backgroundImage = `url('${s.settings.bgUrl}')`;
+        canvasContainer.style.backgroundSize = 'cover';
+        canvasContainer.style.backgroundPosition = 'center';
+        canvasContainer.style.backgroundRepeat = 'no-repeat';
+        // 移除遮罩，显示最纯净的图片效果
+        canvasContainer.style.backgroundColor = ''; 
+        canvasContainer.style.backgroundBlendMode = '';
+    } else {
+        canvasContainer.style.backgroundImage = '';
+        canvasContainer.style.backgroundSize = '';
+        canvasContainer.style.backgroundPosition = '';
+        canvasContainer.style.backgroundRepeat = '';
+        canvasContainer.style.backgroundColor = '';
+        canvasContainer.style.backgroundBlendMode = '';
+    }
 }
 
 // --- 手写风格 ---
@@ -323,6 +348,20 @@ export function initUI(_state, _callbacks) {
     document.getElementById('check-hide-grid').onchange = (e) => { appState.settings.hideGrid = e.target.checked; localStorage.setItem('cc-hide-grid', e.target.checked); document.body.classList.toggle('hide-grid', e.target.checked); };
     document.getElementById('check-alt-as-ctrl').onchange = (e) => { appState.settings.altAsCtrl = e.target.checked; localStorage.setItem('cc-alt-as-ctrl', e.target.checked); };
     
+    const inputBgUrl = document.getElementById('input-bg-url');
+    if (inputBgUrl) {
+        inputBgUrl.onchange = (e) => {
+            const url = e.target.value.trim();
+            appState.settings.bgUrl = url;
+            if (url) {
+                localStorage.setItem('cc-bg-url', url);
+            } else {
+                localStorage.removeItem('cc-bg-url');
+            }
+            applySettings();
+        };
+    }
+
     const checkHandDrawn = document.getElementById('check-hand-drawn');
     checkHandDrawn.onchange = (e) => {
         appState.settings.handDrawn = e.target.checked;
