@@ -184,19 +184,16 @@ function renderNode(el, node) {
             img = document.createElement('img');
             img.className = 'node-image';
             el.appendChild(img);
-            
-            // 首次转为图片节点时，强制设为 100 宽
-            node.w = IMAGE_SIZE_WIDTHS.s;
-            el.style.width = `${node.w}px`;
         }
         if (img.getAttribute('src') !== imageData.url) img.setAttribute('src', imageData.url);
         if (img.getAttribute('alt') !== imageData.alt) img.setAttribute('alt', imageData.alt);
 
         // 如果 w 太小（可能是从之前的文本节点继承来的），设为默认 S (100px)
+        // 如果是从本地存储恢复的正常尺寸，则直接保留
         if (!node.w || node.w < 100) {
             node.w = IMAGE_SIZE_WIDTHS.s;
-            el.style.width = `${node.w}px`;
         }
+        el.style.width = `${node.w}px`;
 
         const updateH = () => {
             if (img.naturalWidth) {
