@@ -112,6 +112,10 @@ export function initInteractions() {
     window.addEventListener('mousemove', (e) => {
         document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
         document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
+
+        const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
+        state.mouse.x = worldPos.x;
+        state.mouse.y = worldPos.y;
     });
 
     const handleWindowDeactivate = () => {

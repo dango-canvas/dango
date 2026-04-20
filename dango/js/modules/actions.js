@@ -143,16 +143,37 @@ export function pasteClipboard() {
 
     state.selection.clear();
     const mapping = {};
+
+    // 计算剪贴板内容的包围盒中心
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    state.clipboard.nodes.forEach(n => {
+        minX = Math.min(minX, n.x);
+        minY = Math.min(minY, n.y);
+        maxX = Math.max(maxX, n.x + (n.w || 0));
+        maxY = Math.max(maxY, n.y + (n.h || 0));
+    });
+    state.clipboard.groups.forEach(g => {
+        minX = Math.min(minX, g.x);
+        minY = Math.min(minY, g.y);
+        maxX = Math.max(maxX, g.x + (g.w || 0));
+        maxY = Math.max(maxY, g.y + (g.h || 0));
+    });
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const dx = state.mouse.x - centerX;
+    const dy = state.mouse.y - centerY;
+
     state.clipboard.nodes.forEach(n => {
         const newId = uid();
         mapping[n.id] = newId;
-        const newNode = { ...n, id: newId, x: n.x + 20, y: n.y + 20 };
+        const newNode = { ...n, id: newId, x: n.x + dx, y: n.y + dy };
         state.nodes.push(newNode);
         state.selection.add(newId);
     });
     state.clipboard.groups.forEach(g => {
         const newId = uid();
-        const newGroup = { ...g, id: newId, x: g.x + 20, y: g.y + 20 };
+        const newGroup = { ...g, id: newId, x: g.x + dx, y: g.y + dy };
         newGroup.memberIds = g.memberIds.map(mid => mapping[mid] || mid);
         state.groups.push(newGroup);
         state.selection.add(newId);
