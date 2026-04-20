@@ -110,6 +110,35 @@ function updateSeasonalLogo() {
     logoBox.innerText = emoji;
 }
 
+function initEasterEggs() {
+    let logoClickCount = 0;
+    let logoClickTimer = null;
+    const logoBox = document.getElementById('ui-logo-box');
+    if (logoBox) {
+        logoBox.style.cursor = 'pointer';
+        logoBox.onclick = () => {
+            logoClickCount++;
+            clearTimeout(logoClickTimer);
+            if (logoClickCount >= 5) {
+                logoClickCount = 0;
+                showToast("🍡 团子全家桶！" + (appState.theme === 'dark' ? "🌙" : "☀️"));
+                logoBox.style.transform = 'scale(1.5) rotate(360deg)';
+                setTimeout(() => { logoBox.style.transform = ''; }, 500);
+            }
+            logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 1000);
+        };
+    }
+
+    const starBtns = document.querySelectorAll('.btn-star');
+    starBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            setTimeout(() => {
+                showToast("感谢你的 Star！🍡✨");
+            }, 500);
+        });
+    });
+}
+
 // --- 手动复制弹窗 (针对沙盒环境) ---
 function showManualCopyModal(url) {
     const texts = getTexts();
@@ -406,8 +435,9 @@ export function initUI(_state, _callbacks) {
         }
     });
 
-    // 6. 节日 Logo
+    // 6. 节日 Logo & 彩蛋
     updateSeasonalLogo();
+    initEasterEggs();
 
     // 7. 清空按钮
     let clearConfirm = false;
