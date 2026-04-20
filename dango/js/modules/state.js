@@ -17,6 +17,7 @@ export const state = {
         scale: 1.2 
     },
     selection: new Set(),
+    mouse: { x: 0, y: 0 },
     clipboard: null,
     theme: 'light',
     settings: {
