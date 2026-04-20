@@ -305,3 +305,56 @@ button.btn-danger:hover {
     opacity: 1;
     pointer-events: auto;
 }
+
+/* --- Bottom Right UI --- */
+#ui-bottom-right {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: row; /* 改为水平排列 */
+    gap: 12px;
+    z-index: 1000;
+}
+
+.bottom-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid var(--ui-border);
+    background: var(--ui-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--ui-text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--ui-shadow);
+    padding: 0;
+    box-sizing: border-box;
+    text-decoration: none;
+}
+
+.bottom-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.bottom-btn:hover {
+    background: var(--ui-hover-bg);
+    color: var(--ui-text);
+    /* transform: translateY(-2px); */
+}
+
+.bottom-btn:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 600px) {
+#ui-bottom-right {
+    bottom: 16px;
+    right: 16px;
+}
+}
