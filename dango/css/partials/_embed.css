@@ -5,6 +5,10 @@ body[data-mode="embed"] #ui-layer {
     display: none !important;
 }
 
+body[data-mode="embed"] #btn-safety {
+    display: none !important;
+}
+
 #embed-footer {
     position: fixed !important;
     bottom: 20px !important;
