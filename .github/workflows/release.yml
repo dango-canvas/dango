@@ -90,13 +90,13 @@ jobs:
           REPO_LC=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
           IMAGE="ghcr.io/${REPO_LC}:${TAG}"
 
-          BODY=$(gh release view "$TAG" --repo "$REPO" --json body --jq '.body')
-          if printf '%s' "$BODY" | grep -q "## Release Assets"; then
+          gh release view "$TAG" --repo "$REPO" --json body --jq '.body' > /tmp/release-body.md
+          if grep -q "## Release Assets" /tmp/release-body.md; then
             exit 0
           fi
 
-          cat > /tmp/release-assets-note.md <<EOF
-${BODY}
+          cp /tmp/release-body.md /tmp/release-assets-note.md
+          cat >> /tmp/release-assets-note.md <<EOF
 
 ---
 
