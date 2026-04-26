@@ -13,16 +13,41 @@ const DIRECTIONS = {
 
 const DISTANCE = 80;
 
-// 给定源节点和方向，返回一个尺寸为 sw×sh 的被锚节点应放置的左上角坐标：
-// 沿方向贴源节点对应边、距离 DISTANCE，在垂直方向上与源节点居中对齐。
-// 幽灵和真节点都强制为 sw×sh，所以中线与源节点重合——连线水平，不下沉。
-function computePosition(sourceNode, dir) {
+const DEFAULT_NODE_BOX_FALLBACK = { w: 102, h: 44 };
+
+function getDefaultNodeBoxSize() {
+    const nodesLayer = document.getElementById('nodes-layer');
+    if (!nodesLayer) return { ...DEFAULT_NODE_BOX_FALLBACK };
+
+    const probeEl = document.createElement('div');
+    probeEl.className = 'node editing';
+    probeEl.textContent = '\u200B';
+    probeEl.style.visibility = 'hidden';
+    probeEl.style.pointerEvents = 'none';
+    probeEl.style.left = '0';
+    probeEl.style.top = '0';
+    nodesLayer.appendChild(probeEl);
+
+    const size = {
+        w: probeEl.offsetWidth || DEFAULT_NODE_BOX_FALLBACK.w,
+        h: probeEl.offsetHeight || DEFAULT_NODE_BOX_FALLBACK.h,
+    };
+
+    probeEl.remove();
+    return size;
+}
+
+// 给定源节点、目标节点尺寸和方向，返回目标节点应放置的左上角坐标：
+// 沿方向贴源节点对应边、距离 DISTANCE，并在垂直方向上居中对齐。
+function computePosition(sourceNode, targetBox, dir) {
     const sw = sourceNode.w;
     const sh = sourceNode.h;
-    if (dir.dx === 1)  return { x: sourceNode.x + sw + DISTANCE, y: sourceNode.y };
-    if (dir.dx === -1) return { x: sourceNode.x - sw - DISTANCE, y: sourceNode.y };
-    if (dir.dy === 1)  return { x: sourceNode.x,                 y: sourceNode.y + sh + DISTANCE };
-    if (dir.dy === -1) return { x: sourceNode.x,                 y: sourceNode.y - sh - DISTANCE };
+    const tw = targetBox.w;
+    const th = targetBox.h;
+    if (dir.dx === 1)  return { x: sourceNode.x + sw + DISTANCE, y: sourceNode.y + (sh - th) / 2 };
+    if (dir.dx === -1) return { x: sourceNode.x - tw - DISTANCE, y: sourceNode.y + (sh - th) / 2 };
+    if (dir.dy === 1)  return { x: sourceNode.x + (sw - tw) / 2, y: sourceNode.y + sh + DISTANCE };
+    if (dir.dy === -1) return { x: sourceNode.x + (sw - tw) / 2, y: sourceNode.y - th - DISTANCE };
     return { x: sourceNode.x, y: sourceNode.y };
 }
 
@@ -36,6 +61,41 @@ function forceMinBoxSize(el, targetW, targetH) {
     const vb = parseFloat(cs.borderTopWidth)  + parseFloat(cs.borderBottomWidth);
     el.style.minWidth  = `${Math.max(0, targetW - hp - hb)}px`;
     el.style.minHeight = `${Math.max(0, targetH - vp - vb)}px`;
+}
+
+function setDirectionalAnchorMeta(node, sourceId, dir) {
+    Object.defineProperty(node, '_directionalSourceId', {
+        value: sourceId,
+        writable: true,
+        configurable: true,
+    });
+    Object.defineProperty(node, '_directionalDir', {
+        value: { ...dir },
+        writable: true,
+        configurable: true,
+    });
+}
+
+function clearDirectionalAnchorMeta(node) {
+    delete node._directionalSourceId;
+    delete node._directionalDir;
+}
+
+export function realignDirectionalNodeAfterEdit(node) {
+    if (!node?._directionalSourceId || !node?._directionalDir) return false;
+
+    const sourceNode = state.nodes.find(n => n.id === node._directionalSourceId);
+    if (!sourceNode || !node.w || !node.h) {
+        clearDirectionalAnchorMeta(node);
+        return false;
+    }
+
+    const pos = computePosition(sourceNode, node, node._directionalDir);
+    const moved = node.x !== pos.x || node.y !== pos.y;
+    node.x = pos.x;
+    node.y = pos.y;
+    clearDirectionalAnchorMeta(node);
+    return moved;
 }
 
 export function handleDirectionalCreateStart(key) {
@@ -53,9 +113,10 @@ export function handleDirectionalCreateStart(key) {
     const sourceNode = state.nodes.find(n => n.id === sourceId);
     if (!sourceNode) return false;
 
-    const { x, y } = computePosition(sourceNode, dir);
-    const gw = sourceNode.w;
-    const gh = sourceNode.h;
+    const targetBox = getDefaultNodeBoxSize();
+    const { x, y } = computePosition(sourceNode, targetBox, dir);
+    const gw = targetBox.w;
+    const gh = targetBox.h;
 
     const ghostNodeEl = document.createElement('div');
     ghostNodeEl.className = 'node';
@@ -94,6 +155,7 @@ export function handleDirectionalCreateStart(key) {
         key,
         dir,
         sourceNode,
+        targetBox,
         nodeEl: ghostNodeEl,
         linkEl: ghostLinkEl,
         isModifierDown: true,
@@ -112,12 +174,12 @@ export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
     // 修饰键和方向键全部松开后才提交真实节点
     if (ghostState.isArrowDown || ghostState.isModifierDown) return false;
 
-    const { sourceNode, dir } = ghostState;
+    const { sourceNode, dir, targetBox } = ghostState;
     clearGhost();
 
     pushHistory();
 
-    const pos = computePosition(sourceNode, dir);
+    const pos = computePosition(sourceNode, targetBox, dir);
     const newId = uid();
     const newNode = {
         id: newId,
@@ -126,6 +188,7 @@ export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
         y: pos.y,
         color: sourceNode.color,
     };
+    setDirectionalAnchorMeta(newNode, sourceNode.id, dir);
     state.nodes.push(newNode);
     state.links.push({
         id: uid(),
@@ -137,13 +200,13 @@ export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
     state.selection.add(newId);
 
     // 第一次 render 把 DOM 元素挂上去，sync 块按自然尺寸填上 w/h。
-    // 随后 forceMinBoxSize 把空节点撑到源节点尺寸，并把 newNode.w/h 同步
+    // 随后 forceMinBoxSize 把空节点撑到普通空节点尺寸，并把 newNode.w/h 同步
     // 到"撑起来后"的 offsetWidth/Height——否则第二次 render 里连线几何会
     // 沿用自然尺寸，端点落进节点内部、箭头被本体盖住看不见。
     callbacks.render();
     const nodeEl = document.querySelector(`.node[data-id="${newId}"]`);
     if (nodeEl) {
-        forceMinBoxSize(nodeEl, sourceNode.w, sourceNode.h);
+        forceMinBoxSize(nodeEl, targetBox.w, targetBox.h);
         newNode.w = nodeEl.offsetWidth;
         newNode.h = nodeEl.offsetHeight;
     }

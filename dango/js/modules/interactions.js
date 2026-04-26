@@ -6,6 +6,7 @@ import { changeZoom, cancelViewAnimation, fitView, animateView } from './view.js
 import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
 import { els } from './dom.js';
+import { realignDirectionalNodeAfterEdit } from './directional.js';
 
 let dragStart = null;
 let mode = null;
@@ -549,6 +550,8 @@ export function handleNodeEdit(nodeEl) {
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
             let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+            const prevW = node.w;
+            const prevH = node.h;
             
             // 如果新节点没有输入文字，失去焦点后让它消失
             if (!newText.trim()) {
@@ -561,6 +564,14 @@ export function handleNodeEdit(nodeEl) {
             // 因为在编辑模式下，DOM 结构已被破坏（变成了纯文本）
             delete nodeEl.dataset.lastText;
             render();
+
+            if (newText.trim()) {
+                const sizeChanged = node.w !== prevW || node.h !== prevH;
+                const didRealign = realignDirectionalNodeAfterEdit(node);
+                if (sizeChanged || didRealign) {
+                    render();
+                }
+            }
         };
         activeEditFinish = finishEdit;
         nodeEl.onblur = finishEdit;
