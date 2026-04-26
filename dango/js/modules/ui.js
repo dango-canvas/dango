@@ -8,6 +8,8 @@ import { els, setSafeSVG } from './dom.js';
 // --- 模块内部变量 ---
 let appState; // 用于访问 state.settings 等
 let callbacks; // 用于执行 main.js 中的动作，如 undo
+let currentHelpPage = 0;
+let lastHelpWheelAt = 0;
 
 const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
 const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
@@ -30,6 +32,40 @@ function updateTheme(themeBtn) {
 // --- 关于弹窗 ---
 function closeAbout(aboutOverlay) {
     aboutOverlay.classList.remove('show');
+}
+
+function getHelpPages() {
+    return els.helpModal ? Array.from(els.helpModal.querySelectorAll('.help-page')) : [];
+}
+
+function getHelpPageDots() {
+    return els.helpModal ? Array.from(els.helpModal.querySelectorAll('.help-page-dot')) : [];
+}
+
+function syncHelpPageHeight() {
+    if (!els.helpModal) return;
+    const pagesContainer = els.helpModal.querySelector('.help-pages');
+    const pages = getHelpPages();
+    if (!pagesContainer || pages.length === 0) return;
+
+    const maxHeight = pages.reduce((height, page) => Math.max(height, page.scrollHeight), 0);
+    if (maxHeight > 0) {
+        pagesContainer.style.height = `${maxHeight}px`;
+    }
+}
+
+function setHelpPage(pageIndex) {
+    if (!els.helpModal) return;
+    const pages = getHelpPages();
+    const dots = getHelpPageDots();
+    const clampedIndex = Math.max(0, Math.min(pageIndex, pages.length - 1));
+    currentHelpPage = clampedIndex;
+    pages.forEach((page, index) => page.classList.toggle('active', index === clampedIndex));
+    dots.forEach((dot, index) => dot.classList.toggle('active', index === clampedIndex));
+}
+
+function resetHelpPage() {
+    setHelpPage(0);
 }
 
 export function applyBackgroundImage(bgUrl) {
@@ -298,12 +334,28 @@ export function initUI(_state, _callbacks) {
 
     // 1. 关于弹窗
     const aboutOverlay = document.getElementById('about-overlay');
+    const btnSettings = document.getElementById('btn-settings');
+    const modalSettings = document.getElementById('settings-modal');
     const btnTriggerAbout = document.getElementById('trigger-about');
     const btnCloseAbout = document.getElementById('btn-close-about');
-    btnTriggerAbout.onclick = (e) => {
-        e.stopPropagation();
+    const syncFloatingPanelState = () => {
+        const isAnyOpen = els.helpModal.classList.contains('show') || modalSettings.classList.contains('show');
+        if (els.uiLayer) {
+            els.uiLayer.classList.toggle('mobile-active', isAnyOpen);
+        }
+    };
+    const closeFloatingPanels = () => {
         els.helpModal.classList.remove('show');
         els.btnHelp.classList.remove('active');
+        modalSettings.classList.remove('show');
+        btnSettings.classList.remove('active');
+        els.btnHelp.blur();
+        btnSettings.blur();
+        syncFloatingPanelState();
+    };
+    btnTriggerAbout.onclick = (e) => {
+        e.stopPropagation();
+        closeFloatingPanels();
         btnTriggerAbout.blur();
         aboutOverlay.classList.add('show');
     };
@@ -313,17 +365,12 @@ export function initUI(_state, _callbacks) {
     // ✨ 新增 ESC 关闭弹窗逻辑 ✨
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Escape') {
-            const modalSettings = document.getElementById('settings-modal');
-            const btnSettings = document.getElementById('btn-settings');
             if (aboutOverlay.classList.contains('show')) {
                 closeAbout(aboutOverlay);
                 // 阻止事件冒泡，避免 main.js 里的 ESC 监听器也触发（清空选择）
                 e.stopPropagation(); 
             } else if (els.helpModal.classList.contains('show') || modalSettings.classList.contains('show')) {
-                els.helpModal.classList.remove('show');
-                els.btnHelp.classList.remove('active');
-                modalSettings.classList.remove('show');
-                btnSettings.classList.remove('active');
+                closeFloatingPanels();
                 e.stopPropagation();
             }
         }
@@ -379,8 +426,6 @@ export function initUI(_state, _callbacks) {
     }
 
     // 3. 设置面板
-    const btnSettings = document.getElementById('btn-settings');
-    const modalSettings = document.getElementById('settings-modal');
     btnSettings.onclick = (e) => {
         e.stopPropagation();
         const isShowing = modalSettings.classList.toggle('show');
@@ -389,7 +434,41 @@ export function initUI(_state, _callbacks) {
             els.helpModal.classList.remove('show');
             els.btnHelp.classList.remove('active');
         }
+        syncFloatingPanelState();
     };
+    const helpPageDots = getHelpPageDots();
+    helpPageDots.forEach(dot => {
+        dot.onclick = (e) => {
+            e.stopPropagation();
+            const pageIndex = Number(dot.dataset.helpPageTarget || '0');
+            setHelpPage(pageIndex);
+        };
+    });
+    if (els.helpModal) {
+        els.helpModal.addEventListener('wheel', (e) => {
+            if (!els.helpModal.classList.contains('show')) return;
+            const now = Date.now();
+            if (now - lastHelpWheelAt < 180) {
+                e.preventDefault();
+                return;
+            }
+            if (Math.abs(e.deltaY) < 4) return;
+
+            const pages = getHelpPages();
+            if (pages.length <= 1) return;
+
+            const nextPage = currentHelpPage + (e.deltaY > 0 ? 1 : -1);
+            const clampedPage = Math.max(0, Math.min(nextPage, pages.length - 1));
+            if (clampedPage === currentHelpPage) {
+                e.preventDefault();
+                return;
+            }
+
+            e.preventDefault();
+            lastHelpWheelAt = now;
+            setHelpPage(clampedPage);
+        }, { passive: false });
+    }
     document.getElementById('check-hide-grid').onchange = (e) => { appState.settings.hideGrid = e.target.checked; localStorage.setItem('cc-hide-grid', e.target.checked); document.body.classList.toggle('hide-grid', e.target.checked); };
     document.getElementById('check-alt-as-ctrl').onchange = (e) => { appState.settings.altAsCtrl = e.target.checked; localStorage.setItem('cc-alt-as-ctrl', e.target.checked); };
     
@@ -425,9 +504,12 @@ export function initUI(_state, _callbacks) {
         const isShowing = els.helpModal.classList.toggle('show');
         els.btnHelp.classList.toggle('active', isShowing);
         if (isShowing) {
+            resetHelpPage();
+            syncHelpPageHeight();
             modalSettings.classList.remove('show');
             btnSettings.classList.remove('active');
         }
+        syncFloatingPanelState();
     };
 
     // 5. 点击外部关闭弹窗
@@ -435,11 +517,14 @@ export function initUI(_state, _callbacks) {
         if (!btnSettings.contains(e.target) && !modalSettings.contains(e.target)) {
             modalSettings.classList.remove('show');
             btnSettings.classList.remove('active');
+            btnSettings.blur();
         }
         if (!els.btnHelp.contains(e.target) && !els.helpModal.contains(e.target)) {
             els.helpModal.classList.remove('show');
             els.btnHelp.classList.remove('active');
+            els.btnHelp.blur();
         }
+        syncFloatingPanelState();
     });
 
     // 6. 节日 Logo & 彩蛋
@@ -505,6 +590,7 @@ export function initUI(_state, _callbacks) {
     document.getElementById('btn-lang').onclick = (e) => {
         toggleLang();
         updateI18n();
+        syncHelpPageHeight();
         applySettings();
         e.currentTarget.blur();
     };

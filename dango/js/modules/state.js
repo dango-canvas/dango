@@ -1,9 +1,7 @@
 // modules/state.js
 
 import { uid } from './utils.js';
-
-const LINK_STROKE_STYLE_TO_CODE = { solid: 0, dashed: 1, wavy: 2 };
-const LINK_STROKE_STYLE_FROM_CODE = ['solid', 'dashed', 'wavy'];
+import { packLinkStrokeStyle, unpackLinkStrokeStyle } from './links.js';
 
 export const MAX_HISTORY = 50;
 const urlParams = new URLSearchParams(window.location.search);
@@ -153,7 +151,7 @@ export function unpackData(packed) {
         sourceId: shortToLongId[l[0]], 
         targetId: shortToLongId[l[1]],
         direction: l[2] === 1 ? 'target' : (l[2] === 2 ? 'source' : 'none'),
-        strokeStyle: version >= 4 ? (LINK_STROKE_STYLE_FROM_CODE[l[3]] || 'solid') : 'solid'
+        strokeStyle: version >= 4 ? unpackLinkStrokeStyle(l[3]) : 'solid'
     })).filter(l => l.sourceId && l.targetId);
     let settings = state.settings;
     if (pSettings) {
@@ -198,7 +196,7 @@ export function packData() {
     ]);
     const pLinks = state.links.map(l => {
         const d = l.direction === 'target' ? 1 : (l.direction === 'source' ? 2 : 0);
-        const s = LINK_STROKE_STYLE_TO_CODE[l.strokeStyle || 'solid'] ?? 0;
+        const s = packLinkStrokeStyle(l.strokeStyle);
         return [idMap[l.sourceId], idMap[l.targetId], d, s];
     });
     const pSettings = [
