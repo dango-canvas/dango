@@ -2,6 +2,9 @@
 
 import { uid } from './utils.js';
 
+const LINK_STROKE_STYLE_TO_CODE = { solid: 0, dashed: 1, wavy: 2 };
+const LINK_STROKE_STYLE_FROM_CODE = ['solid', 'dashed', 'wavy'];
+
 export const MAX_HISTORY = 50;
 const urlParams = new URLSearchParams(window.location.search);
 const isEmbed = urlParams.has('embed');
@@ -149,7 +152,8 @@ export function unpackData(packed) {
         id: uid(), 
         sourceId: shortToLongId[l[0]], 
         targetId: shortToLongId[l[1]],
-        direction: l[2] === 1 ? 'target' : (l[2] === 2 ? 'source' : 'none')
+        direction: l[2] === 1 ? 'target' : (l[2] === 2 ? 'source' : 'none'),
+        strokeStyle: version >= 4 ? (LINK_STROKE_STYLE_FROM_CODE[l[3]] || 'solid') : 'solid'
     })).filter(l => l.sourceId && l.targetId);
     let settings = state.settings;
     if (pSettings) {
@@ -194,7 +198,8 @@ export function packData() {
     ]);
     const pLinks = state.links.map(l => {
         const d = l.direction === 'target' ? 1 : (l.direction === 'source' ? 2 : 0);
-        return [idMap[l.sourceId], idMap[l.targetId], d];
+        const s = LINK_STROKE_STYLE_TO_CODE[l.strokeStyle || 'solid'] ?? 0;
+        return [idMap[l.sourceId], idMap[l.targetId], d, s];
     });
     const pSettings = [
         state.settings.hideGrid ? 1 : 0,
@@ -202,5 +207,5 @@ export function packData() {
         state.settings.altAsCtrl ? 1 : 0,
         state.settings.bgUrl || ''
     ];
-    return [3, pNodes, pGroups, pLinks, pSettings];
+    return [4, pNodes, pGroups, pLinks, pSettings];
 }

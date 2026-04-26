@@ -235,6 +235,7 @@ export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
             sourceId: sourceNode.id,
             targetId: newId,
             direction: lineMode,
+            strokeStyle: 'solid',
         });
     }
     state.selection.clear();

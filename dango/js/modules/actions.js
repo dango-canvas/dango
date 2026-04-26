@@ -265,10 +265,31 @@ export function toggleLink() {
             id: uid(),
             sourceId: n1.id,
             targetId: n2.id,
-            direction: 'none'
+            direction: 'none',
+            strokeStyle: 'solid'
         });
     }
     render();
+}
+
+export function toggleLinkStrokeStyle() {
+    const sel = Array.from(state.selection);
+    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(n => n);
+    if (nodes.length !== 2) return false;
+
+    const [n1, n2] = nodes;
+    const link = state.links.find(l =>
+        (l.sourceId === n1.id && l.targetId === n2.id) ||
+        (l.sourceId === n2.id && l.targetId === n1.id)
+    );
+    if (!link) return false;
+
+    const order = ['solid', 'dashed', 'wavy'];
+    const current = link.strokeStyle || 'solid';
+    const currentIndex = order.indexOf(current);
+    const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+    link.strokeStyle = order[(safeIndex + 1) % order.length];
+    return true;
 }
 
 export function deleteSelection() {

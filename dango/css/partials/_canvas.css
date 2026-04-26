@@ -147,11 +147,23 @@ svg.connections {
     pointer-events: none;
 }
 
-line.link {
+line.link,
+path.link {
     stroke: var(--link-color);
-    stroke-width: 1.5;
-    opacity: 0.35;
-    transition: all 0.2s ease-in-out;
+    stroke-width: 1.7;
+    opacity: 0.44;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: opacity 0.2s ease-in-out, stroke 0.2s ease-in-out;
+}
+
+path.link[data-stroke-style="dashed"] {
+    stroke-dasharray: 6 5;
+    opacity: 0.4;
+}
+
+path.link[data-stroke-style="wavy"] {
+    opacity: 0.46;
 }
 
 #selection-box {

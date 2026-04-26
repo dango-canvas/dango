@@ -3,7 +3,8 @@ import { state, CONFIG, pushHistory } from './state.js';
 import { 
     toggleGroup, toggleLink, deleteSelection, 
     nudgeSelection, colorSelection, alignSelection, distributeSelection,
-    copySelection, pasteClipboard
+    copySelection, pasteClipboard,
+    toggleLinkStrokeStyle
 } from './actions.js';
 import { smartAlignSelection } from './animation.js';
 import { changeZoom, resetViewToCenter } from './view.js';
@@ -110,6 +111,12 @@ export function initShortcuts(callbacks) {
                 render(); return;
             }
             if (e.code === 'KeyL') { e.preventDefault(); pushHistory(); toggleLink(); render(); return; }
+            if (e.code === 'Quote') {
+                e.preventDefault();
+                pushHistory();
+                if (toggleLinkStrokeStyle()) render();
+                return;
+            }
             if (e.code === 'KeyC') { e.preventDefault(); copySelection(); return; }
             if (e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); render(); return; }
             if (e.code === 'KeyF') { e.preventDefault(); openSearch(); return; }
