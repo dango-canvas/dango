@@ -25,6 +25,7 @@
 
 /* 手写风格连接线 */
 .hand-drawn-style line.link,
+.hand-drawn-style path.link,
 .hand-drawn-style line.ghost-link {
     filter: url(#hand-drawn-filter);
     stroke-width: 1.8;

@@ -13,6 +13,53 @@ const IMAGE_SIZE_ICONS = {
     s: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 10 10 10 10 4"></polyline><polyline points="20 10 14 10 14 4"></polyline><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 14 14 14 14 20"></polyline></svg>',
     l: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 4 4 4 4 10"></polyline><polyline points="14 4 20 4 20 10"></polyline><polyline points="10 20 4 20 4 14"></polyline><polyline points="14 20 20 20 20 14"></polyline></svg>'
 };
+const DEFAULT_LINK_STROKE_STYLE = 'solid';
+
+function getLinkStrokeStyle(link) {
+    return link.strokeStyle || DEFAULT_LINK_STROKE_STYLE;
+}
+
+function buildStraightLinkPath(startPoint, endPoint) {
+    return `M ${startPoint.x} ${startPoint.y} L ${endPoint.x} ${endPoint.y}`;
+}
+
+function buildWavyLinkPath(startPoint, endPoint) {
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+    const distance = Math.hypot(dx, dy);
+
+    if (distance < 36) {
+        return buildStraightLinkPath(startPoint, endPoint);
+    }
+
+    const unitX = dx / distance;
+    const unitY = dy / distance;
+    const perpX = -unitY;
+    const perpY = unitX;
+    const waveCount = Math.max(2, Math.round(distance / 26));
+    const step = distance / waveCount;
+    const amplitude = Math.min(8, Math.max(4, step * 0.22));
+
+    let d = `M ${startPoint.x} ${startPoint.y}`;
+    for (let i = 1; i <= waveCount; i++) {
+        const pointDistance = i * step;
+        const midDistance = pointDistance - step / 2;
+        const sign = i % 2 === 1 ? 1 : -1;
+        const controlX = startPoint.x + unitX * midDistance + perpX * amplitude * sign;
+        const controlY = startPoint.y + unitY * midDistance + perpY * amplitude * sign;
+        const pointX = i === waveCount ? endPoint.x : startPoint.x + unitX * pointDistance;
+        const pointY = i === waveCount ? endPoint.y : startPoint.y + unitY * pointDistance;
+        d += ` Q ${controlX} ${controlY} ${pointX} ${pointY}`;
+    }
+
+    return d;
+}
+
+function buildLinkPathData(link, startPoint, endPoint) {
+    return getLinkStrokeStyle(link) === 'wavy'
+        ? buildWavyLinkPath(startPoint, endPoint)
+        : buildStraightLinkPath(startPoint, endPoint);
+}
 
 function syncDomElements(dataArray, parent, className, renderFn) {
     const existing = new Map();
@@ -395,52 +442,53 @@ export function render() {
     syncDomElements(appState.groups, els.groupsLayer, 'group', renderGroup);
 
     // Sync Links
-    const existingLines = new Map();
-    Array.from(els.connectionsLayer.querySelectorAll('line.link')).forEach(line => {
-        if (line.dataset.id) existingLines.set(line.dataset.id, line);
+    const existingPaths = new Map();
+    Array.from(els.connectionsLayer.querySelectorAll('path.link, line.link')).forEach(pathEl => {
+        if (pathEl.dataset.id) existingPaths.set(pathEl.dataset.id, pathEl);
     });
 
     appState.links.forEach(l => {
         const n1 = appState.nodes.find(n => n.id === l.sourceId);
         const n2 = appState.nodes.find(n => n.id === l.targetId);
         if (n1 && n2 && n1.w && n1.h && n2.w && n2.h) {
-            let line = existingLines.get(l.id);
-            if (!line) {
-                line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.classList.add('link');
-                line.dataset.id = l.id;
-                els.connectionsLayer.appendChild(line);
+            let pathEl = existingPaths.get(l.id);
+            if (!pathEl || pathEl.tagName.toLowerCase() !== 'path') {
+                if (pathEl) pathEl.remove();
+                pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathEl.classList.add('link');
+                pathEl.dataset.id = l.id;
+                pathEl.setAttribute('fill', 'none');
+                els.connectionsLayer.appendChild(pathEl);
             }
             
             const startPoint = getEdgeIntersection(n2, n1);
             const endPoint = getEdgeIntersection(n1, n2);
+            const pathData = buildLinkPathData(l, startPoint, endPoint);
             
             // Only update attributes if changed
             const setAttr = (el, name, val) => {
                 if (el.getAttribute(name) != val) el.setAttribute(name, val);
             };
             
-            setAttr(line, 'x1', startPoint.x);
-            setAttr(line, 'y1', startPoint.y);
-            setAttr(line, 'x2', endPoint.x);
-            setAttr(line, 'y2', endPoint.y);
+            setAttr(pathEl, 'd', pathData);
+            setAttr(pathEl, 'data-stroke-style', getLinkStrokeStyle(l));
             
             if (l.direction === 'target') {
-                setAttr(line, 'marker-end', 'url(#arrowhead)');
-                line.removeAttribute('marker-start');
+                setAttr(pathEl, 'marker-end', 'url(#arrowhead)');
+                pathEl.removeAttribute('marker-start');
             } else if (l.direction === 'source') {
-                setAttr(line, 'marker-start', 'url(#arrowhead)');
-                line.removeAttribute('marker-end');
+                setAttr(pathEl, 'marker-start', 'url(#arrowhead)');
+                pathEl.removeAttribute('marker-end');
             } else {
-                line.removeAttribute('marker-end');
-                line.removeAttribute('marker-start');
+                pathEl.removeAttribute('marker-end');
+                pathEl.removeAttribute('marker-start');
             }
             
-            existingLines.delete(l.id);
+            existingPaths.delete(l.id);
         }
     });
     
-    existingLines.forEach(line => line.remove());
+    existingPaths.forEach(pathEl => pathEl.remove());
 
     if (appState.isEmbed) callbacks.updateOpenFullLink();
     callbacks.saveData();
