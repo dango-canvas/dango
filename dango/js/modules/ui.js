@@ -383,6 +383,7 @@ export function initUI(_state, _callbacks) {
     themeBtn.onclick = (e) => {
         appState.theme = appState.theme === 'light' ? 'dark' : 'light';
         updateTheme(themeBtn);
+        callbacks.render();
         e.currentTarget.blur();
     };
 

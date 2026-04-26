@@ -3,7 +3,7 @@
 import { isUrl, getEdgeIntersection } from './utils.js';
 import { getTexts } from './i18n.js';
 import { els, setSafeHTML, setSafeSVG } from './dom.js';
-import { buildLinkPathData, getLinkStrokeStyle } from './links.js';
+import { buildLinkPathData, getLinkOpacity, getLinkStrokeColor, getLinkStrokeStyle } from './links.js';
 
 // --- 模块内部变量 ---
 let appState;
@@ -375,7 +375,7 @@ export function render() {
         const defsContent = `
             <defs>
                 <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="12" markerHeight="12" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-                    <path d="M 0 0 L 8 5 L 0 10" stroke="var(--link-color)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M 0 0 L 8 5 L 0 10" stroke="context-stroke" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
                 </marker>
                 <!-- 使用 userSpaceOnUse 防止水平/垂直线因 bounding box 为 0 导致滤镜失效或裁切 -->
                 <filter id="hand-drawn-filter" filterUnits="userSpaceOnUse" x="-50000" y="-50000" width="100000" height="100000">
@@ -395,6 +395,7 @@ export function render() {
     syncDomElements(appState.groups, els.groupsLayer, 'group', renderGroup);
 
     // Sync Links
+    const rootStyle = getComputedStyle(document.documentElement);
     const existingPaths = new Map();
     Array.from(els.connectionsLayer.querySelectorAll('path.link, line.link')).forEach(pathEl => {
         if (pathEl.dataset.id) existingPaths.set(pathEl.dataset.id, pathEl);
@@ -417,6 +418,8 @@ export function render() {
             const startPoint = getEdgeIntersection(n2, n1);
             const endPoint = getEdgeIntersection(n1, n2);
             const pathData = buildLinkPathData(l, startPoint, endPoint);
+            const linkStrokeColor = getLinkStrokeColor(l, n1, n2, rootStyle);
+            const linkOpacity = String(getLinkOpacity(l));
             
             // Only update attributes if changed
             const setAttr = (el, name, val) => {
@@ -424,7 +427,10 @@ export function render() {
             };
             
             setAttr(pathEl, 'd', pathData);
+            setAttr(pathEl, 'data-link-direction', l.direction || 'none');
             setAttr(pathEl, 'data-stroke-style', getLinkStrokeStyle(l));
+            if (pathEl.style.stroke !== linkStrokeColor) pathEl.style.stroke = linkStrokeColor;
+            if (pathEl.style.opacity !== linkOpacity) pathEl.style.opacity = linkOpacity;
             
             if (l.direction === 'target') {
                 setAttr(pathEl, 'marker-end', 'url(#arrowhead)');
