@@ -14,6 +14,7 @@ const DIRECTIONS = {
 const DISTANCE = 80;
 
 const DEFAULT_NODE_BOX_FALLBACK = { w: 102, h: 44 };
+const GHOST_LINK_MODE_ORDER = ['target', 'none', 'detached'];
 
 function getDefaultNodeBoxSize() {
     const nodesLayer = document.getElementById('nodes-layer');
@@ -63,6 +64,32 @@ function forceMinBoxSize(el, targetW, targetH) {
     el.style.minHeight = `${Math.max(0, targetH - vp - vb)}px`;
 }
 
+function getNextGhostLinkMode(currentMode) {
+    const currentIndex = GHOST_LINK_MODE_ORDER.indexOf(currentMode);
+    const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+    return GHOST_LINK_MODE_ORDER[(safeIndex + 1) % GHOST_LINK_MODE_ORDER.length];
+}
+
+function applyGhostLinkMode(ghost) {
+    if (!ghost?.linkEl) return;
+
+    const { linkEl, lineMode } = ghost;
+    linkEl.style.display = lineMode === 'detached' ? 'none' : '';
+    linkEl.removeAttribute('marker-start');
+
+    if (lineMode === 'target') {
+        linkEl.setAttribute('marker-end', 'url(#arrowhead)');
+    } else {
+        linkEl.removeAttribute('marker-end');
+    }
+}
+
+function cycleGhostLinkMode() {
+    if (!ghostState) return;
+    ghostState.lineMode = getNextGhostLinkMode(ghostState.lineMode);
+    applyGhostLinkMode(ghostState);
+}
+
 function setDirectionalAnchorMeta(node, sourceId, dir) {
     Object.defineProperty(node, '_directionalSourceId', {
         value: sourceId,
@@ -98,21 +125,7 @@ export function realignDirectionalNodeAfterEdit(node) {
     return moved;
 }
 
-export function handleDirectionalCreateStart(key) {
-    if (state.selection.size !== 1) return false;
-
-    const dir = DIRECTIONS[key];
-    if (!dir) return false;
-
-    if (ghostState && ghostState.key === key) {
-        return true; // 长按方向键时不重复生成
-    }
-    if (ghostState) clearGhost();
-
-    const sourceId = Array.from(state.selection)[0];
-    const sourceNode = state.nodes.find(n => n.id === sourceId);
-    if (!sourceNode) return false;
-
+function createDirectionalGhost(key, sourceNode, dir, lineMode = 'target') {
     const targetBox = getDefaultNodeBoxSize();
     const { x, y } = computePosition(sourceNode, targetBox, dir);
     const gw = targetBox.w;
@@ -140,7 +153,6 @@ export function handleDirectionalCreateStart(key) {
     ghostLinkEl.setAttribute('stroke-width', '2');
     ghostLinkEl.setAttribute('stroke-dasharray', '5,5');
     ghostLinkEl.setAttribute('opacity', '0.5');
-    ghostLinkEl.setAttribute('marker-end', 'url(#arrowhead)');
     document.getElementById('connections-layer').appendChild(ghostLinkEl);
 
     const ghostNodeObj = { x, y, w: gw, h: gh };
@@ -156,13 +168,40 @@ export function handleDirectionalCreateStart(key) {
         dir,
         sourceNode,
         targetBox,
+        lineMode,
         nodeEl: ghostNodeEl,
         linkEl: ghostLinkEl,
         isModifierDown: true,
         isArrowDown: true,
     };
 
+    applyGhostLinkMode(ghostState);
     return true;
+}
+
+export function handleDirectionalCreateStart(key) {
+    if (state.selection.size !== 1) return false;
+
+    const dir = DIRECTIONS[key];
+    if (!dir) return false;
+
+    if (ghostState && ghostState.key === key) {
+        if (ghostState.isArrowDown) {
+            return true; // 长按方向键时不重复生成/循环
+        }
+        ghostState.isArrowDown = true;
+        cycleGhostLinkMode();
+        return true;
+    }
+
+    const preservedLineMode = ghostState?.lineMode || 'target';
+    if (ghostState) clearGhost();
+
+    const sourceId = Array.from(state.selection)[0];
+    const sourceNode = state.nodes.find(n => n.id === sourceId);
+    if (!sourceNode) return false;
+
+    return createDirectionalGhost(key, sourceNode, dir, preservedLineMode);
 }
 
 export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
@@ -174,7 +213,7 @@ export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
     // 修饰键和方向键全部松开后才提交真实节点
     if (ghostState.isArrowDown || ghostState.isModifierDown) return false;
 
-    const { sourceNode, dir, targetBox } = ghostState;
+    const { sourceNode, dir, targetBox, lineMode } = ghostState;
     clearGhost();
 
     pushHistory();
@@ -190,12 +229,14 @@ export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
     };
     setDirectionalAnchorMeta(newNode, sourceNode.id, dir);
     state.nodes.push(newNode);
-    state.links.push({
-        id: uid(),
-        sourceId: sourceNode.id,
-        targetId: newId,
-        direction: 'target',
-    });
+    if (lineMode !== 'detached') {
+        state.links.push({
+            id: uid(),
+            sourceId: sourceNode.id,
+            targetId: newId,
+            direction: lineMode,
+        });
+    }
     state.selection.clear();
     state.selection.add(newId);
 
