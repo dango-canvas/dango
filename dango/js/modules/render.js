@@ -162,7 +162,8 @@ function renderNode(el, node) {
     el.setAttribute('role', 'button');
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
     
-    // 编辑模式：优先处理
+    // 编辑态只切换临时视觉盒子；已提交的展示态几何仍保留在 state 里，
+    // 供连线、分组等几何消费者继续使用。
     if (el.classList.contains('editing')) {
         const isSelected = appState.selection.has(node.id);
         const isFound = appState.searchResultId === node.id;
@@ -389,6 +390,10 @@ export function render() {
         els.connectionsLayer.innerHTML = defsContent;
     }
 
+    // 先让节点产出已提交的展示态几何，再让 group / link 消费这些几何。
+    syncDomElements(appState.nodes, els.nodesLayer, 'node', renderNode);
+    syncDomElements(appState.groups, els.groupsLayer, 'group', renderGroup);
+
     // Sync Links
     const existingLines = new Map();
     Array.from(els.connectionsLayer.querySelectorAll('line.link')).forEach(line => {
@@ -436,9 +441,6 @@ export function render() {
     });
     
     existingLines.forEach(line => line.remove());
-
-    syncDomElements(appState.groups, els.groupsLayer, 'group', renderGroup);
-    syncDomElements(appState.nodes, els.nodesLayer, 'node', renderNode);
 
     if (appState.isEmbed) callbacks.updateOpenFullLink();
     callbacks.saveData();

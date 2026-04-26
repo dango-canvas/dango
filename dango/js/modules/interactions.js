@@ -56,7 +56,24 @@ function forceFinishActiveEdit() {
             } else if (node.text !== newText) {
                 node.text = newText;
             }
+
+            if (newText.trim()) {
+                commitNodeDisplayGeometry(node, editingNode);
+                return;
+            }
         }
+        render();
+    }
+}
+
+function commitNodeDisplayGeometry(node, nodeEl) {
+    // 编辑态的普通盒子是临时视觉状态；退出编辑后，这里负责提交展示态几何。
+    // 流程：强制展示态重渲染 -> 提交最终尺寸 -> 重算依赖这些尺寸的布局约束。
+    delete nodeEl.dataset.lastText;
+    render();
+
+    const didRealign = realignDirectionalNodeAfterEdit(node);
+    if (didRealign) {
         render();
     }
 }
@@ -550,8 +567,6 @@ export function handleNodeEdit(nodeEl) {
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
             let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
-            const prevW = node.w;
-            const prevH = node.h;
             
             // 如果新节点没有输入文字，失去焦点后让它消失
             if (!newText.trim()) {
@@ -560,17 +575,10 @@ export function handleNodeEdit(nodeEl) {
             } else if (node.text !== newText) {
                 node.text = newText;
             }
-            // 强制重新渲染：移除 lastText 标记，确保 renderNode 重新解析 Markdown 并恢复 HTML 结构
-            // 因为在编辑模式下，DOM 结构已被破坏（变成了纯文本）
-            delete nodeEl.dataset.lastText;
-            render();
-
             if (newText.trim()) {
-                const sizeChanged = node.w !== prevW || node.h !== prevH;
-                const didRealign = realignDirectionalNodeAfterEdit(node);
-                if (sizeChanged || didRealign) {
-                    render();
-                }
+                commitNodeDisplayGeometry(node, nodeEl);
+            } else {
+                render();
             }
         };
         activeEditFinish = finishEdit;
