@@ -49,7 +49,7 @@ export function resetViewToCenter(animated = true) {
 /**
  * 自动缩放并平移，使所有节点都可见
  */
-export function fitView(padding = 40, animated = true) {
+export function fitView(padding = 40, animated = true, duration = 400) {
     if (!stateRef.nodes.length && !stateRef.groups.length) {
         resetViewToCenter(animated);
         return;
@@ -90,7 +90,7 @@ export function fitView(padding = 40, animated = true) {
     const targetY = window.innerHeight / 2 - centerWorldY * targetScale;
 
     if (animated) {
-        animateView(targetX, targetY, targetScale);
+        animateView(targetX, targetY, targetScale, duration);
     } else {
         stateRef.view.x = targetX;
         stateRef.view.y = targetY;
