@@ -2,7 +2,7 @@
 import { state, history, pushHistory, MAX_HISTORY, saveData } from './state.js';
 import { render, updateViewTransform } from './render.js';
 import { uid, screenToWorld, getStandardRect, isIntersect } from './utils.js';
-import { changeZoom, cancelViewAnimation } from './view.js';
+import { changeZoom, cancelViewAnimation, fitView, animateView } from './view.js';
 import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
 import { els } from './dom.js';
@@ -15,6 +15,10 @@ let targetAlreadySelectedAtStart = false;
 let targetIdAtMouseDown = null;
 let hasMovedDuringDrag = false;
 let activeEditFinish = null;
+let lastMiddleClickTime = 0;
+let middleClickCount = 0;
+let isGlobalViewActive = false;
+let preGlobalViewScale = 1;
 
 function cancelTransientInteraction() {
     mode = null;
@@ -137,6 +141,28 @@ export function initInteractions() {
         cancelViewAnimation();
         hasMovedDuringDrag = false; // 每次按下鼠标时重置移动状态
 
+        // 中键双击逻辑
+        if (e.button === 1) {
+            const now = Date.now();
+            if (now - lastMiddleClickTime < 300) {
+                middleClickCount++;
+            } else {
+                middleClickCount = 1;
+            }
+            lastMiddleClickTime = now;
+
+            if (middleClickCount === 2) {
+                isGlobalViewActive = true;
+                preGlobalViewScale = state.view.scale;
+                fitView(100, true, 200);
+                mode = 'global-view';
+                document.body.classList.add('mode-pan'); // 借用 pan 的样式
+                return;
+            }
+        } else {
+            middleClickCount = 0;
+        }
+
         if (e.target.closest('.node') && e.detail === 2) return;
         if (e.button === 1 || (e.button === 0 && keys.Space)) {
             mode = 'pan';
@@ -221,6 +247,20 @@ export function initInteractions() {
     });
 
     els.container.addEventListener('mouseup', e => {
+        if (e.button === 1 && isGlobalViewActive) {
+            isGlobalViewActive = false;
+            middleClickCount = 0;
+            const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
+            // 恢复到之前的缩放比例，或者至少是一个合理的比例
+            const targetScale = Math.max(preGlobalViewScale, 0.8);
+            const targetX = window.innerWidth / 2 - worldPos.x * targetScale;
+            const targetY = window.innerHeight / 2 - worldPos.y * targetScale;
+            animateView(targetX, targetY, targetScale, 500);
+            mode = null;
+            document.body.classList.remove('mode-pan');
+            return;
+        }
+
         if (mode === 'move') {
             if (!hasMovedDuringDrag && isModifier(e) && targetAlreadySelectedAtStart) {
                 state.selection.delete(targetIdAtMouseDown);
