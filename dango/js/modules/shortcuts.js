@@ -7,6 +7,7 @@ import {
 } from './actions.js';
 import { smartAlignSelection } from './animation.js';
 import { changeZoom, resetViewToCenter } from './view.js';
+import { openSearch, closeSearch } from './search.js';
 import { handleDirectionalCreateStart, handleDirectionalCreateEnd, clearDirectionalGhost, handleDirectionalModifierUp } from './directional.js';
 
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
@@ -45,6 +46,7 @@ export function initShortcuts(callbacks) {
         // 2. 基础快捷键 (ESC / Space / Home)
         if (e.code === 'Escape') {
             clearDirectionalGhost();
+            closeSearch();
             // 依次关闭：关于面板 -> 设置/帮助 -> 清除选中
             const about = document.getElementById('about-overlay'); // 假设 ID
             if (about?.classList.contains('show')) {
@@ -110,6 +112,7 @@ export function initShortcuts(callbacks) {
             if (e.code === 'KeyL') { e.preventDefault(); pushHistory(); toggleLink(); render(); return; }
             if (e.code === 'KeyC') { e.preventDefault(); copySelection(); return; }
             if (e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); render(); return; }
+            if (e.code === 'KeyF') { e.preventDefault(); openSearch(); return; }
             if (e.code === 'KeyS') { 
                 if (!e.altKey) { // 如果按了 Alt，让它无视这个区块，自然向下走到对齐逻辑
                     e.preventDefault(); exportJson(); return; 

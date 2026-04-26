@@ -114,3 +114,20 @@ body.spotlight-active #canvas-container {
     filter: saturate(0.8);
     transition: filter 0.3s;
 }
+
+/* --- 搜索命中高亮 --- */
+.search-found {
+    animation: ping-highlight 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping-highlight {
+    0% {
+        box-shadow: 0 0 0 0 rgba(var(--select-color-rgb, 59, 130, 246), 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 15px rgba(var(--select-color-rgb, 59, 130, 246), 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(var(--select-color-rgb, 59, 130, 246), 0);
+    }
+}

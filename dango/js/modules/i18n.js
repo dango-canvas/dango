@@ -73,7 +73,12 @@ const TRANSLATIONS = {
         help_smart_align: "智能自动对齐",
         img_zoom_in: "图像放大",
         img_zoom_out: "图像缩小",
-        theme_tooltip: "切换主题"
+        theme_tooltip: "切换主题",
+        search_placeholder: "搜索节点...",
+        help_search: "搜索节点",
+        search_prev: "上一个 (Shift+Enter)",
+        search_next: "下一个 (Enter)",
+        search_close: "关闭 (Esc)"
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -148,7 +153,12 @@ const TRANSLATIONS = {
         help_smart_align: "Smart Auto-align",
         img_zoom_in: "Zoom In Image",
         img_zoom_out: "Zoom Out Image",
-        theme_tooltip: "Toggle Theme"
+        theme_tooltip: "Toggle Theme",
+        search_placeholder: "Search nodes...",
+        help_search: "Search Nodes",
+        search_prev: "Previous (Shift+Enter)",
+        search_next: "Next (Enter)",
+        search_close: "Close (Esc)"
     }
 };
 

@@ -165,7 +165,8 @@ function renderNode(el, node) {
     // 编辑模式：优先处理
     if (el.classList.contains('editing')) {
         const isSelected = appState.selection.has(node.id);
-        el.className = ['node', node.color || 'c-white', isSelected ? 'selected' : '', 'editing'].filter(Boolean).join(' ');
+        const isFound = appState.searchResultId === node.id;
+        el.className = ['node', node.color || 'c-white', isSelected ? 'selected' : '', isFound ? 'search-found' : '', 'editing'].filter(Boolean).join(' ');
         // 编辑时，清除固定宽高，让它自适应文字
         el.style.width = '';
         el.style.height = '';
@@ -298,10 +299,12 @@ function renderNode(el, node) {
     }
 
     const isSelected = appState.selection.has(node.id);
+    const isFound = appState.searchResultId === node.id;
     const classes = ['node', node.color || 'c-white'];
     if (isImage) classes.push('image-node');
     if (isLink) classes.push('is-link');
     if (isSelected) classes.push('selected');
+    if (isFound) classes.push('search-found');
     if (node.text && node.text.includes('\n')) classes.push('has-multiline');
     
     // 增加标题类支持
