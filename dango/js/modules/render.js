@@ -368,7 +368,21 @@ export function render() {
     // Ensure defs exists
     let defs = els.connectionsLayer.querySelector('defs');
     if (!defs) {
-        const defsContent = `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 8 5 L 0 10" stroke="var(--link-color)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></marker></defs>`;
+        const defsContent = `
+            <defs>
+                <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="12" markerHeight="12" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+                    <path d="M 0 0 L 8 5 L 0 10" stroke="var(--link-color)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+                </marker>
+                <!-- 使用 userSpaceOnUse 防止水平/垂直线因 bounding box 为 0 导致滤镜失效或裁切 -->
+                <filter id="hand-drawn-filter" filterUnits="userSpaceOnUse" x="-50000" y="-50000" width="100000" height="100000">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" result="noise" />
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" />
+                </filter>
+                <filter id="hand-drawn-filter-marker" filterUnits="userSpaceOnUse" x="-50000" y="-50000" width="100000" height="100000">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.15" numOctaves="2" result="noise" />
+                    <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.2" xChannelSelector="R" yChannelSelector="G" />
+                </filter>
+            </defs>`;
         els.connectionsLayer.innerHTML = defsContent;
     }
 
