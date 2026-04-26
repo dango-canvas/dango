@@ -3,6 +3,7 @@
 import { isUrl, getEdgeIntersection } from './utils.js';
 import { getTexts } from './i18n.js';
 import { els, setSafeHTML, setSafeSVG } from './dom.js';
+import { buildLinkPathData, getLinkStrokeStyle } from './links.js';
 
 // --- 模块内部变量 ---
 let appState;
@@ -13,54 +14,6 @@ const IMAGE_SIZE_ICONS = {
     s: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 10 10 10 10 4"></polyline><polyline points="20 10 14 10 14 4"></polyline><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 14 14 14 14 20"></polyline></svg>',
     l: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 4 4 4 4 10"></polyline><polyline points="14 4 20 4 20 10"></polyline><polyline points="10 20 4 20 4 14"></polyline><polyline points="14 20 20 20 20 14"></polyline></svg>'
 };
-const DEFAULT_LINK_STROKE_STYLE = 'solid';
-
-function getLinkStrokeStyle(link) {
-    return link.strokeStyle || DEFAULT_LINK_STROKE_STYLE;
-}
-
-function buildStraightLinkPath(startPoint, endPoint) {
-    return `M ${startPoint.x} ${startPoint.y} L ${endPoint.x} ${endPoint.y}`;
-}
-
-function buildWavyLinkPath(startPoint, endPoint) {
-    const dx = endPoint.x - startPoint.x;
-    const dy = endPoint.y - startPoint.y;
-    const distance = Math.hypot(dx, dy);
-
-    if (distance < 36) {
-        return buildStraightLinkPath(startPoint, endPoint);
-    }
-
-    const unitX = dx / distance;
-    const unitY = dy / distance;
-    const perpX = -unitY;
-    const perpY = unitX;
-    const waveCount = Math.max(2, Math.round(distance / 26));
-    const step = distance / waveCount;
-    const amplitude = Math.min(8, Math.max(4, step * 0.22));
-
-    let d = `M ${startPoint.x} ${startPoint.y}`;
-    for (let i = 1; i <= waveCount; i++) {
-        const pointDistance = i * step;
-        const midDistance = pointDistance - step / 2;
-        const sign = i % 2 === 1 ? 1 : -1;
-        const controlX = startPoint.x + unitX * midDistance + perpX * amplitude * sign;
-        const controlY = startPoint.y + unitY * midDistance + perpY * amplitude * sign;
-        const pointX = i === waveCount ? endPoint.x : startPoint.x + unitX * pointDistance;
-        const pointY = i === waveCount ? endPoint.y : startPoint.y + unitY * pointDistance;
-        d += ` Q ${controlX} ${controlY} ${pointX} ${pointY}`;
-    }
-
-    return d;
-}
-
-function buildLinkPathData(link, startPoint, endPoint) {
-    return getLinkStrokeStyle(link) === 'wavy'
-        ? buildWavyLinkPath(startPoint, endPoint)
-        : buildStraightLinkPath(startPoint, endPoint);
-}
-
 function syncDomElements(dataArray, parent, className, renderFn) {
     const existing = new Map();
     Array.from(parent.children).forEach(el => existing.set(el.dataset.id, el));

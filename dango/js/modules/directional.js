@@ -1,6 +1,7 @@
 // modules/directional.js
 import { state, pushHistory } from './state.js';
 import { uid, getEdgeIntersection } from './utils.js';
+import { createLink } from './links.js';
 
 let ghostState = null;
 
@@ -230,13 +231,12 @@ export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
     setDirectionalAnchorMeta(newNode, sourceNode.id, dir);
     state.nodes.push(newNode);
     if (lineMode !== 'detached') {
-        state.links.push({
+        state.links.push(createLink({
             id: uid(),
             sourceId: sourceNode.id,
             targetId: newId,
             direction: lineMode,
-            strokeStyle: 'solid',
-        });
+        }));
     }
     state.selection.clear();
     state.selection.add(newId);

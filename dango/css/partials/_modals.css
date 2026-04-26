@@ -107,6 +107,21 @@
     border-bottom: none;
     margin-bottom: 16px;
 }
+.help-pages {
+    position: relative;
+    overflow: hidden;
+}
+.help-page {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.14s ease;
+}
+.help-page.active {
+    opacity: 1;
+    pointer-events: auto;
+}
 .help-desc { opacity: 0.75; font-weight: 500; }
 .help-keys {
     font-family: monospace;
@@ -115,6 +130,29 @@
     padding: 2px 6px;
     border-radius: 4px;
     color: var(--ui-text);
+}
+.help-pager {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 2px;
+    margin-bottom: 12px;
+}
+.help-page-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    background: var(--dot-color);
+    opacity: 0.45;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+.help-page-dot.active {
+    opacity: 1;
+    transform: scale(1.25);
+    background: var(--ui-text-dim);
 }
 .help-footer-row {
     display: flex;

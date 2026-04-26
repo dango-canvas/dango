@@ -5,6 +5,7 @@ import { uid, isUrl } from './utils.js';
 import { showToast } from './ui.js';
 import { getTexts } from './i18n.js';
 import { els } from './dom.js';
+import { createLink, cycleLinkStrokeStyle } from './links.js';
 
 // --- Helpers (内部函数，不导出) ---
 function findItem(id) {
@@ -261,13 +262,12 @@ export function toggleLink() {
                 break;
         }
     } else {
-        state.links.push({
+        state.links.push(createLink({
             id: uid(),
             sourceId: n1.id,
             targetId: n2.id,
-            direction: 'none',
-            strokeStyle: 'solid'
-        });
+            direction: 'none'
+        }));
     }
     render();
 }
@@ -284,11 +284,7 @@ export function toggleLinkStrokeStyle() {
     );
     if (!link) return false;
 
-    const order = ['solid', 'dashed', 'wavy'];
-    const current = link.strokeStyle || 'solid';
-    const currentIndex = order.indexOf(current);
-    const safeIndex = currentIndex === -1 ? 0 : currentIndex;
-    link.strokeStyle = order[(safeIndex + 1) % order.length];
+    cycleLinkStrokeStyle(link);
     return true;
 }
 

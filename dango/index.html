@@ -124,46 +124,52 @@
                     </button>
                     <!-- 帮助弹窗 -->
                     <div id="help-modal">
-                        <!-- 第一组：核心与导航 -->
-                        <div class="help-row"><span class="help-desc" data-i18n="help_undo">撤销 / 重做</span> <span
-                                class="help-keys">Ctrl + Z / Y</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_search">搜索节点</span> <span
-                                class="help-keys">Ctrl + F</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_pan_zoom">平移 / 缩放</span> <span
-                                class="help-keys">Space + Drag / Wheel</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_center">回归中心</span> <span
-                                class="help-keys">Home</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_save">保存画板文件</span> <span
-                                class="help-keys">Ctrl + S</span></div>
+                        <div class="help-pages">
+                            <div class="help-page active" data-help-page="0">
+                                <div class="help-row"><span class="help-desc" data-i18n="help_undo">撤销 / 重做</span> <span
+                                        class="help-keys">Ctrl + Z / Y</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_search">搜索节点</span> <span
+                                        class="help-keys">Ctrl + F</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_pan_zoom">平移 / 缩放</span> <span
+                                        class="help-keys">Space + Drag / Wheel</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_center">回归中心</span> <span
+                                        class="help-keys">Home</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_select">多选 / 框选</span> <span
+                                        class="help-keys">Ctrl + Click</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_clone">克隆节点</span> <span
+                                        class="help-keys">Ctrl + Drag</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_delete">删除选中</span> <span
+                                        class="help-keys">Del / Backspace</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_link">连线 / 断线</span> <span
+                                        class="help-keys">Ctrl + L</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_directional_create">方向创建 / 重复</span> <span
+                                        class="help-keys">Ctrl + Arrow / Repeat</span></div>
+                            </div>
 
-                        <!-- 第二组：操作与编辑 -->
-                        <div class="help-row"><span class="help-desc" data-i18n="help_clone">克隆节点</span> <span
-                                class="help-keys">Ctrl + Drag</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_select">多选 / 框选</span> <span
-                                class="help-keys">Ctrl + Click</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_delete">删除选中</span> <span
-                                class="help-keys">Del / Backspace</span></div>
-                        <!-- <div class="help-row"><span class="help-desc" data-i18n="help_nudge">微调位置</span> <span class="help-keys">Arrow Keys</span></div> -->
+                            <div class="help-page" data-help-page="1">
+                                <div class="help-row"><span class="help-desc" data-i18n="help_save">保存画板文件</span> <span
+                                        class="help-keys">Ctrl + S</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_group">编组 / 解组</span> <span
+                                        class="help-keys">Ctrl + G</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_link_style">切换线形</span> <span
+                                        class="help-keys">Ctrl + '</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_smart_align">智能对齐</span> <span
+                                        class="help-keys">Alt + .</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_align">方向对齐</span> <span
+                                        class="help-keys">Alt + W A S D H J</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_center_align">分布对齐</span> <span
+                                        class="help-keys">Alt + Shift + H J</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_color">切换颜色</span> <span
+                                        class="help-keys">Alt + 1 ~ 9</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_spotlight">聚光灯</span> <span
+                                        class="help-keys">Q</span></div>
+                            </div>
+                        </div>
 
-                        <!-- 第三组：组织与美化 -->
-                        <div class="help-row"><span class="help-desc" data-i18n="help_group">编组 / 解组</span> <span
-                                class="help-keys">Ctrl + G</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_link">连线 / 断线</span> <span
-                                class="help-keys">Ctrl + L</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_link_style">切换线形</span> <span
-                                class="help-keys">Ctrl + '</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_directional_create">方向创建 / 重复</span> <span
-                                class="help-keys">Ctrl + Arrow / Repeat</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_smart_align">智能对齐</span> <span 
-                                class="help-keys">Alt + .</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_align">方向对齐</span> <span
-                                class="help-keys">Alt + W A S D H J</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_center_align">分布对齐</span> <span
-                                class="help-keys">Alt + Shift + H J</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_color">切换颜色</span> <span
-                                class="help-keys">Alt + 1 ~ 9</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_spotlight">聚光灯</span> <span
-                                class="help-keys">Q</span></div>
+                        <div class="help-pager" aria-label="Help Pages">
+                            <button type="button" class="help-page-dot active" data-help-page-target="0" aria-label="Page 1"></button>
+                            <button type="button" class="help-page-dot" data-help-page-target="1" aria-label="Page 2"></button>
+                        </div>
 
                         <div class="help-footer-row">
                             <button class="help-action-btn" id="trigger-about">
