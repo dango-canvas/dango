@@ -1,0 +1,26 @@
+changelog:
+  exclude:
+    authors:
+      - github-actions[bot]
+    labels:
+      - skip-changelog
+  categories:
+    - title: ✨ Product & Flow
+      labels:
+        - feature
+        - enhancement
+        - ui
+        - ux
+    - title: 🐛 Fixes & Stability
+      labels:
+        - fix
+        - bug
+    - title: 🧱 Internal & Tooling
+      labels:
+        - ci
+        - chore
+        - refactor
+        - docs
+    - title: Other Changes
+      labels:
+        - '*'

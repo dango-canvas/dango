@@ -1,0 +1,116 @@
+name: Release Build
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ github.token }}
+
+      - name: Extract Docker metadata
+        id: docker_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ github.event.release.tag_name }}
+            type=raw,value=latest
+
+      - name: Build single-file release
+        run: bun build.ts
+
+      - name: Package release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${{ github.event.release.tag_name }}"
+          ASSET_BASENAME="dango-${TAG}"
+
+          mkdir -p release
+          cp dist/index.html "release/${ASSET_BASENAME}.html"
+
+          (
+            cd release
+            zip -9 "${ASSET_BASENAME}.zip" "${ASSET_BASENAME}.html"
+            sha256sum "${ASSET_BASENAME}.html" "${ASSET_BASENAME}.zip" > SHA256SUMS.txt
+          )
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+
+      - name: Upload assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh release upload "${{ github.event.release.tag_name }}" release/* --clobber
+
+      - name: Append release asset notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${{ github.event.release.tag_name }}"
+          REPO="${{ github.repository }}"
+          REPO_LC=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
+          IMAGE="ghcr.io/${REPO_LC}:${TAG}"
+
+          BODY=$(gh release view "$TAG" --repo "$REPO" --json body --jq '.body')
+          if printf '%s' "$BODY" | grep -q "## Release Assets"; then
+            exit 0
+          fi
+
+          cat > /tmp/release-assets-note.md <<EOF
+${BODY}
+
+---
+
+## Release Assets
+
+- Single-file HTML bundle attached to this release
+- ZIP bundle attached to this release
+- Docker image: \`${IMAGE}\`
+
+## Self-Host
+
+```bash
+docker run --rm -p 8080:80 ${IMAGE}
+```
+EOF
+
+          gh release edit "$TAG" --repo "$REPO" --notes-file /tmp/release-assets-note.md
