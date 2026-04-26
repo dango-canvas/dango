@@ -23,6 +23,18 @@
     text-decoration-style: solid;
 }
 
+/* 手写风格连接线 */
+.hand-drawn-style line.link,
+.hand-drawn-style line.ghost-link {
+    filter: url(#hand-drawn-filter);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    opacity: 0.6;
+}
+.hand-drawn-style #arrowhead path {
+    filter: url(#hand-drawn-filter-marker);
+}
+
 /* --- 空状态 --- */
 .empty-state {
     position: absolute;

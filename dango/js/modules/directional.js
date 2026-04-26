@@ -74,6 +74,7 @@ export function handleDirectionalCreateStart(key) {
     document.getElementById('nodes-layer').appendChild(ghostNodeEl);
 
     const ghostLinkEl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    ghostLinkEl.classList.add('ghost-link');
     ghostLinkEl.setAttribute('stroke', 'var(--link-color)');
     ghostLinkEl.setAttribute('stroke-width', '2');
     ghostLinkEl.setAttribute('stroke-dasharray', '5,5');
