@@ -5,6 +5,9 @@ export const LINK_STROKE_STYLE_ORDER = ['solid', 'dashed', 'wavy'];
 export const LINK_STROKE_STYLE_TO_CODE = { solid: 0, dashed: 1, wavy: 2 };
 export const LINK_STROKE_STYLE_FROM_CODE = ['solid', 'dashed', 'wavy'];
 
+const DIRECTIONAL_LINK_TINT_RATIO = 0.46;
+const COLOR_PARSE_CACHE = new Map();
+
 export function getLinkStrokeStyle(link) {
     return link?.strokeStyle || DEFAULT_LINK_STROKE_STYLE;
 }
@@ -71,4 +74,73 @@ export function buildLinkPathData(link, startPoint, endPoint) {
     return getLinkStrokeStyle(link) === 'wavy'
         ? buildWavyLinkPath(startPoint, endPoint)
         : buildStraightLinkPath(startPoint, endPoint);
+}
+
+function parseCssColor(colorText) {
+    const normalized = colorText.trim().toLowerCase();
+    if (!normalized) return null;
+    if (COLOR_PARSE_CACHE.has(normalized)) return COLOR_PARSE_CACHE.get(normalized);
+
+    let parsed = null;
+    if (normalized.startsWith('#')) {
+        const hex = normalized.slice(1);
+        if (hex.length === 3) {
+            parsed = {
+                r: parseInt(hex[0] + hex[0], 16),
+                g: parseInt(hex[1] + hex[1], 16),
+                b: parseInt(hex[2] + hex[2], 16),
+            };
+        } else if (hex.length >= 6) {
+            parsed = {
+                r: parseInt(hex.slice(0, 2), 16),
+                g: parseInt(hex.slice(2, 4), 16),
+                b: parseInt(hex.slice(4, 6), 16),
+            };
+        }
+    } else {
+        const rgbMatch = normalized.match(/rgba?\(([^)]+)\)/);
+        if (rgbMatch) {
+            const [r, g, b] = rgbMatch[1].split(',').map(part => parseFloat(part.trim()));
+            if ([r, g, b].every(value => Number.isFinite(value))) {
+                parsed = { r, g, b };
+            }
+        }
+    }
+
+    COLOR_PARSE_CACHE.set(normalized, parsed);
+    return parsed;
+}
+
+function mixCssColors(baseColor, accentColor, accentRatio = DIRECTIONAL_LINK_TINT_RATIO) {
+    const base = parseCssColor(baseColor);
+    const accent = parseCssColor(accentColor);
+    if (!base || !accent) return baseColor;
+
+    const baseRatio = 1 - accentRatio;
+    const mixChannel = (from, to) => Math.round(from * baseRatio + to * accentRatio);
+    return `rgb(${mixChannel(base.r, accent.r)}, ${mixChannel(base.g, accent.g)}, ${mixChannel(base.b, accent.b)})`;
+}
+
+function getDirectionalSourceNode(link, sourceNode, targetNode) {
+    if (link.direction === 'target') return sourceNode;
+    if (link.direction === 'source') return targetNode;
+    return null;
+}
+
+export function getLinkStrokeColor(link, sourceNode, targetNode, rootStyle = getComputedStyle(document.documentElement)) {
+    const baseColor = rootStyle.getPropertyValue('--link-color').trim() || '#94a3b8';
+    const tintNode = getDirectionalSourceNode(link, sourceNode, targetNode);
+    if (!tintNode) return baseColor;
+
+    const accentColor = rootStyle.getPropertyValue(`--${tintNode.color || 'c-white'}-border`).trim() || baseColor;
+    return mixCssColors(baseColor, accentColor);
+}
+
+export function getLinkOpacity(link) {
+    const strokeStyle = getLinkStrokeStyle(link);
+    const isDirectional = link?.direction === 'target' || link?.direction === 'source';
+
+    if (strokeStyle === 'dashed') return isDirectional ? 0.56 : 0.38;
+    if (strokeStyle === 'wavy') return isDirectional ? 0.62 : 0.44;
+    return isDirectional ? 0.6 : 0.42;
 }
