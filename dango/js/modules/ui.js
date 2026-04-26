@@ -38,7 +38,7 @@ export function applyBackgroundImage(bgUrl) {
         document.documentElement.style.backgroundRepeat = 'no-repeat';
 
         // 在 body 上覆盖一层半透明的灰色遮罩，不加模糊
-        document.body.style.backgroundColor = 'rgba(127, 127, 127, 0.3)';
+        document.body.style.backgroundColor = 'rgba(127, 127, 127, 0.2)';
         document.body.style.backdropFilter = '';
         document.body.style.webkitBackdropFilter = '';
     } else {
