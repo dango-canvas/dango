@@ -22,6 +22,9 @@ function updateTheme(themeBtn) {
     }
     setSafeSVG(themeBtn, isDark ? ICON_SUN : ICON_MOON);
     localStorage.setItem('cc-theme', appState.theme);
+    
+    // 主题切换后刷新背景遮罩
+    applySettings();
 }
 
 // --- 关于弹窗 ---
@@ -36,9 +39,11 @@ export function applyBackgroundImage(bgUrl) {
         document.documentElement.style.backgroundSize = 'cover';
         document.documentElement.style.backgroundPosition = 'center';
         document.documentElement.style.backgroundRepeat = 'no-repeat';
-
+        
         // 在 body 上覆盖一层半透明的灰色遮罩，不加模糊
-        document.body.style.backgroundColor = 'rgba(127, 127, 127, 0.2)';
+        // 夜间模式下增加遮罩深度
+        const isDark = appState?.theme === 'dark';
+        document.body.style.backgroundColor = isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(127, 127, 127, 0.2)';
         document.body.style.backdropFilter = '';
         document.body.style.webkitBackdropFilter = '';
     } else {
@@ -132,9 +137,11 @@ function initEasterEggs() {
     const starBtns = document.querySelectorAll('.btn-star');
     starBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            setTimeout(() => {
-                showToast("感谢你的 Star！🍡✨");
-            }, 500);
+            const span = btn.querySelector('span');
+            if (span) {
+                const texts = getTexts();
+                span.innerText = texts.star_thanks;
+            }
         });
     });
 }
