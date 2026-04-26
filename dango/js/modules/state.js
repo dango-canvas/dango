@@ -18,6 +18,7 @@ export const state = {
     },
     selection: new Set(),
     mouse: { x: 0, y: 0 },
+    searchResultId: null,
     clipboard: null,
     theme: 'light',
     settings: {

@@ -5,6 +5,7 @@ import { initRender, render } from './modules/render.js';
 import { createNodesFromInput, clearCanvas } from './modules/actions.js';
 import { initIO, exportJson, createShareLink, createEmbedCode, loadFromUrl, updateOpenFullLink } from './modules/io.js';
 import { initView } from './modules/view.js';
+import { initSearch } from './modules/search.js';
 import { initShortcuts } from './modules/shortcuts.js';
 import { initInteractions, handleNodeEdit } from './modules/interactions.js';
 
@@ -23,6 +24,7 @@ initRender(state, {
 });
 initIO(render);
 initView(state, render);
+initSearch(state, render);
 initInteractions();
 
 // 3. Load Initial Data (MUST be after initIO as it uses renderRef)

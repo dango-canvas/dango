@@ -33,6 +33,34 @@
 </head>
 
 <body class="cloak">
+    <div id="search-container" class="hidden">
+        <div id="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="search-icon">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="search-input" data-i18n-placeholder="search_placeholder" placeholder="搜索节点...">
+            <div id="search-info">0/0</div>
+            <div id="search-nav">
+                <button id="search-prev" data-i18n-title="search_prev" title="Previous (Shift+Enter)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                </button>
+                <button id="search-next" data-i18n-title="search_next" title="Next (Enter)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <button id="search-close" data-i18n-title="search_close" title="Close (Esc)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
     <div id="ui-layer">
         <div id="ui-top-bar">
             <div id="ui-logo-box">🎄</div>
@@ -99,6 +127,8 @@
                         <!-- 第一组：核心与导航 -->
                         <div class="help-row"><span class="help-desc" data-i18n="help_undo">撤销 / 重做</span> <span
                                 class="help-keys">Ctrl + Z / Y</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_search">搜索节点</span> <span
+                                class="help-keys">Ctrl + F</span></div>
                         <div class="help-row"><span class="help-desc" data-i18n="help_pan_zoom">平移 / 缩放</span> <span
                                 class="help-keys">Space + Drag / Wheel</span></div>
                         <div class="help-row"><span class="help-desc" data-i18n="help_center">回归中心</span> <span
