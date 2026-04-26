@@ -7,6 +7,12 @@ export const LINK_STROKE_STYLE_FROM_CODE = ['solid', 'dashed', 'wavy'];
 
 const DIRECTIONAL_LINK_TINT_RATIO = 0.46;
 const COLOR_PARSE_CACHE = new Map();
+const AUTO_CURVE_MIN_DISTANCE = 64;
+const AUTO_CURVE_AXIS_DOMINANCE_RATIO = 1.28;
+const AUTO_CURVE_OFFSET_TRIGGER = 14;
+const AUTO_CURVE_OFFSET_MIN = 14;
+const AUTO_CURVE_OFFSET_MAX = 34;
+const AUTO_CURVE_OFFSET_SCALE = 0.56;
 
 export function getLinkStrokeStyle(link) {
     return link?.strokeStyle || DEFAULT_LINK_STROKE_STYLE;
@@ -36,6 +42,50 @@ export function unpackLinkStrokeStyle(code) {
 
 export function buildStraightLinkPath(startPoint, endPoint) {
     return `M ${startPoint.x} ${startPoint.y} L ${endPoint.x} ${endPoint.y}`;
+}
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function shouldCurveLink(startPoint, endPoint) {
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    const distance = Math.hypot(dx, dy);
+
+    if (distance < AUTO_CURVE_MIN_DISTANCE) return false;
+    if (absDx < AUTO_CURVE_OFFSET_TRIGGER || absDy < AUTO_CURVE_OFFSET_TRIGGER) return false;
+
+    const longer = Math.max(absDx, absDy);
+    const shorter = Math.min(absDx, absDy);
+    if (shorter === 0) return false;
+
+    return longer / shorter >= AUTO_CURVE_AXIS_DOMINANCE_RATIO;
+}
+
+export function buildAutoCurveLinkPath(startPoint, endPoint) {
+    if (!shouldCurveLink(startPoint, endPoint)) {
+        return buildStraightLinkPath(startPoint, endPoint);
+    }
+
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    const midX = (startPoint.x + endPoint.x) / 2;
+    const midY = (startPoint.y + endPoint.y) / 2;
+
+    if (absDx >= absDy) {
+        const curveOffset = clamp(absDy * AUTO_CURVE_OFFSET_SCALE, AUTO_CURVE_OFFSET_MIN, AUTO_CURVE_OFFSET_MAX);
+        const controlY = midY + Math.sign(dy) * curveOffset;
+        return `M ${startPoint.x} ${startPoint.y} Q ${midX} ${controlY} ${endPoint.x} ${endPoint.y}`;
+    }
+
+    const curveOffset = clamp(absDx * AUTO_CURVE_OFFSET_SCALE, AUTO_CURVE_OFFSET_MIN, AUTO_CURVE_OFFSET_MAX);
+    const controlX = midX + Math.sign(dx) * curveOffset;
+    return `M ${startPoint.x} ${startPoint.y} Q ${controlX} ${midY} ${endPoint.x} ${endPoint.y}`;
 }
 
 export function buildWavyLinkPath(startPoint, endPoint) {
@@ -73,7 +123,7 @@ export function buildWavyLinkPath(startPoint, endPoint) {
 export function buildLinkPathData(link, startPoint, endPoint) {
     return getLinkStrokeStyle(link) === 'wavy'
         ? buildWavyLinkPath(startPoint, endPoint)
-        : buildStraightLinkPath(startPoint, endPoint);
+        : buildAutoCurveLinkPath(startPoint, endPoint);
 }
 
 function parseCssColor(colorText) {
