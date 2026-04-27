@@ -10,6 +10,7 @@ let appState; // 用于访问 state.settings 等
 let callbacks; // 用于执行 main.js 中的动作，如 undo
 let currentHelpPage = 0;
 let lastHelpWheelAt = 0;
+let resetAboutEasterEgg = null;
 
 const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
 const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
@@ -32,6 +33,7 @@ function updateTheme(themeBtn) {
 // --- 关于弹窗 ---
 function closeAbout(aboutOverlay) {
     aboutOverlay.classList.remove('show');
+    if (typeof resetAboutEasterEgg === 'function') resetAboutEasterEgg();
 }
 
 function getHelpPages() {
@@ -151,6 +153,67 @@ function updateSeasonalLogo() {
     logoBox.innerText = emoji;
 }
 
+function createDangoConfettiBurst(originX, originY) {
+    const layer = document.createElement('div');
+    layer.className = 'dango-confetti-layer';
+    document.body.appendChild(layer);
+
+    const colors = ['#ff9eaa', '#ffffff', '#88d8b0'];
+    const pieceCount = 42;
+    let remainingPieces = pieceCount;
+
+    const removeLayerIfEmpty = () => {
+        remainingPieces--;
+        if (remainingPieces <= 0) layer.remove();
+    };
+
+    for (let index = 0; index < pieceCount; index++) {
+        const piece = document.createElement('span');
+        const isDot = Math.random() < 0.45;
+        const angle = Math.random() * Math.PI * 2;
+        const burstDistance = 45 + Math.random() * 120;
+        const burstX = Math.cos(angle) * burstDistance;
+        const burstY = Math.sin(angle) * burstDistance - 24;
+        const landX = burstX + (Math.random() - 0.5) * 110;
+        const landY = burstY + 150 + Math.random() * 190;
+        const duration = 1200 + Math.random() * 650;
+        const delay = Math.random() * 80;
+        const size = 5 + Math.random() * 5;
+        const color = colors[index % colors.length];
+
+        piece.className = `dango-confetti-piece ${isDot ? 'is-dot' : 'is-strip'}`;
+        piece.style.left = `${originX}px`;
+        piece.style.top = `${originY}px`;
+        piece.style.width = `${size}px`;
+        piece.style.height = isDot ? `${size}px` : `${size * (1.6 + Math.random() * 0.9)}px`;
+        piece.style.backgroundColor = color;
+        piece.style.borderColor = color === '#ffffff' ? 'rgba(51, 65, 85, 0.18)' : 'transparent';
+        piece.style.animationDuration = `${duration}ms`;
+        piece.style.animationDelay = `${delay}ms`;
+        piece.style.setProperty('--burst-x', `${burstX}px`);
+        piece.style.setProperty('--burst-y', `${burstY}px`);
+        piece.style.setProperty('--land-x', `${landX}px`);
+        piece.style.setProperty('--land-y', `${landY}px`);
+        piece.style.setProperty('--spin-start', `${Math.random() * 240 - 120}deg`);
+        piece.style.setProperty('--spin-end', `${Math.random() * 980 - 490}deg`);
+        piece.style.setProperty('--tilt-start', `${Math.random() * 180 - 90}deg`);
+        piece.style.setProperty('--tilt-end', `${Math.random() * 720 - 360}deg`);
+        piece.style.setProperty('--flip-end', `${Math.random() * 720 - 360}deg`);
+
+        let didRemove = false;
+        const removePiece = () => {
+            if (didRemove) return;
+            didRemove = true;
+            piece.remove();
+            removeLayerIfEmpty();
+        };
+
+        piece.addEventListener('animationend', removePiece, { once: true });
+        setTimeout(removePiece, duration + delay + 250);
+        layer.appendChild(piece);
+    }
+}
+
 function initEasterEggs() {
     let logoClickCount = 0;
     let logoComboCount = 0;
@@ -174,6 +237,26 @@ function initEasterEggs() {
                 logoComboCount = 0;
             }, 1000);
         };
+    }
+
+    let aboutClickCount = 0;
+    let aboutClickTimer = null;
+    const aboutLogo = document.querySelector('#about-card .dango-easter-egg');
+    const resetAboutClicks = () => {
+        aboutClickCount = 0;
+        clearTimeout(aboutClickTimer);
+    };
+    resetAboutEasterEgg = resetAboutClicks;
+    if (aboutLogo) {
+        aboutLogo.addEventListener('click', (e) => {
+            aboutClickCount++;
+            clearTimeout(aboutClickTimer);
+            if (aboutClickCount >= 5) {
+                aboutClickCount = 0;
+                createDangoConfettiBurst(e.clientX, e.clientY);
+            }
+            aboutClickTimer = setTimeout(resetAboutClicks, 800);
+        });
     }
 
     const starBtns = document.querySelectorAll('.btn-star');
