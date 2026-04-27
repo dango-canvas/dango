@@ -153,20 +153,26 @@ function updateSeasonalLogo() {
 
 function initEasterEggs() {
     let logoClickCount = 0;
+    let logoComboCount = 0;
     let logoClickTimer = null;
     const logoBox = document.getElementById('ui-logo-box');
     if (logoBox) {
-        logoBox.style.cursor = 'pointer';
         logoBox.onclick = () => {
             logoClickCount++;
             clearTimeout(logoClickTimer);
             if (logoClickCount >= 5) {
                 logoClickCount = 0;
-                showToast("🍡 团子全家桶！" + (appState.theme === 'dark' ? "🌙" : "☀️"));
-                logoBox.style.transform = 'scale(1.5) rotate(360deg)';
-                setTimeout(() => { logoBox.style.transform = ''; }, 500);
+                logoComboCount++;
+                showToast(`${getTexts().toast_easter_dango} x${logoComboCount}`);
+                logoBox.classList.remove('easter-pop');
+                void logoBox.offsetWidth;
+                logoBox.classList.add('easter-pop');
+                setTimeout(() => { logoBox.classList.remove('easter-pop'); }, 500);
             }
-            logoClickTimer = setTimeout(() => { logoClickCount = 0; }, 1000);
+            logoClickTimer = setTimeout(() => {
+                logoClickCount = 0;
+                logoComboCount = 0;
+            }, 1000);
         };
     }
 
