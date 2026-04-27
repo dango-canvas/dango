@@ -333,12 +333,12 @@ let wheelSaveTimeout;
 
     els.uiLayer.addEventListener('touchstart', (e) => {
         if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
-        els.uiLayer.classList.add('mobile-active');
+        els.uiLayer.classList.add('mobile-expanded');
     }, { passive: true });
 
     document.addEventListener('touchstart', (e) => {
         if (!els.uiLayer.contains(e.target)) {
-            els.uiLayer.classList.remove('mobile-active');
+            els.uiLayer.classList.remove('mobile-expanded');
             if (document.activeElement && els.uiLayer.contains(document.activeElement)) {
                 document.activeElement.blur();
             }
@@ -346,7 +346,7 @@ let wheelSaveTimeout;
     }, { passive: true });
 
     els.container.addEventListener('touchstart', e => {
-        els.uiLayer.classList.remove('mobile-active');
+        els.uiLayer.classList.remove('mobile-expanded');
         if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
         cancelViewAnimation();
         if (e.touches.length === 2) {
