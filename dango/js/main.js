@@ -1,5 +1,5 @@
 import { initI18n, updateI18n } from './modules/i18n.js';
-import { initUI, applySettings, applyHandDrawnStyle } from './modules/ui.js';
+import { initUI, applySettings, applyHandDrawnStyle, waitForInitialBackground } from './modules/ui.js';
 import { state, initializeData, saveData, undo, redo } from './modules/state.js';
 import { initRender, render } from './modules/render.js';
 import { createNodesFromInput, clearCanvas } from './modules/actions.js';
@@ -54,4 +54,6 @@ render();
 updateI18n();
 
 // 6. Final UI Reveal
-document.body.classList.remove('cloak');
+waitForInitialBackground().finally(() => {
+    document.body.classList.remove('cloak');
+});

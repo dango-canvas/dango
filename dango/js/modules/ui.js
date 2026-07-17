@@ -11,6 +11,9 @@ let callbacks; // 用于执行 main.js 中的动作，如 undo
 let currentHelpPage = 0;
 let lastHelpWheelAt = 0;
 let resetAboutEasterEgg = null;
+let hasBoundBackgroundLifecycle = false;
+
+const BACKGROUND_WAIT_TIMEOUT_MS = 1800;
 
 const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
 const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
@@ -70,31 +73,154 @@ function resetHelpPage() {
     setHelpPage(0);
 }
 
-export function applyBackgroundImage(bgUrl) {
-    if (bgUrl) {
-        // 将背景图挂载在 html 元素上（最底层）
-        document.documentElement.style.backgroundImage = `url('${bgUrl}')`;
-        document.documentElement.style.backgroundSize = 'cover';
-        document.documentElement.style.backgroundPosition = 'center';
-        document.documentElement.style.backgroundRepeat = 'no-repeat';
-        
-        // 在 body 上覆盖一层半透明的灰色遮罩，不加模糊
-        // 夜间模式下增加遮罩深度
+function normalizeBgUrl(bgUrl) {
+    return (bgUrl || '').trim();
+}
+
+function hasLoadedWallpaper() {
+    const image = els.bgWallpaperImage;
+    return Boolean(image && image.complete && image.naturalWidth > 0);
+}
+
+function setWallpaperVisible(isVisible) {
+    if (!els.bgWallpaperLayer) return;
+    els.bgWallpaperLayer.classList.toggle('visible', isVisible);
+}
+
+function updateBackgroundMask(hasWallpaper) {
+    const mask = els.bgWallpaperMask;
+    if (!mask) return;
+
+    if (hasWallpaper) {
         const isDark = appState?.theme === 'dark';
-        document.body.style.backgroundColor = isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(127, 127, 127, 0.2)';
-        document.body.style.backdropFilter = '';
-        document.body.style.webkitBackdropFilter = '';
+        mask.style.background = isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(127, 127, 127, 0.2)';
     } else {
-        // 恢复默认
-        document.documentElement.style.backgroundImage = '';
-        document.documentElement.style.backgroundSize = '';
-        document.documentElement.style.backgroundPosition = '';
-        document.documentElement.style.backgroundRepeat = '';
-        
-        document.body.style.backgroundColor = '';
-        document.body.style.backdropFilter = '';
-        document.body.style.webkitBackdropFilter = '';
+        mask.style.background = '';
     }
+}
+
+function getCurrentBackgroundUrl(currentState = appState) {
+    return normalizeBgUrl(currentState?.settings?.bgUrl);
+}
+
+function waitForWallpaperReady(timeoutMs = BACKGROUND_WAIT_TIMEOUT_MS) {
+    const image = els.bgWallpaperImage;
+    const targetUrl = image?.dataset.bgUrl || '';
+
+    if (!image || !targetUrl) {
+        setWallpaperVisible(false);
+        return Promise.resolve(false);
+    }
+
+    if (hasLoadedWallpaper()) {
+        setWallpaperVisible(true);
+        return Promise.resolve(true);
+    }
+
+    return new Promise(resolve => {
+        let done = false;
+        let timerId = 0;
+
+        const cleanup = () => {
+            image.removeEventListener('load', handleLoad);
+            image.removeEventListener('error', handleError);
+            if (timerId) window.clearTimeout(timerId);
+        };
+
+        const finish = (loaded) => {
+            if (done) return;
+            done = true;
+            cleanup();
+            setWallpaperVisible(loaded);
+            resolve(loaded);
+        };
+
+        const handleLoad = () => finish(true);
+        const handleError = () => finish(false);
+
+        image.addEventListener('load', handleLoad);
+        image.addEventListener('error', handleError);
+
+        if (timeoutMs > 0) {
+            timerId = window.setTimeout(() => finish(false), timeoutMs);
+        }
+    });
+}
+
+function revealBodyAfterWallpaper(timeoutMs = BACKGROUND_WAIT_TIMEOUT_MS) {
+    if (!getCurrentBackgroundUrl()) {
+        document.body.classList.remove('cloak');
+        return Promise.resolve(false);
+    }
+
+    document.body.classList.add('cloak');
+    return waitForWallpaperReady(timeoutMs).then((loaded) => new Promise(resolve => {
+        requestAnimationFrame(() => {
+            document.body.classList.remove('cloak');
+            resolve(loaded);
+        });
+    }));
+}
+
+function bindBackgroundLifecycle() {
+    if (hasBoundBackgroundLifecycle) return;
+    hasBoundBackgroundLifecycle = true;
+
+    if (els.bgWallpaperImage) {
+        els.bgWallpaperImage.addEventListener('load', () => setWallpaperVisible(true));
+        els.bgWallpaperImage.addEventListener('error', () => setWallpaperVisible(false));
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (!getCurrentBackgroundUrl()) return;
+
+        if (document.visibilityState === 'hidden') {
+            document.body.classList.add('cloak');
+            return;
+        }
+
+        void revealBodyAfterWallpaper(1200);
+    });
+
+    window.addEventListener('pageshow', (event) => {
+        if (!getCurrentBackgroundUrl()) return;
+
+        if (!event.persisted) {
+            setWallpaperVisible(hasLoadedWallpaper());
+            return;
+        }
+
+        void revealBodyAfterWallpaper(1200);
+    });
+}
+
+export function waitForInitialBackground() {
+    return waitForWallpaperReady();
+}
+
+export function applyBackgroundImage(bgUrl) {
+    const normalizedBgUrl = normalizeBgUrl(bgUrl);
+    const image = els.bgWallpaperImage;
+
+    updateBackgroundMask(Boolean(normalizedBgUrl));
+
+    if (!image) return;
+
+    if (!normalizedBgUrl) {
+        delete image.dataset.bgUrl;
+        image.removeAttribute('src');
+        setWallpaperVisible(false);
+        return;
+    }
+
+    if (image.dataset.bgUrl === normalizedBgUrl) {
+        setWallpaperVisible(hasLoadedWallpaper());
+        return;
+    }
+
+    image.dataset.bgUrl = normalizedBgUrl;
+    setWallpaperVisible(false);
+    image.src = normalizedBgUrl;
 }
 
 // --- 设置 ---
@@ -114,7 +240,7 @@ export function applySettings(currentState) {
 
     document.body.classList.toggle('hide-grid', s.settings.hideGrid);
     
-    const finalBgUrl = s.settings.bgUrl || getTexts().bg_url;
+    const finalBgUrl = normalizeBgUrl(s.settings.bgUrl);
     applyBackgroundImage(finalBgUrl);
 }
 
@@ -420,6 +546,7 @@ function processToastQueue() {
 export function initUI(_state, _callbacks) {
     appState = _state;
     callbacks = _callbacks;
+    bindBackgroundLifecycle();
 
     // 1. 关于弹窗
     const aboutOverlay = document.getElementById('about-overlay');

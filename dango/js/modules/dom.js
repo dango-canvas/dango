@@ -1,6 +1,9 @@
 // modules/dom.js
 
 export const els = {
+    bgWallpaperLayer: document.getElementById('bg-wallpaper-layer'),
+    bgWallpaperImage: document.getElementById('bg-wallpaper-image'),
+    bgWallpaperMask: document.getElementById('bg-wallpaper-mask'),
     container: document.getElementById('canvas-container'),
     world: document.getElementById('world'),
     nodesLayer: document.getElementById('nodes-layer'),
