@@ -113,7 +113,10 @@ function parseMarkdown(text) {
         );
         if (!processedLine.includes('class="todo-item"')) {
             processedLine = processedLine.replace(/\*\*(.*?)\*\*|__(.*?)__/g, '<strong>$1$2</strong>');
-            processedLine = processedLine.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)|_(.*?)_/g, '<em>$1$2</em>');
+            // 倾斜: *text* 或 _text_
+            // _ 仅在单词边界触发（前后为非单词字符或行首尾），
+            // 避免误伤 hello_world 这类下划线命名。
+            processedLine = processedLine.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)|(?<=^|[^\w_])_(.+?)_(?=[^\w_]|$)/g, '<em>$1$2</em>');
             // Inline Links: [text](url)
             processedLine = processedLine.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
                 let validUrl = url.trim();
