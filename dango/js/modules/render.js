@@ -14,6 +14,31 @@ const IMAGE_SIZE_ICONS = {
     s: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 10 10 10 10 4"></polyline><polyline points="20 10 14 10 14 4"></polyline><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 14 14 14 14 20"></polyline></svg>',
     l: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 4 4 4 4 10"></polyline><polyline points="14 4 20 4 20 10"></polyline><polyline points="10 20 4 20 4 14"></polyline><polyline points="14 20 20 20 20 14"></polyline></svg>'
 };
+const HTML_ESCAPE_MAP = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+};
+
+function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, ch => HTML_ESCAPE_MAP[ch]);
+}
+
+function normalizeHttpUrl(rawUrl) {
+    const value = String(rawUrl || '').trim();
+    if (!value) return null;
+    if (value.startsWith('#')) return value;
+
+    const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+    try {
+        const url = new URL(candidate, window.location.href);
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+    } catch {
+        return null;
+    }
+}
 function syncDomElements(dataArray, parent, className, renderFn) {
     const existing = new Map();
     Array.from(parent.children).forEach(el => existing.set(el.dataset.id, el));
@@ -76,7 +101,7 @@ function renderCodeBlock(el, text) {
                 <span class="code-dot dot-y"></span>
                 <span class="code-dot dot-g"></span>
             </div>
-            <div class="code-lang">${lang}</div>
+            <div class="code-lang">${escapeHTML(lang)}</div>
         </div>
         <div class="code-content">${highlightCode(code)}</div>
     `;
@@ -119,11 +144,9 @@ function parseMarkdown(text) {
             processedLine = processedLine.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)|(?<=^|[^\w_])_(.+?)_(?=[^\w_]|$)/g, '<em>$1$2</em>');
             // Inline Links: [text](url)
             processedLine = processedLine.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
-                let validUrl = url.trim();
-                if (!validUrl.startsWith('http') && !validUrl.startsWith('#')) {
-                    validUrl = 'https://' + validUrl;
-                }
-                return `<a href="${validUrl}" target="_blank" class="node-inline-link" onclick="event.stopPropagation()">${text}</a>`;
+                const validUrl = normalizeHttpUrl(url);
+                if (!validUrl) return match;
+                return `<a href="${escapeHTML(validUrl)}" target="_blank" rel="noopener noreferrer" class="node-inline-link">${text}</a>`;
             });
         }
         return processedLine;
@@ -275,9 +298,8 @@ function renderNode(el, node) {
             btnEl.onmousedown = (e) => e.stopPropagation();
             btnEl.onclick = (e) => {
                 e.stopPropagation();
-                let url = node.text.trim();
-                if (!url.startsWith('http')) url = 'https://' + url;
-                window.open(url, '_blank');
+                const url = normalizeHttpUrl(node.text);
+                if (url) window.open(url, '_blank', 'noopener,noreferrer');
             };
             el.appendChild(btnEl);
         }

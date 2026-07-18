@@ -81,7 +81,13 @@ function commitNodeDisplayGeometry(node, nodeEl) {
 export function initInteractions() {
 
     els.nodesLayer.addEventListener('click', e => {
-        const checkboxWrapper = e.target.closest('.todo-checkbox-wrapper');
+        const target = e.target instanceof Element ? e.target : e.target.parentElement;
+        const inlineLink = target?.closest('.node-inline-link');
+        if (inlineLink) {
+            e.stopPropagation();
+            return;
+        }
+        const checkboxWrapper = target?.closest('.todo-checkbox-wrapper');
         if (!checkboxWrapper) return;
         e.stopPropagation();
         const nodeEl = checkboxWrapper.closest('.node');

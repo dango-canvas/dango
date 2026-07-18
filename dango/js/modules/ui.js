@@ -614,6 +614,7 @@ export function initUI(_state, _callbacks) {
             try {
                 const newWindow = window.open(url, '_blank');
                 if (newWindow && !newWindow.closed && typeof newWindow.closed !== 'undefined') {
+                    newWindow.opener = null;
                     return; // 成功打开
                 }
             } catch (err) {
