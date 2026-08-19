@@ -5,26 +5,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dango: Drop a nugget, get organized</title>
-    <meta name="description" content="Dango is a lightweight, infinite canvas for note-taking and block diagramming. Organize scattered thoughts, visualize connections, and share ideas instantly with no backend required.">
-    <meta name="keywords" content="infinite canvas, block diagramming, mind map, note taking, whiteboard, organization, productivity, dango, local-first">
+    <meta name="description"
+        content="Dango is a lightweight, infinite canvas for note-taking and block diagramming. Organize scattered thoughts, visualize connections, and share ideas instantly with no backend required.">
+    <meta name="keywords"
+        content="infinite canvas, block diagramming, mind map, note taking, whiteboard, organization, productivity, dango, local-first">
     <meta name="author" content="Dango">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://dango.ink/">
     <meta property="og:title" content="Dango: Drop a nugget, get organized">
-    <meta property="og:description" content="Dango is a lightweight, infinite canvas for note-taking and block diagramming. Organize scattered thoughts, visualize connections, and share ideas instantly with no backend required.">
+    <meta property="og:description"
+        content="Dango is a lightweight, infinite canvas for note-taking and block diagramming. Organize scattered thoughts, visualize connections, and share ideas instantly with no backend required.">
     <meta property="og:image" content="https://dango.ink/icons/icon-128.png">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary">
     <meta property="twitter:url" content="https://dango.ink/">
     <meta property="twitter:title" content="Dango: Drop a nugget, get organized">
-    <meta property="twitter:description" content="Dango is a lightweight, infinite canvas for note-taking and block diagramming. Organize scattered thoughts, visualize connections, and share ideas instantly with no backend required.">
+    <meta property="twitter:description"
+        content="Dango is a lightweight, infinite canvas for note-taking and block diagramming. Organize scattered thoughts, visualize connections, and share ideas instantly with no backend required.">
     <meta property="twitter:image" content="https://dango.ink/icons/icon-128.png">
 
     <style>
-        .cloak { opacity: 0 !important; pointer-events: none !important; }
+        .cloak {
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
     </style>
     <script src="js/lz-string.min.js"></script>
     <link rel="stylesheet" href="css/style.css">
@@ -111,7 +118,8 @@
                         </div>
                         <div class="settings-item">
                             <span data-i18n="settings_bg_url">背景图片 URL</span>
-                            <input type="text" id="input-bg-url" data-i18n-placeholder="settings_bg_url_placeholder" style="width: 65px; margin-left: 10px; font-size: 12px; padding: 2px 6px; border: 1px solid var(--ui-border); border-radius: 4px; background: var(--bg-color); color: var(--ui-text); text-overflow: ellipsis;">
+                            <input type="text" id="input-bg-url" data-i18n-placeholder="settings_bg_url_placeholder"
+                                style="width: 65px; margin-left: 10px; font-size: 12px; padding: 2px 6px; border: 1px solid var(--ui-border); border-radius: 4px; background: var(--bg-color); color: var(--ui-text); text-overflow: ellipsis;">
                         </div>
                     </div>
                 </div>
@@ -134,45 +142,48 @@
                                         class="help-keys">Ctrl + Z / Y</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_search">搜索节点</span> <span
                                         class="help-keys">Ctrl + F</span></div>
-                                <div class="help-row"><span class="help-desc" data-i18n="help_pan_zoom">平移 / 缩放</span> <span
-                                        class="help-keys">Space + Drag / Wheel</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_pan_zoom">平移 / 缩放</span>
+                                    <span class="help-keys">Space + Drag / Wheel</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_center">回归中心</span> <span
                                         class="help-keys">Home</span></div>
-                                <div class="help-row"><span class="help-desc" data-i18n="help_select">多选 / 框选</span> <span
-                                        class="help-keys">Ctrl + Click</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_select">多选 / 框选</span>
+                                    <span class="help-keys">Ctrl + Click</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_clone">克隆节点</span> <span
                                         class="help-keys">Ctrl + Drag</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_delete">删除选中</span> <span
                                         class="help-keys">Del / Backspace</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_link">连线 / 断线</span> <span
                                         class="help-keys">Ctrl + L</span></div>
-                                <div class="help-row"><span class="help-desc" data-i18n="help_directional_create">方向创建</span> <span
-                                        class="help-keys">Ctrl + Arrow</span></div>
+                                <div class="help-row"><span class="help-desc"
+                                        data-i18n="help_directional_create">方向创建</span> <span class="help-keys">Ctrl +
+                                        Arrow</span></div>
                             </div>
 
                             <div class="help-page" data-help-page="1">
                                 <div class="help-row"><span class="help-desc" data-i18n="help_save">保存画板文件</span> <span
                                         class="help-keys">Ctrl + S</span></div>
-                                <div class="help-row"><span class="help-desc" data-i18n="help_group">编组 / 解组</span> <span
-                                        class="help-keys">Ctrl + G</span></div>
-                                <div class="help-row"><span class="help-desc" data-i18n="help_link_style">切换线形</span> <span
-                                        class="help-keys">Ctrl + '</span></div>
-                                <div class="help-row"><span class="help-desc" data-i18n="help_smart_align">智能对齐</span> <span
-                                        class="help-keys">Alt + .</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_group">编组 / 解组</span>
+                                    <span class="help-keys">Ctrl + G</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_link_style">切换线形</span>
+                                    <span class="help-keys">Ctrl + '</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_smart_align">智能对齐</span>
+                                    <span class="help-keys">Alt + .</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_align">方向对齐</span> <span
                                         class="help-keys">Alt + W A S D H J</span></div>
-                                <div class="help-row"><span class="help-desc" data-i18n="help_center_align">分布对齐</span> <span
-                                        class="help-keys">Alt + Shift + H J</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_center_align">分布对齐</span>
+                                    <span class="help-keys">Alt + Shift + H J</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_color">切换颜色</span> <span
                                         class="help-keys">Alt + 1 ~ 9</span></div>
-                                <div class="help-row"><span class="help-desc" data-i18n="help_spotlight">聚光灯</span> <span
-                                        class="help-keys">Q</span></div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_spotlight">聚光灯</span>
+                                    <span class="help-keys">Q</span></div>
                             </div>
                         </div>
 
                         <div class="help-pager" aria-label="Help Pages">
-                            <button type="button" class="help-page-dot active" data-help-page-target="0" aria-label="Page 1"></button>
-                            <button type="button" class="help-page-dot" data-help-page-target="1" aria-label="Page 2"></button>
+                            <button type="button" class="help-page-dot active" data-help-page-target="0"
+                                aria-label="Page 1"></button>
+                            <button type="button" class="help-page-dot" data-help-page-target="1"
+                                aria-label="Page 2"></button>
                         </div>
 
                         <div class="help-footer-row">
@@ -186,8 +197,8 @@
                                 </svg>
                                 <span data-i18n="about_title">关于</span>
                             </button>
-                            <a href="https://github.com/dango-canvas/dango/issues" target="_blank" rel="noopener noreferrer"
-                                class="help-action-btn">
+                            <a href="https://github.com/dango-canvas/dango/issues" target="_blank"
+                                rel="noopener noreferrer" class="help-action-btn">
                                 <!-- Message/Bug Icon -->
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2" style="margin-right:4px;">
@@ -197,7 +208,8 @@
                                 </svg>
                                 <span data-i18n="feedback">反馈</span>
                             </a>
-                            <a href="https://github.com/dango-canvas/dango" target="_blank" rel="noopener noreferrer" class="help-action-btn">
+                            <a href="https://github.com/dango-canvas/dango" target="_blank" rel="noopener noreferrer"
+                                class="help-action-btn">
                                 <!-- Github Icon -->
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
                                     style="margin-right:4px;">
@@ -261,7 +273,7 @@
                 <div class="about-logo dango-easter-egg">🍡</div>
                 <!-- 这里使用 brand_name，会根据语言变成 "团子画板" 或 "Dango" -->
                 <div class="about-title" data-i18n="brand_name">团子画板</div>
-                <div class="about-version">v1.0.7 (2026.04.26)</div>
+                <div class="about-version">v1.0.7 (2026.08.20)</div>
             </div>
 
             <p class="about-desc" data-i18n="about_desc">
@@ -271,7 +283,8 @@
 
             <!-- Star 引导区 -->
             <div class="about-stars">
-                <a href="https://github.com/dango-canvas/dango" target="_blank" rel="noopener noreferrer" class="btn-star">
+                <a href="https://github.com/dango-canvas/dango" target="_blank" rel="noopener noreferrer"
+                    class="btn-star">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; color:#eab308;">
                         <polygon
@@ -283,9 +296,12 @@
             </div>
 
             <div class="about-links">
-                <a href="https://blog.dango.ink" target="_blank" rel="noopener noreferrer" class="about-link-item" data-i18n="blog_link">博客</a>
-                <a href="#" target="_blank" rel="noopener noreferrer" class="about-link-item" data-i18n="privacy_policy">隐私声明</a>
-                <a href="#" target="_blank" rel="noopener noreferrer" class="about-link-item" data-i18n="terms_of_service">用户条款</a>
+                <a href="https://blog.dango.ink" target="_blank" rel="noopener noreferrer" class="about-link-item"
+                    data-i18n="blog_link">博客</a>
+                <a href="#" target="_blank" rel="noopener noreferrer" class="about-link-item"
+                    data-i18n="privacy_policy">隐私声明</a>
+                <a href="#" target="_blank" rel="noopener noreferrer" class="about-link-item"
+                    data-i18n="terms_of_service">用户条款</a>
                 <!-- 预留咖啡位 -->
                 <!-- <a href="https://buymeacoffee.com" target="_blank" class="about-link-item" data-i18n="buy_coffee">请喝咖啡</a> -->
             </div>
@@ -296,19 +312,28 @@
     <!-- 放在所有 UI 元素后面 -->
     <div id="spotlight-layer"></div>
     <div id="ui-bottom-right">
-        <a href="https://blog.dango.ink/why-dango-is-secure" target="_blank" rel="noopener noreferrer" id="btn-safety" class="bottom-btn" data-i18n-title="safety_tooltip">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <a href="https://blog.dango.ink/why-dango-is-secure" target="_blank" rel="noopener noreferrer" id="btn-safety"
+            class="bottom-btn" data-i18n-title="safety_tooltip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
             </svg>
         </a>
     </div>
     <div id="embed-footer">
         <button id="btn-info-embed" data-i18n-title="embed_info_tooltip">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
         </button>
 
         <a id="btn-open-full" href="#" target="_blank" rel="noopener noreferrer" data-i18n-title="embed_open_tooltip">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
+            </svg>
         </a>
 
         <!-- 放在按钮后面，方便 CSS 选择器定位 -->
