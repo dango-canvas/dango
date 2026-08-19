@@ -7,12 +7,10 @@ export const LINK_STROKE_STYLE_FROM_CODE = ['solid', 'dashed', 'wavy'];
 
 const DIRECTIONAL_LINK_TINT_RATIO = 0.46;
 const COLOR_PARSE_CACHE = new Map();
-const AUTO_CURVE_MIN_DISTANCE = 64;
-const AUTO_CURVE_AXIS_DOMINANCE_RATIO = 1.28;
-const AUTO_CURVE_OFFSET_TRIGGER = 14;
-const AUTO_CURVE_OFFSET_MIN = 14;
-const AUTO_CURVE_OFFSET_MAX = 34;
-const AUTO_CURVE_OFFSET_SCALE = 0.56;
+const ARCH_OFFSET_MAX = 28; // 最大拱起高度
+const ARCH_DY_SCALE = 32;   // 偏移敏感度平滑常数（更灵敏平滑）
+const DISTANCE_DAMPING_MIN = 14;
+const DISTANCE_DAMPING_MAX = 56;
 
 export function getLinkStrokeStyle(link) {
     return link?.strokeStyle || DEFAULT_LINK_STROKE_STYLE;
@@ -44,48 +42,52 @@ export function buildStraightLinkPath(startPoint, endPoint) {
     return `M ${startPoint.x} ${startPoint.y} L ${endPoint.x} ${endPoint.y}`;
 }
 
-function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+function smoothstep(edge0, edge1, x) {
+    const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
 }
 
-function shouldCurveLink(startPoint, endPoint) {
+export function buildAutoCurveLinkPath(startPoint, endPoint) {
     const dx = endPoint.x - startPoint.x;
     const dy = endPoint.y - startPoint.y;
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
     const distance = Math.hypot(dx, dy);
 
-    if (distance < AUTO_CURVE_MIN_DISTANCE) return false;
-    if (absDx < AUTO_CURVE_OFFSET_TRIGGER || absDy < AUTO_CURVE_OFFSET_TRIGGER) return false;
-
-    const longer = Math.max(absDx, absDy);
-    const shorter = Math.min(absDx, absDy);
-    if (shorter === 0) return false;
-
-    return longer / shorter >= AUTO_CURVE_AXIS_DOMINANCE_RATIO;
-}
-
-export function buildAutoCurveLinkPath(startPoint, endPoint) {
-    if (!shouldCurveLink(startPoint, endPoint)) {
+    if (distance < 4) {
         return buildStraightLinkPath(startPoint, endPoint);
     }
 
-    const dx = endPoint.x - startPoint.x;
-    const dy = endPoint.y - startPoint.y;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
+    // 距离阻尼：过近时平滑收敛为直线
+    const distanceDamping = smoothstep(DISTANCE_DAMPING_MIN, DISTANCE_DAMPING_MAX, distance);
+    const sum = absDx + absDy;
+    if (sum < 1e-4 || distanceDamping < 1e-4) {
+        return buildStraightLinkPath(startPoint, endPoint);
+    }
+
     const midX = (startPoint.x + endPoint.x) / 2;
     const midY = (startPoint.y + endPoint.y) / 2;
 
-    if (absDx >= absDy) {
-        const curveOffset = clamp(absDy * AUTO_CURVE_OFFSET_SCALE, AUTO_CURVE_OFFSET_MIN, AUTO_CURVE_OFFSET_MAX);
-        const controlY = midY + Math.sign(dy) * curveOffset;
-        return `M ${startPoint.x} ${startPoint.y} Q ${midX} ${controlY} ${endPoint.x} ${endPoint.y}`;
+    // 连续软饱和拱起高度：tanh(offset / scale) 保证在 0 附近连续可导，无任何跳变
+    // 动态计算最大拱起幅度（随距离在 14px ~ 28px 之间舒展）
+    const maxOffset = Math.min(ARCH_OFFSET_MAX, Math.max(14, distance * 0.2));
+    const archY = maxOffset * Math.tanh(dy / ARCH_DY_SCALE) * distanceDamping;
+    const archX = maxOffset * Math.tanh(dx / ARCH_DY_SCALE) * distanceDamping;
+
+    // 轴向连续过渡因子：在 45° 对角线附近平滑淡出，主轴方向饱满呈现
+    const axisRatio = (absDx - absDy) / sum; // [-1, 1]
+    const wx = smoothstep(0.08, 0.45, Math.max(0, axisRatio));  // 水平主导权重 [0, 1]
+    const wy = smoothstep(0.08, 0.45, Math.max(0, -axisRatio)); // 垂直主导权重 [0, 1]
+
+    const controlX = midX + archX * wy;
+    const controlY = midY + archY * wx;
+
+    // 如果控制点恰好在两点中点，则渲染为直线
+    if (Math.abs(controlX - midX) < 0.5 && Math.abs(controlY - midY) < 0.5) {
+        return buildStraightLinkPath(startPoint, endPoint);
     }
 
-    const curveOffset = clamp(absDx * AUTO_CURVE_OFFSET_SCALE, AUTO_CURVE_OFFSET_MIN, AUTO_CURVE_OFFSET_MAX);
-    const controlX = midX + Math.sign(dx) * curveOffset;
-    return `M ${startPoint.x} ${startPoint.y} Q ${controlX} ${midY} ${endPoint.x} ${endPoint.y}`;
+    return `M ${startPoint.x} ${startPoint.y} Q ${controlX} ${controlY} ${endPoint.x} ${endPoint.y}`;
 }
 
 export function buildWavyLinkPath(startPoint, endPoint) {
