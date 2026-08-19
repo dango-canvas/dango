@@ -519,7 +519,7 @@ export function handleNodeEdit(nodeEl) {
         const isVisuallyEmpty = !originalText.replace(/\u200B/g, '').trim();
         // 将连续空格替换为 \u00a0 以防止在 contenteditable 中视觉塌陷
         const safeText = originalText.replace(/ ( +)/g, match => ' ' + '\u00a0'.repeat(match.length - 1));
-        nodeEl.innerText = isVisuallyEmpty ? '' : safeText;
+        nodeEl.innerText = isVisuallyEmpty ? '\u200B' : safeText;
         nodeEl.classList.remove('is-link', 'has-multiline');
 
         // 初始判断是否有多行
@@ -543,12 +543,12 @@ export function handleNodeEdit(nodeEl) {
             const rawText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
             if (!rawText.trim()) {
                 nodeEl.classList.remove('has-multiline');
-                // 当内容删空时，彻底清空 Chrome 生成的 <br> 等节点残留，防止行盒膨胀
-                if (nodeEl.innerHTML && nodeEl.innerHTML !== '') {
-                    nodeEl.innerHTML = '';
+                // 当内容被删空时，统一收敛为单个 \u200B，使 Firefox 和 Chrome 的光标均严格居中且杜绝 Chrome 标签残留膨胀
+                if (nodeEl.innerText !== '\u200B') {
+                    nodeEl.innerText = '\u200B';
                     const range = document.createRange();
                     range.selectNodeContents(nodeEl);
-                    range.collapse(true);
+                    range.collapse(false);
                     const sel = window.getSelection();
                     if (sel) {
                         sel.removeAllRanges();
