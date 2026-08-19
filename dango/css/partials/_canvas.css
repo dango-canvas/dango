@@ -274,10 +274,8 @@ path.link[data-stroke-style="wavy"] {
 }
 
 /* Todo List Styles */
-.node:has(.todo-item, br) {
-    text-align: left;
-}
 .node:has(.todo-item) {
+    text-align: left;
     padding-left: 12px;
 }
 .node .todo-item {

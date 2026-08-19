@@ -23,7 +23,7 @@ function getDefaultNodeBoxSize() {
 
     const probeEl = document.createElement('div');
     probeEl.className = 'node editing';
-    probeEl.textContent = '\u200B';
+    probeEl.textContent = '';
     probeEl.style.visibility = 'hidden';
     probeEl.style.pointerEvents = 'none';
     probeEl.style.left = '0';

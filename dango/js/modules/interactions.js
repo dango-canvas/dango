@@ -519,7 +519,7 @@ export function handleNodeEdit(nodeEl) {
         const isVisuallyEmpty = !originalText.replace(/\u200B/g, '').trim();
         // 将连续空格替换为 \u00a0 以防止在 contenteditable 中视觉塌陷
         const safeText = originalText.replace(/ ( +)/g, match => ' ' + '\u00a0'.repeat(match.length - 1));
-        nodeEl.innerText = isVisuallyEmpty ? '\u200B' : safeText;
+        nodeEl.innerText = isVisuallyEmpty ? '' : safeText;
         nodeEl.classList.remove('is-link', 'has-multiline');
 
         // 初始判断是否有多行
@@ -538,9 +538,24 @@ export function handleNodeEdit(nodeEl) {
             nodeEl.focus();
         }
 
-        // 监听输入，动态切换多行对齐样式
+        // 监听输入，动态切换多行对齐样式及清理空态 DOM 残留
         const handleInput = () => {
-            if (nodeEl.innerText.replace(/\u200B/g, '').trim() && nodeEl.innerText.includes('\n')) {
+            const rawText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+            if (!rawText.trim()) {
+                nodeEl.classList.remove('has-multiline');
+                // 当内容删空时，彻底清空 Chrome 生成的 <br> 等节点残留，防止行盒膨胀
+                if (nodeEl.innerHTML && nodeEl.innerHTML !== '') {
+                    nodeEl.innerHTML = '';
+                    const range = document.createRange();
+                    range.selectNodeContents(nodeEl);
+                    range.collapse(true);
+                    const sel = window.getSelection();
+                    if (sel) {
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            } else if (rawText.includes('\n')) {
                 nodeEl.classList.add('has-multiline');
             } else {
                 nodeEl.classList.remove('has-multiline');
