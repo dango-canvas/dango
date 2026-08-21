@@ -42,6 +42,7 @@ function forceFinishActiveEdit() {
     if (editingNode?.isContentEditable) {
         editingNode.onblur = null;
         editingNode.onkeydown = null;
+        editingNode.onpaste = null;
         editingNode.contentEditable = false;
         editingNode.classList.remove('editing');
         const sel = window.getSelection();
@@ -494,6 +495,265 @@ let wheelSaveTimeout;
     });
 }
 
+/**
+ * 设置 contenteditable 元素内的字符偏移选区
+ */
+function setSelectionByOffsets(root, startOffset, endOffset) {
+    const sel = window.getSelection();
+    if (!sel) return;
+
+    let currentOffset = 0;
+    let startNode = null;
+    let startNodeOffset = 0;
+    let endNode = null;
+    let endNodeOffset = 0;
+
+    const walker = document.createTreeWalker(
+        root,
+        NodeFilter.SHOW_TEXT,
+        null
+    );
+
+    let node = walker.nextNode();
+    if (!node) {
+        const range = document.createRange();
+        range.selectNodeContents(root);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        return;
+    }
+
+    while (node) {
+        const nodeLength = node.nodeValue.length;
+        if (!startNode && currentOffset + nodeLength >= startOffset) {
+            startNode = node;
+            startNodeOffset = startOffset - currentOffset;
+        }
+        if (!endNode && currentOffset + nodeLength >= endOffset) {
+            endNode = node;
+            endNodeOffset = endOffset - currentOffset;
+            break;
+        }
+        currentOffset += nodeLength;
+        const next = walker.nextNode();
+        if (!next) {
+            if (!startNode) {
+                startNode = node;
+                startNodeOffset = nodeLength;
+            }
+            if (!endNode) {
+                endNode = node;
+                endNodeOffset = nodeLength;
+            }
+            break;
+        }
+        node = next;
+    }
+
+    if (startNode && endNode) {
+        const range = document.createRange();
+        range.setStart(startNode, Math.max(0, Math.min(startNodeOffset, startNode.nodeValue.length)));
+        range.setEnd(endNode, Math.max(0, Math.min(endNodeOffset, endNode.nodeValue.length)));
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+}
+
+export function applyMarkdownFormat(nodeEl, formatType) {
+    if (!nodeEl || !nodeEl.isContentEditable) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!nodeEl.contains(range.commonAncestorContainer)) return;
+
+    // 获取选区前、中、后的文本内容
+    const preRange = document.createRange();
+    preRange.selectNodeContents(nodeEl);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    let before = preRange.toString();
+
+    let selected = range.toString();
+
+    const postRange = document.createRange();
+    postRange.selectNodeContents(nodeEl);
+    postRange.setStart(range.endContainer, range.endOffset);
+    let after = postRange.toString();
+
+    let startOffset = before.length;
+    let endOffset = startOffset + selected.length;
+
+    let replaceStartOffset = startOffset;
+    let replaceEndOffset = endOffset;
+    let replacement = '';
+    let newSelectStart = startOffset;
+    let newSelectEnd = endOffset;
+
+    // 特殊处理仅包含占位符 \u200B 的空状态
+    if (nodeEl.innerText === '\u200B') {
+        replaceStartOffset = 0;
+        replaceEndOffset = 1;
+        before = '';
+        selected = '';
+        after = '';
+        startOffset = 0;
+        endOffset = 0;
+    } else {
+        if (before === '\u200B' && !selected && !after) before = '';
+        if (selected === '\u200B') selected = '';
+        if (after === '\u200B' && !selected && !before) after = '';
+        startOffset = before.length;
+        endOffset = startOffset + selected.length;
+        replaceStartOffset = startOffset;
+        replaceEndOffset = endOffset;
+    }
+
+    if (formatType === 'bold') {
+        // 1. 检查选区自身是否已被粗体标记包裹
+        if ((selected.startsWith('***') && selected.endsWith('***') && selected.length >= 6) ||
+            (selected.startsWith('___') && selected.endsWith('___') && selected.length >= 6)) {
+            // 剥离 ** 或 __，保留斜体
+            replacement = selected.slice(2, -2);
+            newSelectStart = startOffset;
+            newSelectEnd = startOffset + replacement.length;
+        } else if ((selected.startsWith('**') && selected.endsWith('**') && selected.length >= 4) ||
+                   (selected.startsWith('__') && selected.endsWith('__') && selected.length >= 4)) {
+            // 剥离 ** 或 __
+            replacement = selected.slice(2, -2);
+            newSelectStart = startOffset;
+            newSelectEnd = startOffset + replacement.length;
+        }
+        // 2. 检查选区两端上下文是否已被粗体标记包裹
+        else if ((before.endsWith('***') && after.startsWith('***')) ||
+                 (before.endsWith('___') && after.startsWith('___'))) {
+            replaceStartOffset = startOffset - 2;
+            replaceEndOffset = endOffset + 2;
+            replacement = selected;
+            newSelectStart = startOffset - 2;
+            newSelectEnd = startOffset - 2 + selected.length;
+        } else if ((before.endsWith('**') && after.startsWith('**')) ||
+                   (before.endsWith('__') && after.startsWith('__'))) {
+            replaceStartOffset = startOffset - 2;
+            replaceEndOffset = endOffset + 2;
+            replacement = selected;
+            newSelectStart = startOffset - 2;
+            newSelectEnd = startOffset - 2 + selected.length;
+        }
+        // 3. 执行粗体包裹
+        else {
+            if (!selected) {
+                // 光标处于空粗体 **|** 中时，按 Ctrl+B 还原剥离
+                if (before.endsWith('**') && after.startsWith('**')) {
+                    replaceStartOffset = startOffset - 2;
+                    replaceEndOffset = endOffset + 2;
+                    replacement = '';
+                    newSelectStart = startOffset - 2;
+                    newSelectEnd = startOffset - 2;
+                } else {
+                    replacement = '****';
+                    newSelectStart = startOffset + 2;
+                    newSelectEnd = startOffset + 2;
+                }
+            } else {
+                const match = selected.match(/^(\s*)([\s\S]*?)(\s*)$/);
+                const leadSpace = match ? match[1] : '';
+                const coreText = match ? match[2] : selected;
+                const trailSpace = match ? match[3] : '';
+
+                if (!coreText) {
+                    replacement = leadSpace + '****' + trailSpace;
+                    newSelectStart = startOffset + leadSpace.length + 2;
+                    newSelectEnd = startOffset + leadSpace.length + 2;
+                } else {
+                    replacement = leadSpace + '**' + coreText + '**' + trailSpace;
+                    newSelectStart = startOffset + leadSpace.length + 2;
+                    newSelectEnd = startOffset + leadSpace.length + 2 + coreText.length;
+                }
+            }
+        }
+    } else if (formatType === 'italic') {
+        // 1. 检查选区自身是否已被斜体标记包裹
+        if ((selected.startsWith('***') && selected.endsWith('***') && selected.length >= 6) ||
+            (selected.startsWith('___') && selected.endsWith('___') && selected.length >= 6)) {
+            // 剥离 * 或 _，保留粗体
+            replacement = selected.slice(1, -1);
+            newSelectStart = startOffset;
+            newSelectEnd = startOffset + replacement.length;
+        } else if ((selected.startsWith('*') && selected.endsWith('*') && selected.length >= 2 && !(selected.startsWith('**') && selected.endsWith('**'))) ||
+                   (selected.startsWith('_') && selected.endsWith('_') && selected.length >= 2 && !(selected.startsWith('__') && selected.endsWith('__')))) {
+            // 剥离 * 或 _
+            replacement = selected.slice(1, -1);
+            newSelectStart = startOffset;
+            newSelectEnd = startOffset + replacement.length;
+        }
+        // 2. 检查选区两端上下文是否已被斜体标记包裹
+        else if ((before.endsWith('***') && after.startsWith('***')) ||
+                 (before.endsWith('___') && after.startsWith('___'))) {
+            replaceStartOffset = startOffset - 1;
+            replaceEndOffset = endOffset + 1;
+            replacement = selected;
+            newSelectStart = startOffset - 1;
+            newSelectEnd = startOffset - 1 + selected.length;
+        } else if ((before.endsWith('*') && !before.endsWith('**') && after.startsWith('*') && !after.startsWith('**')) ||
+                   (before.endsWith('_') && !before.endsWith('__') && after.startsWith('_') && !after.startsWith('__'))) {
+            replaceStartOffset = startOffset - 1;
+            replaceEndOffset = endOffset + 1;
+            replacement = selected;
+            newSelectStart = startOffset - 1;
+            newSelectEnd = startOffset - 1 + selected.length;
+        }
+        // 3. 执行斜体包裹
+        else {
+            if (!selected) {
+                // 光标处于空斜体 *|* 中时，按 Ctrl+I 还原剥离
+                if (before.endsWith('*') && !before.endsWith('**') && after.startsWith('*') && !after.startsWith('**')) {
+                    replaceStartOffset = startOffset - 1;
+                    replaceEndOffset = endOffset + 1;
+                    replacement = '';
+                    newSelectStart = startOffset - 1;
+                    newSelectEnd = startOffset - 1;
+                } else {
+                    replacement = '**';
+                    newSelectStart = startOffset + 1;
+                    newSelectEnd = startOffset + 1;
+                }
+            } else {
+                const match = selected.match(/^(\s*)([\s\S]*?)(\s*)$/);
+                const leadSpace = match ? match[1] : '';
+                const coreText = match ? match[2] : selected;
+                const trailSpace = match ? match[3] : '';
+
+                if (!coreText) {
+                    replacement = leadSpace + '**' + trailSpace;
+                    newSelectStart = startOffset + leadSpace.length + 1;
+                    newSelectEnd = startOffset + leadSpace.length + 1;
+                } else {
+                    replacement = leadSpace + '*' + coreText + '*' + trailSpace;
+                    newSelectStart = startOffset + leadSpace.length + 1;
+                    newSelectEnd = startOffset + leadSpace.length + 1 + coreText.length;
+                }
+            }
+        }
+    }
+
+    setSelectionByOffsets(nodeEl, replaceStartOffset, replaceEndOffset);
+    let success = false;
+    try {
+        success = document.execCommand('insertText', false, replacement);
+    } catch {
+        success = false;
+    }
+
+    if (!success) {
+        const fullText = before + selected + after;
+        const newText = fullText.slice(0, replaceStartOffset) + replacement + fullText.slice(replaceEndOffset);
+        nodeEl.innerText = newText || '\u200B';
+        nodeEl.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    setSelectionByOffsets(nodeEl, newSelectStart, newSelectEnd);
+}
+
 export function handleNodeEdit(nodeEl) {
     if (!nodeEl) return;
     const nodeId = nodeEl.dataset.id;
@@ -584,6 +844,7 @@ export function handleNodeEdit(nodeEl) {
             nodeEl.classList.remove('editing');
             nodeEl.onblur = null;
             nodeEl.onkeydown = null;
+            nodeEl.onpaste = null;
             nodeEl.removeEventListener('input', handleInput);
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
@@ -604,10 +865,52 @@ export function handleNodeEdit(nodeEl) {
         };
         activeEditFinish = finishEdit;
         nodeEl.onblur = finishEdit;
+        nodeEl.onpaste = (ev) => {
+            ev.preventDefault();
+            const text = ev.clipboardData?.getData('text/plain') || '';
+            let success = false;
+            try {
+                success = document.execCommand('insertText', false, text);
+            } catch {
+                success = false;
+            }
+            if (!success) {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                    const range = sel.getRangeAt(0);
+                    range.deleteContents();
+                    const textNode = document.createTextNode(text);
+                    range.insertNode(textNode);
+                    range.setStartAfter(textNode);
+                    range.setEndAfter(textNode);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    nodeEl.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            }
+        };
         nodeEl.onkeydown = (ev) => {
             if (ev.key === 'Enter' && !ev.shiftKey) {
                 ev.preventDefault();
                 nodeEl.blur();
+                return;
+            }
+            if (ev.key === 'Escape') {
+                ev.preventDefault();
+                nodeEl.blur();
+                return;
+            }
+            if (isModifier(ev) && !ev.shiftKey) {
+                if (ev.code === 'KeyB' || ev.key === 'b' || ev.key === 'B') {
+                    ev.preventDefault();
+                    applyMarkdownFormat(nodeEl, 'bold');
+                    return;
+                }
+                if (ev.code === 'KeyI' || ev.key === 'i' || ev.key === 'I') {
+                    ev.preventDefault();
+                    applyMarkdownFormat(nodeEl, 'italic');
+                    return;
+                }
             }
             ev.stopPropagation();
         };
