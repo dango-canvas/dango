@@ -16,8 +16,12 @@ async function bundle() {
 
   // 2. Bundle JS
   console.log("📦 Bundling JS...");
+  const entryPoint = existsSync(join(PROJECT_ROOT, "js/main.ts"))
+    ? join(PROJECT_ROOT, "js/main.ts")
+    : join(PROJECT_ROOT, "js/main.js");
+
   const jsBuild = await Bun.build({
-    entrypoints: [join(PROJECT_ROOT, "js/main.js")],
+    entrypoints: [entryPoint],
     minify: true,
     target: "browser",
   });
@@ -61,7 +65,7 @@ async function bundle() {
 
   // Replace main module script
   html = html.replace(
-    '<script type="module" src="js/main.js"></script>',
+    /<script\s+type="module"\s+src="js\/main\.(?:ts|js)"><\/script>/,
     () => `<script type="module">${escapeScript(bundledJs)}</script>`
   );
 

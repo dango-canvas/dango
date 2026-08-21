@@ -1,4 +1,4 @@
-// --- START: CREATE NEW FILE modules/actions.js ---
+// modules/actions.ts
 import { state, history, pushHistory, MAX_HISTORY, CONFIG } from './state.js';
 import { render } from './render.js';
 import { uid, isUrl } from './utils.js';
@@ -6,19 +6,20 @@ import { showToast } from './ui.js';
 import { getTexts } from './i18n.js';
 import { els } from './dom.js';
 import { createLink, cycleLinkStrokeStyle } from './links.js';
+import type { CanvasNode, CanvasGroup, CanvasLink } from './types.js';
 
 // --- Helpers (内部函数，不导出) ---
-function findItem(id) {
+function findItem(id: string): CanvasNode | CanvasGroup | undefined {
     return state.nodes.find(n => n.id === id) || state.groups.find(g => g.id === id);
 }
 
-function setItemPos(item, newX, newY) {
+function setItemPos(item: any, newX: number, newY: number): void {
     const dx = newX - item.x;
     const dy = newY - item.y;
     item.x = newX;
     item.y = newY;
     if ('memberIds' in item && item.memberIds) { // It's a group
-        item.memberIds.forEach(mid => {
+        item.memberIds.forEach((mid: string) => {
             const m = state.nodes.find(n => n.id === mid);
             if (m) {
                 m.x += dx;
@@ -28,24 +29,23 @@ function setItemPos(item, newX, newY) {
     }
 }
 
-
 // --- Exported Actions ---
 
-export function createNodesFromInput(text) {
-    const inputText = text || els.input.value;
+export function createNodesFromInput(text?: string): void {
+    const inputText = text || (els.input ? els.input.value : '');
     if (!inputText || !inputText.trim()) return;
 
     pushHistory();
 
     // 智能拆分逻辑：保留引号内的完整内容，同时识别换行和逗号
-    const parseGrid = (str) => {
-        const rows = [];
-        let currentRow = [];
+    const parseGrid = (str: string): string[][] => {
+        const rows: string[][] = [];
+        let currentRow: string[] = [];
         let currentItem = "";
         let inQuotes = false;
         let quoteChar = "";
         const openQuotes = ['"', "'", '“', '‘'];
-        const closeQuotes = { '"': '"', "'": "'", '“': '”', '‘': '’' };
+        const closeQuotes: Record<string, string> = { '"': '"', "'": "'", '“': '”', '‘': '’' };
 
         for (let i = 0; i < str.length; i++) {
             const char = str[i];
@@ -101,10 +101,13 @@ export function createNodesFromInput(text) {
         
         row.forEach((str, colIndex) => {
             state.nodes.push({
-                id: uid(), text: str,
+                id: uid(),
+                text: str,
                 x: startX + colIndex * spacingX,
                 y: startY + rowIndex * spacingY,
-                w: 0, h: 0, color: 'c-white'
+                w: 0,
+                h: 0,
+                color: 'c-white'
             });
         });
     });
@@ -115,7 +118,7 @@ export function createNodesFromInput(text) {
     render();
 }
 
-export function clearCanvas() {
+export function clearCanvas(): void {
     const snapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
     pushHistory();
     state.nodes = [];
@@ -126,7 +129,7 @@ export function clearCanvas() {
     showToast(getTexts().toast_cleared, snapshot);
 }
 
-export function copySelection() {
+export function copySelection(): void {
     const selNodes = state.nodes.filter(n => state.selection.has(n.id));
     const selGroups = state.groups.filter(g => state.selection.has(g.id));
     if (selNodes.length > 0 || selGroups.length > 0) {
@@ -134,18 +137,18 @@ export function copySelection() {
         
         // 复制纯文本到系统剪贴板
         const text = selNodes.map(n => n.text).join('\n');
-        if (text) {
+        if (text && typeof navigator !== 'undefined' && navigator.clipboard) {
             navigator.clipboard.writeText(text).catch(err => console.error('Failed to copy text: ', err));
         }
     }
 }
 
-export function pasteClipboard() {
+export function pasteClipboard(): void {
     if (!state.clipboard || !state.clipboard.nodes || !state.clipboard.groups) return;
     if (state.clipboard.nodes.length === 0 && state.clipboard.groups.length === 0) return;
 
     state.selection.clear();
-    const mapping = {};
+    const mapping: Record<string, string> = {};
 
     // 计算剪贴板内容的包围盒中心
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -170,21 +173,21 @@ export function pasteClipboard() {
     state.clipboard.nodes.forEach(n => {
         const newId = uid();
         mapping[n.id] = newId;
-        const newNode = { ...n, id: newId, x: n.x + dx, y: n.y + dy };
+        const newNode: CanvasNode = { ...n, id: newId, x: n.x + dx, y: n.y + dy };
         state.nodes.push(newNode);
         state.selection.add(newId);
     });
-    state.clipboard.groups.forEach(g => {
+    state.clipboard.groups.forEach((g: any) => {
         const newId = uid();
-        const newGroup = { ...g, id: newId, x: g.x + dx, y: g.y + dy };
-        newGroup.memberIds = g.memberIds.map(mid => mapping[mid] || mid);
+        const newGroup: CanvasGroup = { ...g, id: newId, x: g.x + dx, y: g.y + dy };
+        newGroup.memberIds = (g.memberIds || []).map((mid: string) => mapping[mid] || mid);
         state.groups.push(newGroup);
         state.selection.add(newId);
     });
     render();
 }
 
-export function createGroup() {
+export function createGroup(): void {
     const selectedNodes = state.nodes.filter(n => state.selection.has(n.id));
     if (selectedNodes.length === 0) return;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -195,10 +198,12 @@ export function createGroup() {
         maxY = Math.max(maxY, n.y + (n.h || 0));
     });
     const padding = 20;
-    const group = {
+    const group: CanvasGroup = {
         id: uid(),
-        x: minX - padding, y: minY - padding,
-        w: maxX - minX + padding * 2, h: maxY - minY + padding * 2,
+        x: minX - padding,
+        y: minY - padding,
+        w: maxX - minX + padding * 2,
+        h: maxY - minY + padding * 2,
         memberIds: selectedNodes.map(n => n.id)
     };
     state.groups.push(group);
@@ -207,8 +212,8 @@ export function createGroup() {
     render();
 }
 
-export function dissolveGroup() {
-    const toRemove = [];
+export function dissolveGroup(): void {
+    const toRemove: number[] = [];
     state.selection.forEach(id => {
         const idx = state.groups.findIndex(g => g.id === id);
         if (idx !== -1) toRemove.push(idx);
@@ -220,7 +225,7 @@ export function dissolveGroup() {
     }
 }
 
-export function toggleGroup() {
+export function toggleGroup(): void {
     const selItems = Array.from(state.selection);
     if (selItems.length === 0) return;
     
@@ -233,7 +238,15 @@ export function toggleGroup() {
     }
 }
 
-function getNodeCenter(node) {
+function getNodeCenter(node: CanvasNode): {
+    cx: number;
+    cy: number;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    node: CanvasNode;
+} {
     const w = typeof node.w === 'number' && node.w > 0 ? node.w : 120;
     const h = typeof node.h === 'number' && node.h > 0 ? node.h : 60;
     return {
@@ -250,11 +263,11 @@ function getNodeCenter(node) {
 /**
  * 检测框选下的 1 对 N 辐射发散结构（左1右N、上1下N、右1左N、下1上N）
  */
-function detectStarTopology(nodes) {
+function detectStarTopology(nodes: CanvasNode[]): Array<{ sourceId: string; targetId: string }> | null {
     if (nodes.length < 3) return null;
     const centers = nodes.map(getNodeCenter);
 
-    const candidates = [];
+    const candidates: Array<{ score: number; pairs: Array<{ sourceId: string; targetId: string }> }> = [];
 
     // 1. 左 1 右 (N-1)
     const byXAsc = [...centers].sort((a, b) => a.cx - b.cx);
@@ -353,7 +366,7 @@ function detectStarTopology(nodes) {
     return candidates[0].pairs;
 }
 
-function getLinearChainPairs(nodes) {
+function getLinearChainPairs(nodes: CanvasNode[]): Array<{ sourceId: string; targetId: string }> {
     const centers = nodes.map(getNodeCenter);
     const minX = Math.min(...centers.map(c => c.cx));
     const maxX = Math.max(...centers.map(c => c.cx));
@@ -370,7 +383,7 @@ function getLinearChainPairs(nodes) {
         sorted = [...centers].sort((a, b) => (Math.abs(a.cy - b.cy) < 15 ? a.cx - b.cx : a.cy - b.cy));
     }
 
-    const pairs = [];
+    const pairs: Array<{ sourceId: string; targetId: string }> = [];
     for (let i = 0; i < sorted.length - 1; i++) {
         pairs.push({
             sourceId: sorted[i].node.id,
@@ -380,8 +393,8 @@ function getLinearChainPairs(nodes) {
     return pairs;
 }
 
-function getSequentialChainPairs(nodes) {
-    const pairs = [];
+function getSequentialChainPairs(nodes: CanvasNode[]): Array<{ sourceId: string; targetId: string }> {
+    const pairs: Array<{ sourceId: string; targetId: string }> = [];
     for (let i = 0; i < nodes.length - 1; i++) {
         pairs.push({
             sourceId: nodes[i].id,
@@ -391,7 +404,7 @@ function getSequentialChainPairs(nodes) {
     return pairs;
 }
 
-export function resolveLinkingPairs(nodes, selectionSource = 'click') {
+export function resolveLinkingPairs(nodes: CanvasNode[], selectionSource = 'click'): Array<{ sourceId: string; targetId: string }> {
     if (nodes.length < 2) return [];
     if (nodes.length === 2) {
         return [{ sourceId: nodes[0].id, targetId: nodes[1].id }];
@@ -408,9 +421,9 @@ export function resolveLinkingPairs(nodes, selectionSource = 'click') {
     }
 }
 
-export function toggleLink() {
+export function toggleLink(): void {
     const sel = Array.from(state.selection);
-    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(Boolean);
+    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter((n): n is CanvasNode => Boolean(n));
     if (nodes.length < 2) return;
 
     if (nodes.length === 2) {
@@ -519,12 +532,12 @@ export function toggleLink() {
     render();
 }
 
-export function toggleLinkStrokeStyle() {
+export function toggleLinkStrokeStyle(): boolean {
     const sel = Array.from(state.selection);
     const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(Boolean);
     if (nodes.length < 2) return false;
 
-    const selectedIds = new Set(nodes.map(n => n.id));
+    const selectedIds = new Set(nodes.map(n => n!.id));
     const targetLinks = state.links.filter(l =>
         selectedIds.has(l.sourceId) && selectedIds.has(l.targetId)
     );
@@ -537,20 +550,20 @@ export function toggleLinkStrokeStyle() {
     return true;
 }
 
-export function deleteSelection() {
+export function deleteSelection(): void {
     const sel = state.selection;
     if (sel.size === 0) return;
     state.nodes = state.nodes.filter(n => !sel.has(n.id));
     state.groups = state.groups.filter(g => !sel.has(g.id));
     state.links = state.links.filter(l => !sel.has(l.sourceId) && !sel.has(l.targetId));
-    state.groups.forEach(g => {
-        g.memberIds = g.memberIds.filter(mid => state.nodes.some(n => n.id === mid));
+    state.groups.forEach((g: any) => {
+        g.memberIds = (g.memberIds || []).filter((mid: string) => state.nodes.some(n => n.id === mid));
     });
     state.selection.clear();
     render();
 }
 
-export function nudgeSelection(key) {
+export function nudgeSelection(key: string): void {
     const step = 10;
     let dx = 0, dy = 0;
     if (key === 'ArrowUp') dy = -step;
@@ -567,15 +580,15 @@ export function nudgeSelection(key) {
     render();
 }
 
-export function colorSelection(colorClass) {
+export function colorSelection(colorClass: string): void {
     state.nodes.forEach(n => {
         if (state.selection.has(n.id)) n.color = colorClass;
     });
     render();
 }
 
-export function alignSelection(type) {
-    const items = [...state.selection].map(id => findItem(id)).filter(i => i);
+export function alignSelection(type: 'left' | 'right' | 'centerX' | 'top' | 'bottom' | 'centerY'): void {
+    const items = [...state.selection].map(id => findItem(id)).filter((i): i is CanvasNode | CanvasGroup => Boolean(i));
     if (items.length < 2) return;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     items.forEach(i => {
@@ -601,8 +614,8 @@ export function alignSelection(type) {
     render();
 }
 
-export function distributeSelection(axis) {
-    const items = [...state.selection].map(id => findItem(id)).filter(i => i);
+export function distributeSelection(axis: 'h' | 'v'): void {
+    const items = [...state.selection].map(id => findItem(id)).filter((i): i is CanvasNode | CanvasGroup => Boolean(i));
     if (items.length < 3) return;
     if (axis === 'h') {
         items.sort((a, b) => a.x - b.x);
@@ -629,4 +642,3 @@ export function distributeSelection(axis) {
     }
     render();
 }
-// --- END: CREATE NEW FILE modules/actions.js ---

@@ -1,4 +1,4 @@
-// modules/interactions.js
+// modules/interactions.ts
 import { state, history, pushHistory, MAX_HISTORY, saveData } from './state.js';
 import { render, updateViewTransform } from './render.js';
 import { uid, screenToWorld, getStandardRect, isIntersect } from './utils.js';
@@ -7,15 +7,16 @@ import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
 import { els } from './dom.js';
 import { realignDirectionalNodeAfterEdit } from './directional.js';
+import type { CanvasNode, CanvasGroup, CanvasItem } from './types.js';
 
-let dragStart = null;
-let mode = null;
-let stateBeforeDrag = null;
+let dragStart: any = null;
+let mode: string | null = null;
+let stateBeforeDrag: string | null = null;
 let isPrepareToClone = false;
 let targetAlreadySelectedAtStart = false;
-let targetIdAtMouseDown = null;
+let targetIdAtMouseDown: string | null = null;
 let hasMovedDuringDrag = false;
-let activeEditFinish = null;
+let activeEditFinish: (() => void) | null = null;
 let lastMiddleClickTime = 0;
 let middleClickCount = 0;
 let isGlobalViewActive = false;
@@ -24,7 +25,24 @@ let preGlobalViewScale = 1;
 export const SNAP_THRESHOLD = 5;
 export const MAX_SNAP_NEIGHBOR_DIST = 350;
 
-export function calculateMagneticSnap(leadNodeId, rawDx, rawDy, initialPosSnapshot) {
+export interface SnapGuide {
+    type: 'vertical' | 'horizontal';
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+}
+
+export function calculateMagneticSnap(
+    leadNodeId: string | null,
+    rawDx: number,
+    rawDy: number,
+    initialPosSnapshot: Record<string, { x: number; y: number; type?: string }>
+): {
+    effectiveDx: number;
+    effectiveDy: number;
+    guides: SnapGuide[];
+} {
     if (!initialPosSnapshot) {
         return { effectiveDx: rawDx, effectiveDy: rawDy, guides: [] };
     }
@@ -50,9 +68,9 @@ export function calculateMagneticSnap(leadNodeId, rawDx, rawDy, initialPosSnapsh
     }
 
     let minDeltaX = Infinity;
-    let bestCandX = null;
+    let bestCandX: { other: CanvasNode; ocx: number; ocy: number; offset: number } | null = null;
     let minDeltaY = Infinity;
-    let bestCandY = null;
+    let bestCandY: { other: CanvasNode; ocx: number; ocy: number; offset: number } | null = null;
 
     for (const other of candidateNodes) {
         const ow = typeof other.w === 'number' && other.w > 0 ? other.w : 120;
@@ -83,7 +101,7 @@ export function calculateMagneticSnap(leadNodeId, rawDx, rawDy, initialPosSnapsh
     const finalNodeCx = nodeCx + snapDx;
     const finalNodeCy = nodeCy + snapDy;
 
-    const guides = [];
+    const guides: SnapGuide[] = [];
     if (bestCandX) {
         guides.push({
             type: 'vertical',
@@ -110,7 +128,7 @@ export function calculateMagneticSnap(leadNodeId, rawDx, rawDy, initialPosSnapsh
     };
 }
 
-export function renderSnapGuides(guides = []) {
+export function renderSnapGuides(guides: SnapGuide[] = []): void {
     if (!els.snapGuidesLayer) return;
     if (guides.length === 0) {
         els.snapGuidesLayer.innerHTML = '';
@@ -123,7 +141,7 @@ export function renderSnapGuides(guides = []) {
     els.snapGuidesLayer.innerHTML = html;
 }
 
-function cancelTransientInteraction() {
+function cancelTransientInteraction(): void {
     mode = null;
     dragStart = null;
     stateBeforeDrag = null;
@@ -136,17 +154,17 @@ function cancelTransientInteraction() {
     renderSnapGuides([]);
 }
 
-function forceFinishActiveEdit() {
+function forceFinishActiveEdit(): void {
     if (typeof activeEditFinish === 'function') {
         activeEditFinish();
         return;
     }
-    const editingNode = document.querySelector('.node.editing');
+    const editingNode = document.querySelector<HTMLElement>('.node.editing');
     if (editingNode?.isContentEditable) {
         editingNode.onblur = null;
         editingNode.onkeydown = null;
         editingNode.onpaste = null;
-        editingNode.contentEditable = false;
+        editingNode.contentEditable = 'false';
         editingNode.classList.remove('editing');
         const sel = window.getSelection();
         if (sel) sel.removeAllRanges();
@@ -170,9 +188,7 @@ function forceFinishActiveEdit() {
     }
 }
 
-function commitNodeDisplayGeometry(node, nodeEl) {
-    // 编辑态的普通盒子是临时视觉状态；退出编辑后，这里负责提交展示态几何。
-    // 流程：强制展示态重渲染 -> 提交最终尺寸 -> 重算依赖这些尺寸的布局约束。
+function commitNodeDisplayGeometry(node: CanvasNode, nodeEl: HTMLElement): void {
     delete nodeEl.dataset.lastText;
     render();
 
@@ -182,10 +198,11 @@ function commitNodeDisplayGeometry(node, nodeEl) {
     }
 }
 
-export function initInteractions() {
+export function initInteractions(): void {
+    if (!els.nodesLayer || !els.container || !els.uiLayer) return;
 
-    els.nodesLayer.addEventListener('click', e => {
-        const target = e.target instanceof Element ? e.target : e.target.parentElement;
+    els.nodesLayer.addEventListener('click', (e: MouseEvent) => {
+        const target = (e.target instanceof Element ? e.target : (e.target as Node | null)?.parentElement) as HTMLElement | null;
         const inlineLink = target?.closest('.node-inline-link');
         if (inlineLink) {
             e.stopPropagation();
@@ -194,14 +211,14 @@ export function initInteractions() {
         const checkboxWrapper = target?.closest('.todo-checkbox-wrapper');
         if (!checkboxWrapper) return;
         e.stopPropagation();
-        const nodeEl = checkboxWrapper.closest('.node');
+        const nodeEl = checkboxWrapper.closest<HTMLElement>('.node');
         if (!nodeEl) return;
         const nodeId = nodeEl.dataset.id;
         const node = state.nodes.find(n => n.id === nodeId);
         if (!node) return;
         const todoItem = checkboxWrapper.closest('.todo-item');
         const allTodosInNode = Array.from(nodeEl.querySelectorAll('.todo-item'));
-        const clickedIndex = allTodosInNode.indexOf(todoItem);
+        const clickedIndex = allTodosInNode.indexOf(todoItem as Element);
         if (clickedIndex === -1) return;
         pushHistory();
         const lines = node.text.split('\n');
@@ -220,28 +237,26 @@ export function initInteractions() {
     });
 
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        els.container.addEventListener(eventName, e => {
+        els.container!.addEventListener(eventName, e => {
             e.preventDefault();
             e.stopPropagation();
         }, false);
     });
     els.container.addEventListener('dragover', () => {
-        els.container.classList.add('drag-over');
+        els.container!.classList.add('drag-over');
     });
     ['dragleave', 'drop'].forEach(eventName => {
-        els.container.addEventListener(eventName, () => {
-            els.container.classList.remove('drag-over');
+        els.container!.addEventListener(eventName, () => {
+            els.container!.classList.remove('drag-over');
         });
     });
-    els.container.addEventListener('drop', (e) => {
+    els.container.addEventListener('drop', (e: DragEvent) => {
         const dt = e.dataTransfer;
-        const file = dt.files[0];
-        processDangoFile(file);
+        const file = dt?.files[0];
+        if (file) processDangoFile(file);
     });
 
-    // 输入框快捷键绑定由 UI 层处理
-
-    window.addEventListener('mousemove', (e) => {
+    window.addEventListener('mousemove', (e: MouseEvent) => {
         document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
         document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
 
@@ -263,11 +278,12 @@ export function initInteractions() {
         if (document.visibilityState === 'hidden') handleWindowDeactivate();
     });
 
-    els.container.addEventListener('mousedown', e => {
-        if (e.target.closest('.todo-checkbox-wrapper')) return;
-        if (e.target.isContentEditable) return;
+    els.container.addEventListener('mousedown', (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('.todo-checkbox-wrapper')) return;
+        if (target.isContentEditable) return;
         cancelViewAnimation();
-        hasMovedDuringDrag = false; // 每次按下鼠标时重置移动状态
+        hasMovedDuringDrag = false;
 
         // 中键双击逻辑
         if (e.button === 1) {
@@ -284,14 +300,14 @@ export function initInteractions() {
                 preGlobalViewScale = state.view.scale;
                 fitView(100, true, 200);
                 mode = 'global-view';
-                document.body.classList.add('mode-pan'); // 借用 pan 的样式
+                document.body.classList.add('mode-pan');
                 return;
             }
         } else {
             middleClickCount = 0;
         }
 
-        if (e.target.closest('.node') && e.detail === 2) return;
+        if (target.closest('.node') && e.detail === 2) return;
         if (e.button === 1 || (e.button === 0 && keys.Space)) {
             mode = 'pan';
             dragStart = { x: e.clientX, y: e.clientY, viewX: state.view.x, viewY: state.view.y };
@@ -299,11 +315,11 @@ export function initInteractions() {
             return;
         }
         if (e.button === 0) {
-            const nodeEl = e.target.closest('.node');
-            const groupEl = e.target.closest('.group');
+            const nodeEl = target.closest<HTMLElement>('.node');
+            const groupEl = target.closest<HTMLElement>('.group');
             const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
             if (nodeEl || groupEl) {
-                const id = (nodeEl || groupEl).dataset.id;
+                const id = (nodeEl || groupEl)!.dataset.id!;
                 targetIdAtMouseDown = id;
                 targetAlreadySelectedAtStart = state.selection.has(id);
                 hasMovedDuringDrag = false;
@@ -328,14 +344,16 @@ export function initInteractions() {
                 if (!isModifier(e) && !e.shiftKey) state.selection.clear();
                 mode = 'box';
                 dragStart = { x: e.clientX, y: e.clientY };
-                els.selectBox.style.display = 'block';
-                updateSelectBox(e.clientX, e.clientY, e.clientX, e.clientY);
+                if (els.selectBox) {
+                    els.selectBox.style.display = 'block';
+                    updateSelectBox(e.clientX, e.clientY, e.clientX, e.clientY);
+                }
                 render();
             }
         }
     });
 
-    els.container.addEventListener('mousemove', e => {
+    els.container.addEventListener('mousemove', (e: MouseEvent) => {
         if (!mode) return;
         if (mode === 'pan') {
             state.view.x = dragStart.viewX + (e.clientX - dragStart.x);
@@ -353,7 +371,6 @@ export function initInteractions() {
                 }
             }
 
-            // 计算轻量微磁吸与局部参考线
             const snapResult = calculateMagneticSnap(targetIdAtMouseDown, rawDx, rawDy, dragStart.initialPos);
             const dx = snapResult.effectiveDx;
             const dy = snapResult.effectiveDy;
@@ -365,8 +382,8 @@ export function initInteractions() {
                     const item = findItem(id);
                     if (item) {
                         item.x = init.x + dx; item.y = init.y + dy;
-                        if (init.type === 'group' && item.memberIds) {
-                            item.memberIds.forEach(mid => {
+                        if (init.type === 'group' && (item as any).memberIds) {
+                            (item as any).memberIds.forEach((mid: string) => {
                                 const member = state.nodes.find(n => n.id === mid);
                                 if (member && !dragStart.initialPos[mid]) {
                                     const mInit = dragStart.initialPos[`member_${mid}`];
@@ -383,13 +400,12 @@ export function initInteractions() {
         }
     });
 
-    els.container.addEventListener('mouseup', e => {
+    els.container.addEventListener('mouseup', (e: MouseEvent) => {
         renderSnapGuides([]);
         if (e.button === 1 && isGlobalViewActive) {
             isGlobalViewActive = false;
             middleClickCount = 0;
             const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
-            // 恢复到之前的缩放比例，或者至少是一个合理的比例
             const targetScale = Math.max(preGlobalViewScale, 0.8);
             const targetX = window.innerWidth / 2 - worldPos.x * targetScale;
             const targetY = window.innerHeight / 2 - worldPos.y * targetScale;
@@ -400,7 +416,7 @@ export function initInteractions() {
         }
 
         if (mode === 'move') {
-            if (!hasMovedDuringDrag && isModifier(e) && targetAlreadySelectedAtStart) {
+            if (!hasMovedDuringDrag && isModifier(e) && targetAlreadySelectedAtStart && targetIdAtMouseDown) {
                 state.selection.delete(targetIdAtMouseDown);
                 render();
             }
@@ -425,7 +441,7 @@ export function initInteractions() {
             if (state.selection.size > prevSize) {
                 state.selectionSource = 'box';
             }
-            els.selectBox.style.display = 'none';
+            if (els.selectBox) els.selectBox.style.display = 'none';
             render();
         }
         if (mode === 'pan') {
@@ -438,9 +454,9 @@ export function initInteractions() {
         document.body.classList.remove('mode-pan');
     });
 
-let wheelSaveTimeout;
+    let wheelSaveTimeout: any;
 
-    els.container.addEventListener('wheel', e => {
+    els.container.addEventListener('wheel', (e: WheelEvent) => {
         cancelViewAnimation();
         e.preventDefault();
         if (e.ctrlKey || e.metaKey || (state.settings.altAsCtrl && e.altKey)) {
@@ -455,23 +471,24 @@ let wheelSaveTimeout;
         }
     }, { passive: false });
 
-    els.uiLayer.addEventListener('touchstart', (e) => {
-        if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
-        els.uiLayer.classList.add('mobile-expanded');
+    els.uiLayer.addEventListener('touchstart', (e: TouchEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON' || target.closest('button')) return;
+        els.uiLayer!.classList.add('mobile-expanded');
     }, { passive: true });
 
-    document.addEventListener('touchstart', (e) => {
-        if (!els.uiLayer.contains(e.target)) {
-            els.uiLayer.classList.remove('mobile-expanded');
-            if (document.activeElement && els.uiLayer.contains(document.activeElement)) {
-                document.activeElement.blur();
+    document.addEventListener('touchstart', (e: TouchEvent) => {
+        if (!els.uiLayer!.contains(e.target as Node)) {
+            els.uiLayer!.classList.remove('mobile-expanded');
+            if (document.activeElement && els.uiLayer!.contains(document.activeElement)) {
+                (document.activeElement as HTMLElement).blur();
             }
         }
     }, { passive: true });
 
-    els.container.addEventListener('touchstart', e => {
-        els.uiLayer.classList.remove('mobile-expanded');
-        if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+    els.container.addEventListener('touchstart', (e: TouchEvent) => {
+        els.uiLayer!.classList.remove('mobile-expanded');
+        if (document.activeElement && document.activeElement !== document.body) (document.activeElement as HTMLElement).blur();
         cancelViewAnimation();
         if (e.touches.length === 2) {
             e.preventDefault();
@@ -482,11 +499,12 @@ let wheelSaveTimeout;
             pinchCenter = screenToWorld(center.x, center.y, state.view);
             return;
         }
-        if (e.target.tagName === 'TEXTAREA' || e.target.closest('.header-btn')) return;
-        if (!e.target.isContentEditable) e.preventDefault();
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'TEXTAREA' || target.closest('.header-btn')) return;
+        if (!target.isContentEditable) e.preventDefault();
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastTapTime;
-        const nodeEl = e.target.closest('.node');
+        const nodeEl = target.closest<HTMLElement>('.node');
         if (tapLength < 300 && tapLength > 0 && nodeEl && lastTapTarget === nodeEl) {
             if (!nodeEl.isContentEditable) handleNodeEdit(nodeEl);
             lastTapTarget = null;
@@ -496,9 +514,9 @@ let wheelSaveTimeout;
         lastTapTarget = nodeEl;
         lastTapTime = currentTime;
         const pos = getTouchPos(e);
-        const groupEl = e.target.closest('.group');
+        const groupEl = target.closest<HTMLElement>('.group');
         if (nodeEl || groupEl) {
-            const id = (nodeEl || groupEl).dataset.id;
+            const id = (nodeEl || groupEl)!.dataset.id!;
             if (!state.selection.has(id)) {
                 state.selection.clear();
                 state.selection.add(id);
@@ -517,7 +535,7 @@ let wheelSaveTimeout;
         }
     }, { passive: false });
 
-    els.container.addEventListener('touchmove', e => {
+    els.container.addEventListener('touchmove', (e: TouchEvent) => {
         if (!mode) return;
         e.preventDefault();
         if (mode === 'pinch' && e.touches.length === 2) {
@@ -549,8 +567,8 @@ let wheelSaveTimeout;
                     if (item) {
                         item.x = init.x + dx; 
                         item.y = init.y + dy;
-                        if (init.type === 'group' && item.memberIds) {
-                            item.memberIds.forEach(mid => {
+                        if (init.type === 'group' && (item as any).memberIds) {
+                            (item as any).memberIds.forEach((mid: string) => {
                                 const member = state.nodes.find(n => n.id === mid);
                                 if (member && !dragStart.initialPos[mid]) {
                                     const mInit = dragStart.initialPos[`member_${mid}`];
@@ -565,7 +583,7 @@ let wheelSaveTimeout;
         }
     }, { passive: false });
 
-    els.container.addEventListener('touchend', e => {
+    els.container.addEventListener('touchend', () => {
         if (mode === 'move' && stateBeforeDrag) {
             const currentState = JSON.stringify({ 
                 nodes: state.nodes, 
@@ -585,44 +603,40 @@ let wheelSaveTimeout;
         initialPinchDist = 0;
     });
 
-    els.container.addEventListener('dblclick', e => {
-        const editingNodeEl = e.target.closest('.node');
-        if (editingNodeEl?.isContentEditable) return;
-        const nodeEl = e.target.closest('.node');
+    els.container.addEventListener('dblclick', (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        const editingNodeEl = target.closest('.node');
+        if (editingNodeEl?.getAttribute('contenteditable') === 'true') return;
+        const nodeEl = target.closest<HTMLElement>('.node');
         if (nodeEl) {
             handleNodeEdit(nodeEl);
             return;
         }
-        if (e.target.closest('.group')) return;
-        if (e.target.closest('#ui-layer')) return;
+        if (target.closest('.group')) return;
+        if (target.closest('#ui-layer')) return;
         const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
         const newNode = createNodeAt(worldPos);
         if (!newNode) return;
 
-        // 核心修复：直接给定一个合理的初始 w/h 默认值，而不是依赖 DOM 测量
-        // 这样可以确保 newNode.x/y 计算是稳定的，不会因为 offsetWidth 为 0 导致怪异尺寸
-        newNode.w = 120; // 默认宽度
-        newNode.h = 44;  // 默认高度
+        newNode.w = 120;
+        newNode.h = 44;
         newNode.x = worldPos.x - newNode.w / 2;
         newNode.y = worldPos.y - newNode.h / 2;
 
         render();
-        const createdEl = document.querySelector(`.node[data-id="${newNode.id}"]`);
+        const createdEl = document.querySelector<HTMLElement>(`.node[data-id="${newNode.id}"]`);
         if (createdEl) handleNodeEdit(createdEl);
     });
 }
 
-/**
- * 设置 contenteditable 元素内的字符偏移选区
- */
-function setSelectionByOffsets(root, startOffset, endOffset) {
+function setSelectionByOffsets(root: HTMLElement, startOffset: number, endOffset: number): void {
     const sel = window.getSelection();
     if (!sel) return;
 
     let currentOffset = 0;
-    let startNode = null;
+    let startNode: Node | null = null;
     let startNodeOffset = 0;
-    let endNode = null;
+    let endNode: Node | null = null;
     let endNodeOffset = 0;
 
     const walker = document.createTreeWalker(
@@ -642,7 +656,7 @@ function setSelectionByOffsets(root, startOffset, endOffset) {
     }
 
     while (node) {
-        const nodeLength = node.nodeValue.length;
+        const nodeLength = node.nodeValue ? node.nodeValue.length : 0;
         if (!startNode && currentOffset + nodeLength >= startOffset) {
             startNode = node;
             startNodeOffset = startOffset - currentOffset;
@@ -670,21 +684,20 @@ function setSelectionByOffsets(root, startOffset, endOffset) {
 
     if (startNode && endNode) {
         const range = document.createRange();
-        range.setStart(startNode, Math.max(0, Math.min(startNodeOffset, startNode.nodeValue.length)));
-        range.setEnd(endNode, Math.max(0, Math.min(endNodeOffset, endNode.nodeValue.length)));
+        range.setStart(startNode, Math.max(0, Math.min(startNodeOffset, startNode.nodeValue?.length || 0)));
+        range.setEnd(endNode, Math.max(0, Math.min(endNodeOffset, endNode.nodeValue?.length || 0)));
         sel.removeAllRanges();
         sel.addRange(range);
     }
 }
 
-export function applyMarkdownFormat(nodeEl, formatType) {
-    if (!nodeEl || !nodeEl.isContentEditable) return;
+export function applyMarkdownFormat(nodeEl: HTMLElement, formatType: 'bold' | 'italic'): void {
+    if (!nodeEl || nodeEl.getAttribute('contenteditable') !== 'true') return;
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
     if (!nodeEl.contains(range.commonAncestorContainer)) return;
 
-    // 获取选区前、中、后的文本内容
     const preRange = document.createRange();
     preRange.selectNodeContents(nodeEl);
     preRange.setEnd(range.startContainer, range.startOffset);
@@ -706,7 +719,6 @@ export function applyMarkdownFormat(nodeEl, formatType) {
     let newSelectStart = startOffset;
     let newSelectEnd = endOffset;
 
-    // 特殊处理仅包含占位符 \u200B 的空状态
     if (nodeEl.innerText === '\u200B') {
         replaceStartOffset = 0;
         replaceEndOffset = 1;
@@ -726,22 +738,17 @@ export function applyMarkdownFormat(nodeEl, formatType) {
     }
 
     if (formatType === 'bold') {
-        // 1. 检查选区自身是否已被粗体标记包裹
         if ((selected.startsWith('***') && selected.endsWith('***') && selected.length >= 6) ||
             (selected.startsWith('___') && selected.endsWith('___') && selected.length >= 6)) {
-            // 剥离 ** 或 __，保留斜体
             replacement = selected.slice(2, -2);
             newSelectStart = startOffset;
             newSelectEnd = startOffset + replacement.length;
         } else if ((selected.startsWith('**') && selected.endsWith('**') && selected.length >= 4) ||
                    (selected.startsWith('__') && selected.endsWith('__') && selected.length >= 4)) {
-            // 剥离 ** 或 __
             replacement = selected.slice(2, -2);
             newSelectStart = startOffset;
             newSelectEnd = startOffset + replacement.length;
-        }
-        // 2. 检查选区两端上下文是否已被粗体标记包裹
-        else if ((before.endsWith('***') && after.startsWith('***')) ||
+        } else if ((before.endsWith('***') && after.startsWith('***')) ||
                  (before.endsWith('___') && after.startsWith('___'))) {
             replaceStartOffset = startOffset - 2;
             replaceEndOffset = endOffset + 2;
@@ -755,11 +762,8 @@ export function applyMarkdownFormat(nodeEl, formatType) {
             replacement = selected;
             newSelectStart = startOffset - 2;
             newSelectEnd = startOffset - 2 + selected.length;
-        }
-        // 3. 执行粗体包裹
-        else {
+        } else {
             if (!selected) {
-                // 光标处于空粗体 **|** 中时，按 Ctrl+B 还原剥离
                 if (before.endsWith('**') && after.startsWith('**')) {
                     replaceStartOffset = startOffset - 2;
                     replaceEndOffset = endOffset + 2;
@@ -789,22 +793,17 @@ export function applyMarkdownFormat(nodeEl, formatType) {
             }
         }
     } else if (formatType === 'italic') {
-        // 1. 检查选区自身是否已被斜体标记包裹
         if ((selected.startsWith('***') && selected.endsWith('***') && selected.length >= 6) ||
             (selected.startsWith('___') && selected.endsWith('___') && selected.length >= 6)) {
-            // 剥离 * 或 _，保留粗体
             replacement = selected.slice(1, -1);
             newSelectStart = startOffset;
             newSelectEnd = startOffset + replacement.length;
         } else if ((selected.startsWith('*') && selected.endsWith('*') && selected.length >= 2 && !(selected.startsWith('**') && selected.endsWith('**'))) ||
                    (selected.startsWith('_') && selected.endsWith('_') && selected.length >= 2 && !(selected.startsWith('__') && selected.endsWith('__')))) {
-            // 剥离 * 或 _
             replacement = selected.slice(1, -1);
             newSelectStart = startOffset;
             newSelectEnd = startOffset + replacement.length;
-        }
-        // 2. 检查选区两端上下文是否已被斜体标记包裹
-        else if ((before.endsWith('***') && after.startsWith('***')) ||
+        } else if ((before.endsWith('***') && after.startsWith('***')) ||
                  (before.endsWith('___') && after.startsWith('___'))) {
             replaceStartOffset = startOffset - 1;
             replaceEndOffset = endOffset + 1;
@@ -818,11 +817,8 @@ export function applyMarkdownFormat(nodeEl, formatType) {
             replacement = selected;
             newSelectStart = startOffset - 1;
             newSelectEnd = startOffset - 1 + selected.length;
-        }
-        // 3. 执行斜体包裹
-        else {
+        } else {
             if (!selected) {
-                // 光标处于空斜体 *|* 中时，按 Ctrl+I 还原剥离
                 if (before.endsWith('*') && !before.endsWith('**') && after.startsWith('*') && !after.startsWith('**')) {
                     replaceStartOffset = startOffset - 1;
                     replaceEndOffset = endOffset + 1;
@@ -871,42 +867,35 @@ export function applyMarkdownFormat(nodeEl, formatType) {
     setSelectionByOffsets(nodeEl, newSelectStart, newSelectEnd);
 }
 
-export function handleNodeEdit(nodeEl) {
+export function handleNodeEdit(nodeEl: HTMLElement): void {
     if (!nodeEl) return;
     const nodeId = nodeEl.dataset.id;
-    if (nodeEl.isContentEditable || nodeEl.classList.contains('editing')) {
+    if (nodeEl.getAttribute('contenteditable') === 'true' || nodeEl.classList.contains('editing')) {
         nodeEl.focus();
         return;
     }
     const node = state.nodes.find(n => n.id === nodeId);
     if (node) {
         if (mode === 'move' || hasMovedDuringDrag) {
-            console.log('[Interaction] Cancel edit due to move/drag:', { mode, hasMovedDuringDrag });
             return;
         }
         
-        // 如果是新创建且尚无文字的节点，我们不需要在这里再次 pushHistory，
-        // 因为 dblclick 处理函数已经 push 过了。
-        // 如果是编辑已有文字的节点，我们需要 pushHistory。
         if (node.text && node.text.trim()) {
             pushHistory();
         }
 
         const originalText = node.text ?? '';
         const isVisuallyEmpty = !originalText.replace(/\u200B/g, '').trim();
-        // 将连续空格替换为 \u00a0 以防止在 contenteditable 中视觉塌陷
         const safeText = originalText.replace(/ ( +)/g, match => ' ' + '\u00a0'.repeat(match.length - 1));
         nodeEl.innerText = isVisuallyEmpty ? '\u200B' : safeText;
         nodeEl.classList.remove('is-link', 'has-multiline');
 
-        // 初始判断是否有多行
         if (originalText.includes('\n')) {
             nodeEl.classList.add('has-multiline');
         }
 
-        nodeEl.contentEditable = true;
+        nodeEl.contentEditable = 'true';
         nodeEl.classList.add('editing');
-        // 编辑时立刻清除固定尺寸，让其自适应 Markdown 文本
         nodeEl.style.width = '';
         nodeEl.style.height = '';
         try {
@@ -915,12 +904,10 @@ export function handleNodeEdit(nodeEl) {
             nodeEl.focus();
         }
 
-        // 监听输入，动态切换多行对齐样式及清理空态 DOM 残留
         const handleInput = () => {
             const rawText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
             if (!rawText.trim()) {
                 nodeEl.classList.remove('has-multiline');
-                // 当内容被删空时，统一收敛为单个 \u200B，使 Firefox 和 Chrome 的光标均严格居中且杜绝 Chrome 标签残留膨胀
                 if (nodeEl.innerText !== '\u200B') {
                     nodeEl.innerText = '\u200B';
                     const range = document.createRange();
@@ -940,12 +927,11 @@ export function handleNodeEdit(nodeEl) {
         };
         nodeEl.addEventListener('input', handleInput);
         
-        // 将光标移至末尾
         requestAnimationFrame(() => {
             if (!nodeEl.isConnected) return;
             const range = document.createRange();
             range.selectNodeContents(nodeEl);
-            range.collapse(false); // collapse to end
+            range.collapse(false);
             const sel = window.getSelection();
             if (!sel) return;
             sel.removeAllRanges();
@@ -957,7 +943,7 @@ export function handleNodeEdit(nodeEl) {
             if (finished) return;
             finished = true;
             if (activeEditFinish === finishEdit) activeEditFinish = null;
-            nodeEl.contentEditable = false;
+            nodeEl.contentEditable = 'false';
             nodeEl.classList.remove('editing');
             nodeEl.onblur = null;
             nodeEl.onkeydown = null;
@@ -967,7 +953,6 @@ export function handleNodeEdit(nodeEl) {
             if (sel) sel.removeAllRanges();
             let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
             
-            // 如果新节点没有输入文字，失去焦点后让它消失
             if (!newText.trim()) {
                 state.nodes = state.nodes.filter(n => n.id !== node.id);
                 state.selection.delete(node.id);
@@ -982,7 +967,7 @@ export function handleNodeEdit(nodeEl) {
         };
         activeEditFinish = finishEdit;
         nodeEl.onblur = finishEdit;
-        nodeEl.onpaste = (ev) => {
+        nodeEl.onpaste = (ev: ClipboardEvent) => {
             ev.preventDefault();
             const text = ev.clipboardData?.getData('text/plain') || '';
             let success = false;
@@ -1006,7 +991,7 @@ export function handleNodeEdit(nodeEl) {
                 }
             }
         };
-        nodeEl.onkeydown = (ev) => {
+        nodeEl.onkeydown = (ev: KeyboardEvent) => {
             if (ev.key === 'Enter' && !ev.shiftKey) {
                 ev.preventDefault();
                 nodeEl.blur();
@@ -1034,38 +1019,47 @@ export function handleNodeEdit(nodeEl) {
     }
 }
 
-function getSelectionPositions() {
-    const pos = {};
+function getSelectionPositions(): Record<string, { x: number; y: number; type: 'node' | 'group' }> {
+    const pos: Record<string, { x: number; y: number; type: 'node' | 'group' }> = {};
     state.selection.forEach(id => {
         const item = findItem(id);
         if (item) {
-            // 改进类型检测：直接检查是否存在 memberIds，而非依赖 text 是否为空
             const isGroup = 'memberIds' in item;
             pos[id] = { x: item.x, y: item.y, type: isGroup ? 'group' : 'node' };
-            if (isGroup && item.memberIds) {
-                item.memberIds.forEach(mid => { const m = state.nodes.find(n => n.id === mid); if (m) pos[`member_${mid}`] = { x: m.x, y: m.y }; });
+            if (isGroup && (item as any).memberIds) {
+                (item as any).memberIds.forEach((mid: string) => {
+                    const m = state.nodes.find(n => n.id === mid);
+                    if (m) pos[`member_${mid}`] = { x: m.x, y: m.y, type: 'node' };
+                });
             }
         }
     });
     return pos;
 }
-function findItem(id) { return state.nodes.find(n => n.id === id) || state.groups.find(g => g.id === id); }
-function updateSelectBox(x1, y1, x2, y2) {
-    const r = getStandardRect(x1, y1, x2, y2);
-    els.selectBox.style.left = r.x + 'px'; els.selectBox.style.top = r.y + 'px';
-    els.selectBox.style.width = r.w + 'px'; els.selectBox.style.height = r.h + 'px';
+
+function findItem(id: string): any {
+    return state.nodes.find(n => n.id === id) || state.groups.find(g => g.id === id);
 }
 
-function cloneSelectionInPlace() {
-    const mapping = {};
-    const newNodes = [];
-    const newGroups = [];
-    const newSelection = new Set();
+function updateSelectBox(x1: number, y1: number, x2: number, y2: number): void {
+    if (!els.selectBox) return;
+    const r = getStandardRect(x1, y1, x2, y2);
+    els.selectBox.style.left = r.x + 'px';
+    els.selectBox.style.top = r.y + 'px';
+    els.selectBox.style.width = r.w + 'px';
+    els.selectBox.style.height = r.h + 'px';
+}
+
+function cloneSelectionInPlace(): void {
+    const mapping: Record<string, string> = {};
+    const newNodes: CanvasNode[] = [];
+    const newGroups: any[] = [];
+    const newSelection = new Set<string>();
     state.nodes.forEach(n => {
         if (state.selection.has(n.id)) {
             const newId = uid();
             mapping[n.id] = newId;
-            const newNode = { ...n, id: newId };
+            const newNode: CanvasNode = { ...n, id: newId };
             newNodes.push(newNode);
             newSelection.add(newId);
             if (dragStart && dragStart.initialPos[n.id]) {
@@ -1073,11 +1067,11 @@ function cloneSelectionInPlace() {
             }
         }
     });
-    state.groups.forEach(g => {
+    state.groups.forEach((g: any) => {
         if (state.selection.has(g.id)) {
             const newId = uid();
             const newGroup = { ...g, id: newId };
-            newGroup.memberIds = g.memberIds.map(mid => mapping[mid] || mid);
+            newGroup.memberIds = (g.memberIds || []).map((mid: string) => mapping[mid] || mid);
             newGroups.push(newGroup);
             newSelection.add(newId);
             if (dragStart && dragStart.initialPos[g.id]) {
@@ -1090,18 +1084,18 @@ function cloneSelectionInPlace() {
     state.selection = newSelection;
 }
 
-function createNodeAt(pos) {
+function createNodeAt(pos: { x: number; y: number }): CanvasNode {
     pushHistory();
     const color = getNearestNodeColor(pos);
-    const node = { id: uid(), text: '', x: pos.x, y: pos.y, w: 0, h: 0, color };
+    const node: CanvasNode = { id: uid(), text: '', x: pos.x, y: pos.y, w: 0, h: 0, color };
     state.nodes.push(node);
     state.selection.clear();
     state.selection.add(node.id);
     return node;
 }
 
-function getNearestNodeColor(pos) {
-    let nearest = null;
+function getNearestNodeColor(pos: { x: number; y: number }): number {
+    let nearest: CanvasNode | null = null;
     let minDist = Infinity;
     state.nodes.forEach(n => {
         const cx = n.x + (n.w || 0) / 2;
@@ -1112,28 +1106,31 @@ function getNearestNodeColor(pos) {
             nearest = n;
         }
     });
-    if (nearest && minDist <= 300) return nearest.color || 'c-white';
-    return 'c-white';
+    if (nearest && minDist <= 300) return (nearest as CanvasNode).color || 0;
+    return 0;
 }
 
-function getTouchPos(e) {
+function getTouchPos(e: TouchEvent): { x: number; y: number } {
     if (e.touches && e.touches.length > 0) {
         return { x: e.touches[0].clientX, y: e.touches[0].clientY };
     }
     return { x: 0, y: 0 };
 }
+
 let lastTapTime = 0;
-let lastTapTarget = null;
+let lastTapTarget: HTMLElement | null = null;
 let initialPinchDist = 0;
 let initialPinchScale = 1;
 let pinchCenter = { x: 0, y: 0 };
-function getPinchDist(e) {
+
+function getPinchDist(e: TouchEvent): number {
     return Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
     );
 }
-function getPinchCenter(e) {
+
+function getPinchCenter(e: TouchEvent): { x: number; y: number } {
     return {
         x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
         y: (e.touches[0].clientY + e.touches[1].clientY) / 2

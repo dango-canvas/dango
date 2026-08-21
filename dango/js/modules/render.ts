@@ -1,20 +1,23 @@
-// modules/render.js
-
+// modules/render.ts
 import { isUrl, getEdgeIntersection } from './utils.js';
 import { getTexts } from './i18n.js';
 import { els, setSafeHTML, setSafeSVG } from './dom.js';
 import { buildLinkPathData, getLinkOpacity, getLinkStrokeColor, getLinkStrokeStyle } from './links.js';
+import type { CanvasState, CanvasNode, CanvasGroup, CanvasLink } from './types.js';
 
 // --- 模块内部变量 ---
-let appState;
-let callbacks;
+let appState: CanvasState;
+let callbacks: {
+    updateOpenFullLink?: () => void;
+    saveData?: () => void;
+};
 
 const IMAGE_SIZE_WIDTHS = { s: 100, l: 200 };
 const IMAGE_SIZE_ICONS = {
     s: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 10 10 10 10 4"></polyline><polyline points="20 10 14 10 14 4"></polyline><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 14 14 14 14 20"></polyline></svg>',
     l: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 4 4 4 4 10"></polyline><polyline points="14 4 20 4 20 10"></polyline><polyline points="10 20 4 20 4 14"></polyline><polyline points="14 20 20 20 20 14"></polyline></svg>'
 };
-const HTML_ESCAPE_MAP = {
+const HTML_ESCAPE_MAP: Record<string, string> = {
     '&': '&amp;',
     '<': '&lt;',
     '>': '&gt;',
@@ -22,27 +25,37 @@ const HTML_ESCAPE_MAP = {
     "'": '&#39;'
 };
 
-function escapeHTML(value) {
-    return String(value).replace(/[&<>"']/g, ch => HTML_ESCAPE_MAP[ch]);
+function escapeHTML(value: string | number): string {
+    return String(value).replace(/[&<>"']/g, ch => HTML_ESCAPE_MAP[ch] || ch);
 }
 
-function normalizeHttpUrl(rawUrl) {
+function normalizeHttpUrl(rawUrl: string): string | null {
     const value = String(rawUrl || '').trim();
     if (!value) return null;
     if (value.startsWith('#')) return value;
 
     const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
     try {
-        const url = new URL(candidate, window.location.href);
+        const url = new URL(candidate, typeof window !== 'undefined' ? window.location.href : 'http://localhost');
         return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
     } catch {
         return null;
     }
 }
-function syncDomElements(dataArray, parent, className, renderFn) {
-    const existing = new Map();
-    Array.from(parent.children).forEach(el => existing.set(el.dataset.id, el));
-    const activeIds = new Set();
+
+function syncDomElements<T extends { id: string }>(
+    dataArray: T[],
+    parent: HTMLElement | null,
+    className: string,
+    renderFn: (el: HTMLElement, item: T) => void
+): void {
+    if (!parent) return;
+    const existing = new Map<string, HTMLElement>();
+    Array.from(parent.children).forEach(el => {
+        const id = (el as HTMLElement).dataset.id;
+        if (id) existing.set(id, el as HTMLElement);
+    });
+    const activeIds = new Set<string>();
     dataArray.forEach(item => {
         activeIds.add(item.id);
         let el = existing.get(item.id);
@@ -57,9 +70,8 @@ function syncDomElements(dataArray, parent, className, renderFn) {
     existing.forEach((el, id) => { if (!activeIds.has(id)) el.remove(); });
 }
 
-function highlightCode(code) {
+function highlightCode(code: string): string {
     const escaped = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    // 使用单次扫描正则，避免对已生成的 HTML 标签进行二次替换
     const tokens = [
         { type: 'comment', regex: /\/\/.*/g },
         { type: 'comment', regex: /\/\*[\s\S]*?\*\//g },
@@ -79,7 +91,7 @@ function highlightCode(code) {
     });
 }
 
-function renderCodeBlock(el, text) {
+function renderCodeBlock(el: HTMLElement, text: string): void {
     const fullContent = text.substring(3, text.length - 3).trim();
     const firstNewLine = fullContent.indexOf('\n');
     
@@ -108,10 +120,8 @@ function renderCodeBlock(el, text) {
     setSafeHTML(el, html);
 }
 
-function parseMarkdown(text) {
+function parseMarkdown(text: string): string {
     let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    
-    // 保留连续空格，防止 HTML 默认塌陷
     escapedText = escapedText.replace(/ {2}/g, ' &nbsp;');
 
     let processedText = escapedText;
@@ -126,7 +136,7 @@ function parseMarkdown(text) {
     const htmlLines = lines.map(line => {
         let processedLine = line.replace(
             /^\[([ xX])\] (.*)/,
-            (match, checked, content) => {
+            (_match, checked, content) => {
                 const isChecked = checked.toLowerCase() === 'x';
                 return `<span class="todo-item ${isChecked ? 'checked' : ''}" data-checked="${isChecked}">
                           <span class="todo-checkbox-wrapper">
@@ -138,11 +148,7 @@ function parseMarkdown(text) {
         );
         if (!processedLine.includes('class="todo-item"')) {
             processedLine = processedLine.replace(/\*\*(.*?)\*\*|__(.*?)__/g, '<strong>$1$2</strong>');
-            // 倾斜: *text* 或 _text_
-            // _ 仅在单词边界触发（前后为非单词字符或行首尾），
-            // 避免误伤 hello_world 这类下划线命名。
             processedLine = processedLine.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)|(?<=^|[^\w_])_(.+?)_(?=[^\w_]|$)/g, '<em>$1$2</em>');
-            // Inline Links: [text](url)
             processedLine = processedLine.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
                 const validUrl = normalizeHttpUrl(url);
                 if (!validUrl) return match;
@@ -154,25 +160,24 @@ function parseMarkdown(text) {
     return htmlLines.join('<br>');
 }
 
-function parseImageMarkdown(text) {
+function parseImageMarkdown(text: string): { alt: string; url: string } | null {
     const trimmed = text.trim();
     const match = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (!match) return null;
     return { alt: match[1], url: match[2].trim() };
 }
 
-function getImageSizeKey(width) {
+function getImageSizeKey(width?: number): 's' | 'l' {
     if (!width) return 's';
     return width >= 200 ? 'l' : 's';
 }
 
-function getNextImageSizeKey(currentKey) {
+function getNextImageSizeKey(currentKey: 's' | 'l'): 's' | 'l' {
     return currentKey === 's' ? 'l' : 's';
 }
 
-function applyImageSize(node, img, width) {
+function applyImageSize(node: CanvasNode, img: HTMLImageElement | null, width: number): boolean {
     if (!img || !img.naturalWidth) {
-        // 如果图片还没加载好，先只设置宽度，高度等加载完再算
         node.w = width;
         return true;
     }
@@ -184,17 +189,16 @@ function applyImageSize(node, img, width) {
     return true;
 }
 
-function renderNode(el, node) {
+function renderNode(el: HTMLElement, node: CanvasNode): void {
     el.setAttribute('role', 'button');
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
     
-    // 编辑态只切换临时视觉盒子；已提交的展示态几何仍保留在 state 里，
-    // 供连线、分组等几何消费者继续使用。
+    const colorClass = typeof node.color === 'number' ? `c-${node.color}` : (node.color || 'c-white');
+
     if (el.classList.contains('editing')) {
         const isSelected = appState.selection.has(node.id);
         const isFound = appState.searchResultId === node.id;
-        el.className = ['node', node.color || 'c-white', isSelected ? 'selected' : '', isFound ? 'search-found' : '', 'editing'].filter(Boolean).join(' ');
-        // 编辑时，清除固定宽高，让它自适应文字
+        el.className = ['node', colorClass, isSelected ? 'selected' : '', isFound ? 'search-found' : '', 'editing'].filter(Boolean).join(' ');
         el.style.width = '';
         el.style.height = '';
         return;
@@ -204,9 +208,9 @@ function renderNode(el, node) {
     const isImage = !!imageData;
     const isLink = !isImage && isUrl(node.text);
 
-    if (isImage) {
+    if (isImage && imageData) {
         el.classList.remove('is-link');
-        let img = el.querySelector('.node-image');
+        let img = el.querySelector<HTMLImageElement>('.node-image');
         if (!img) {
             el.textContent = '';
             img = document.createElement('img');
@@ -216,20 +220,18 @@ function renderNode(el, node) {
         if (img.getAttribute('src') !== imageData.url) img.setAttribute('src', imageData.url);
         if (img.getAttribute('alt') !== imageData.alt) img.setAttribute('alt', imageData.alt);
 
-        // 如果 w 太小（可能是从之前的文本节点继承来的），设为默认 S (100px)
-        // 如果是从本地存储恢复的正常尺寸，则直接保留
         if (!node.w || node.w < 100) {
             node.w = IMAGE_SIZE_WIDTHS.s;
         }
         el.style.width = `${node.w}px`;
 
         const updateH = () => {
-            if (img.naturalWidth) {
+            if (img && img.naturalWidth) {
                 const newH = Math.round(node.w * (img.naturalHeight / img.naturalWidth));
                 if (node.h !== newH) {
                     node.h = newH;
                     el.style.height = `${node.h}px`;
-                    render(); // 重新渲染以更新连线
+                    render();
                 }
             }
         };
@@ -237,7 +239,7 @@ function renderNode(el, node) {
         if (img.complete) updateH();
         else img.onload = updateH;
 
-        let sizeBtn = el.querySelector('.image-size-btn');
+        let sizeBtn = el.querySelector<HTMLButtonElement>('.image-size-btn');
         if (!sizeBtn) {
             sizeBtn = document.createElement('button');
             sizeBtn.type = 'button';
@@ -256,9 +258,9 @@ function renderNode(el, node) {
                         render();
                     }
                 };
-                if (img.complete && img.naturalWidth) {
+                if (img && img.complete && img.naturalWidth) {
                     applySize();
-                } else {
+                } else if (img) {
                     img.onload = () => applySize();
                 }
             };
@@ -268,21 +270,18 @@ function renderNode(el, node) {
         const currentKey = getImageSizeKey(node.w);
         const nextKey = getNextImageSizeKey(currentKey);
         const texts = getTexts();
-        // 用户要求：此按钮的图标会动态变化，以直观地反映节点点击后的尺寸
-        // 如果当前是 S，点击后变 L，所以显示 L 的图标（向外发散）
-        // 如果当前是 L，点击后变 S，所以显示 S 的图标（向内收缩）
         setSafeSVG(sizeBtn, IMAGE_SIZE_ICONS[nextKey]);
         sizeBtn.title = currentKey === 's' ? texts.img_zoom_in : texts.img_zoom_out;
 
         el.style.width = `${node.w}px`;
         if (node.h) el.style.height = `${node.h}px`;
-        else el.style.height = 'auto'; // 加载中或无高度时自适应，防止塌陷为 0
+        else el.style.height = 'auto';
     }
 
     if (isLink) {
         el.classList.add('is-link');
         el.classList.remove('has-multiline');
-        let textEl = el.querySelector('.node-text');
+        let textEl = el.querySelector<HTMLElement>('.node-text');
         if (!textEl) {
             el.textContent = '';
             textEl = document.createElement('div');
@@ -290,7 +289,7 @@ function renderNode(el, node) {
             el.appendChild(textEl);
         }
         if (textEl.innerText !== node.text) textEl.innerText = node.text;
-        let btnEl = el.querySelector('.link-btn');
+        let btnEl = el.querySelector<HTMLElement>('.link-btn');
         if (!btnEl) {
             btnEl = document.createElement('div');
             btnEl.className = 'link-btn';
@@ -309,7 +308,6 @@ function renderNode(el, node) {
             const trimmedText = node.text.trim();
             const isCode = trimmedText.startsWith('```') && trimmedText.endsWith('```');
             
-            // 只有当文本真正发生变化或渲染逻辑改变时才更新
             if (el.dataset.lastText !== node.text) {
                 if (isCode) {
                     renderCodeBlock(el, trimmedText);
@@ -326,38 +324,33 @@ function renderNode(el, node) {
 
     const isSelected = appState.selection.has(node.id);
     const isFound = appState.searchResultId === node.id;
-    const classes = ['node', node.color || 'c-white'];
+    const classes = ['node', colorClass];
     if (isImage) classes.push('image-node');
     if (isLink) classes.push('is-link');
     if (isSelected) classes.push('selected');
     if (isFound) classes.push('search-found');
     if (node.text && node.text.includes('\n')) classes.push('has-multiline');
     
-    // 增加标题类支持
     if (node.text.startsWith('### ')) classes.push('node-h3');
     else if (node.text.startsWith('## ')) classes.push('node-h2');
     else if (node.text.startsWith('# ')) classes.push('node-h1');
     
-    // 增加注释类支持
     if (node.text.startsWith('//')) classes.push('node-comment');
-    
-    // 增加代码块类支持
     if (node.text.startsWith('```') && node.text.endsWith('```')) classes.push('node-code');
 
     el.className = classes.join(' ');
     
-    // 非图片节点才自动同步 DOM 尺寸到数据
     if (!isImage && (!node.w || !node.h || el.offsetWidth !== node.w || el.offsetHeight !== node.h)) {
         node.w = el.offsetWidth;
         node.h = el.offsetHeight;
     }
 }
 
-function renderGroup(el, group) {
+function renderGroup(el: HTMLElement, group: any): void {
     if (group.memberIds && group.memberIds.length > 0) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         let hasVisibleMembers = false;
-        group.memberIds.forEach(mid => {
+        group.memberIds.forEach((mid: string) => {
             const m = appState.nodes.find(n => n.id === mid);
             if (m) {
                 hasVisibleMembers = true;
@@ -382,7 +375,7 @@ function renderGroup(el, group) {
     el.className = `group ${appState.selection.has(group.id) ? 'selected' : ''}`;
 }
 
-export function updateViewTransform() {
+export function updateViewTransform(): void {
     if (!appState || !els.world) return;
     els.world.style.transform = `translate(${appState.view.x}px, ${appState.view.y}px) scale(${appState.view.scale})`;
 }
@@ -390,8 +383,8 @@ export function updateViewTransform() {
 /**
  * 主渲染函数
  */
-export function render() {
-    if (typeof document === 'undefined') return;
+export function render(): void {
+    if (typeof document === 'undefined' || !els.connectionsLayer) return;
     document.body.classList.toggle('is-empty', appState.nodes.length === 0);
     updateViewTransform();
 
@@ -403,7 +396,6 @@ export function render() {
                 <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="12" markerHeight="12" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
                     <path d="M 0 0 L 8 5 L 0 10" stroke="context-stroke" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
                 </marker>
-                <!-- 使用 userSpaceOnUse 防止水平/垂直线因 bounding box 为 0 导致滤镜失效或裁切 -->
                 <filter id="hand-drawn-filter" filterUnits="userSpaceOnUse" x="-50000" y="-50000" width="100000" height="100000">
                     <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" result="noise" />
                     <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" />
@@ -416,29 +408,31 @@ export function render() {
         els.connectionsLayer.innerHTML = defsContent;
     }
 
-    // 先让节点产出已提交的展示态几何，再让 group / link 消费这些几何。
     syncDomElements(appState.nodes, els.nodesLayer, 'node', renderNode);
     syncDomElements(appState.groups, els.groupsLayer, 'group', renderGroup);
 
     // Sync Links
     const rootStyle = getComputedStyle(document.documentElement);
-    const existingPaths = new Map();
-    Array.from(els.connectionsLayer.querySelectorAll('path.link, line.link')).forEach(pathEl => {
+    const existingPaths = new Map<string, SVGPathElement>();
+    Array.from(els.connectionsLayer.querySelectorAll<SVGPathElement>('path.link')).forEach(pathEl => {
         if (pathEl.dataset.id) existingPaths.set(pathEl.dataset.id, pathEl);
     });
 
-    appState.links.forEach(l => {
-        const n1 = appState.nodes.find(n => n.id === l.sourceId);
-        const n2 = appState.nodes.find(n => n.id === l.targetId);
+    appState.links.forEach((l: any) => {
+        const sourceId = l.source || l.sourceId;
+        const targetId = l.target || l.targetId;
+        const linkId = l.id || `${sourceId}-${targetId}`;
+        const n1 = appState.nodes.find(n => n.id === sourceId);
+        const n2 = appState.nodes.find(n => n.id === targetId);
         if (n1 && n2 && n1.w && n1.h && n2.w && n2.h) {
-            let pathEl = existingPaths.get(l.id);
+            let pathEl = existingPaths.get(linkId);
             if (!pathEl || pathEl.tagName.toLowerCase() !== 'path') {
-                if (pathEl) pathEl.remove();
+                if (pathEl) (pathEl as HTMLElement).remove();
                 pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 pathEl.classList.add('link');
-                pathEl.dataset.id = l.id;
+                pathEl.dataset.id = linkId;
                 pathEl.setAttribute('fill', 'none');
-                els.connectionsLayer.appendChild(pathEl);
+                els.connectionsLayer!.appendChild(pathEl);
             }
             
             const startPoint = getEdgeIntersection(n2, n1);
@@ -447,9 +441,8 @@ export function render() {
             const linkStrokeColor = getLinkStrokeColor(l, n1, n2, rootStyle);
             const linkOpacity = String(getLinkOpacity(l));
             
-            // Only update attributes if changed
-            const setAttr = (el, name, val) => {
-                if (el.getAttribute(name) != val) el.setAttribute(name, val);
+            const setAttr = (elem: Element, name: string, val: string) => {
+                if (elem.getAttribute(name) !== val) elem.setAttribute(name, val);
             };
             
             setAttr(pathEl, 'd', pathData);
@@ -469,20 +462,20 @@ export function render() {
                 pathEl.removeAttribute('marker-start');
             }
             
-            existingPaths.delete(l.id);
+            existingPaths.delete(linkId);
         }
     });
     
     existingPaths.forEach(pathEl => pathEl.remove());
 
-    if (appState.isEmbed) callbacks.updateOpenFullLink();
-    callbacks.saveData();
+    if (appState.isEmbed && callbacks.updateOpenFullLink) callbacks.updateOpenFullLink();
+    if (callbacks.saveData) callbacks.saveData();
 }
 
 /**
  * 初始化渲染模块
  */
-export function initRender(_state, _callbacks) {
+export function initRender(_state: CanvasState, _callbacks: any): void {
     appState = _state;
     callbacks = _callbacks;
 }

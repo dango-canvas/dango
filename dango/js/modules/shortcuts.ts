@@ -1,4 +1,4 @@
-// modules/shortcuts.js
+// modules/shortcuts.ts
 import { state, CONFIG, pushHistory } from './state.js';
 import { 
     toggleGroup, toggleLink, deleteSelection, 
@@ -12,31 +12,38 @@ import { openSearch, closeSearch } from './search.js';
 import { handleDirectionalCreateStart, handleDirectionalCreateEnd, clearDirectionalGhost, handleDirectionalModifierUp } from './directional.js';
 
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
-export const keys = {};
+export const keys: Record<string, boolean> = {};
 
-export function isModifier(e) {
+export function isModifier(e: KeyboardEvent | MouseEvent): boolean {
     return e.ctrlKey || e.metaKey || (state.settings.altAsCtrl && e.altKey);
 }
 
-export function initShortcuts(callbacks) {
+export function initShortcuts(callbacks: {
+    render: () => void;
+    undo: () => void;
+    redo: () => void;
+    handleNodeEdit: (el: HTMLElement) => void;
+    exportJson: () => void;
+}): void {
     const { render, undo, redo, handleNodeEdit, exportJson } = callbacks;
 
-    window.addEventListener('keydown', e => {
-        const isContentEditable = e.target.isContentEditable;
-        const isTextArea = e.target.tagName === 'TEXTAREA';
-        const isInput = e.target.tagName === 'INPUT';
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+        const target = e.target as HTMLElement | null;
+        const isContentEditable = target?.isContentEditable;
+        const isTextArea = target?.tagName === 'TEXTAREA';
+        const isInput = target?.tagName === 'INPUT';
         const isEditing = isContentEditable || isTextArea || isInput;
         
         // 1. 编辑状态下的特殊处理
         if (isEditing) {
             if (e.code === 'Escape') {
-                e.target.blur();
+                target?.blur();
                 e.stopPropagation();
                 return;
             }
             if (isContentEditable && e.code === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                e.target.blur();
+                target?.blur();
                 return;
             }
             return; // 编辑时屏蔽其他快捷键
@@ -48,8 +55,7 @@ export function initShortcuts(callbacks) {
         if (e.code === 'Escape') {
             clearDirectionalGhost();
             closeSearch();
-            // 依次关闭：关于面板 -> 设置/帮助 -> 清除选中
-            const about = document.getElementById('about-overlay'); // 假设 ID
+            const about = document.getElementById('about-overlay');
             if (about?.classList.contains('show')) {
                 about.classList.remove('show');
                 return;
@@ -77,10 +83,9 @@ export function initShortcuts(callbacks) {
             if (isModifier(e)) {
                 if (handleDirectionalCreateStart(e.code, e)) {
                     e.preventDefault();
-                    return; // 拦截事件，避免触发后续操作
+                    return;
                 }
             } else if (!e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-                // 仅限于没有任何修饰键时进行 Nudge
                 e.preventDefault();
                 pushHistory();
                 nudgeSelection(e.code);
@@ -121,7 +126,7 @@ export function initShortcuts(callbacks) {
             if (e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); render(); return; }
             if (e.code === 'KeyF') { e.preventDefault(); openSearch(); return; }
             if (e.code === 'KeyS') { 
-                if (!e.altKey) { // 如果按了 Alt，让它无视这个区块，自然向下走到对齐逻辑
+                if (!e.altKey) {
                     e.preventDefault(); exportJson(); return; 
                 }
             }
@@ -142,7 +147,7 @@ export function initShortcuts(callbacks) {
         if (e.code === 'Enter' && state.selection.size === 1) {
             e.preventDefault();
             const selectedId = Array.from(state.selection)[0];
-            const nodeEl = document.querySelector(`.node[data-id="${selectedId}"]`);
+            const nodeEl = document.querySelector<HTMLElement>(`.node[data-id="${selectedId}"]`);
             if (nodeEl) handleNodeEdit(nodeEl);
             return;
         }
@@ -159,7 +164,7 @@ export function initShortcuts(callbacks) {
 
         // 对齐 (Alt + WASD...)
         if (e.altKey) {
-            const keyMap = { 
+            const keyMap: Record<string, 'left' | 'right' | 'top' | 'bottom' | 'centerX' | 'centerY'> = { 
                 'KeyA': 'left', 
                 'ArrowLeft': 'left',
                 'KeyD': 'right', 
@@ -188,7 +193,7 @@ export function initShortcuts(callbacks) {
         if (e.code === 'KeyQ') document.body.classList.add('spotlight-active');
     });
 
-    window.addEventListener('keyup', e => {
+    window.addEventListener('keyup', (e: KeyboardEvent) => {
         keys[e.code] = false;
         if (e.code === 'Space') document.body.classList.remove('mode-space');
         if (e.code === 'KeyQ') document.body.classList.remove('spotlight-active');

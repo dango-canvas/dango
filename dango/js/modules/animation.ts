@@ -1,20 +1,24 @@
-// --- START: CREATE NEW FILE modules/animation.js ---
-import { state } from './state.js';
+// modules/animation.ts
+import { state, pushHistory, saveData } from './state.js';
 import { render } from './render.js';
-import { pushHistory, saveData } from './state.js';
+import type { CanvasNode } from './types.js';
 
-let nodeAnimationId = null;
+let nodeAnimationId: number | null = null;
+
+export interface NodeTarget {
+    id: string;
+    x: number;
+    y: number;
+}
 
 /**
  * 将指定 ID 的节点们以动画形式移动到目标位置
- * @param {Array<{id: string, x: number, y: number}>} targets - 目标节点信息
- * @param {number} duration - 动画时长 (ms)
  */
-export function animateNodesTo(targets, duration = 300) {
+export function animateNodesTo(targets: NodeTarget[], duration = 300): void {
     if (nodeAnimationId) cancelAnimationFrame(nodeAnimationId);
     
     const startTime = performance.now();
-    const startPositions = new Map();
+    const startPositions = new Map<string, { x: number; y: number }>();
     
     targets.forEach(({ id }) => {
         const node = state.nodes.find(n => n.id === id);
@@ -23,7 +27,7 @@ export function animateNodesTo(targets, duration = 300) {
         }
     });
 
-    function step(now) {
+    function step(now: number) {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
         const ease = 1 - Math.pow(1 - progress, 3); // OutCubic
@@ -52,7 +56,7 @@ export function animateNodesTo(targets, duration = 300) {
 /**
  * 智能对齐选中的节点
  */
-export function smartAlignSelection() {
+export function smartAlignSelection(): void {
     const selectedNodes = state.nodes.filter(n => state.selection.has(n.id));
     if (selectedNodes.length < 2) return;
 
@@ -62,7 +66,9 @@ export function smartAlignSelection() {
     const nodes = selectedNodes.map(n => ({
         ...n,
         cx: n.x + (n.w || 80) / 2,
-        cy: n.y + (n.h || 40) / 2
+        cy: n.y + (n.h || 40) / 2,
+        rIdx: -1,
+        cIdx: -1
     }));
 
     // 计算当前选中组的包围盒
@@ -79,10 +85,10 @@ export function smartAlignSelection() {
     /**
      * 聚类函数：将相近的坐标点归为一类，并返回各类的中心值
      */
-    const cluster = (values, threshold) => {
+    const cluster = (values: number[], threshold: number): number[] => {
         if (values.length === 0) return [];
         const sorted = [...new Set(values)].sort((a, b) => a - b);
-        const clusters = [[sorted[0]]];
+        const clusters: number[][] = [[sorted[0]]];
         for (let i = 1; i < sorted.length; i++) {
             if (sorted[i] - sorted[i - 1] < threshold) {
                 clusters[clusters.length - 1].push(sorted[i]);
@@ -90,7 +96,7 @@ export function smartAlignSelection() {
                 clusters.push([sorted[i]]);
             }
         }
-        return clusters.map(c => c.reduce((a, b) => a + b) / c.length);
+        return clusters.map(c => c.reduce((a, b) => a + b, 0) / c.length);
     };
 
     // 动态阈值：基于节点的平均尺寸，用于识别行和列
@@ -100,7 +106,7 @@ export function smartAlignSelection() {
     const rowCenters = cluster(nodes.map(n => n.cy), avgH * 0.6);
     const colCenters = cluster(nodes.map(n => n.cx), avgW * 0.6);
 
-    const targets = [];
+    const targets: NodeTarget[] = [];
     
     // 3. 识别布局趋势并执行对齐
     const isGrid = rowCenters.length > 1 && colCenters.length > 1 && nodes.length >= 3;
@@ -111,7 +117,6 @@ export function smartAlignSelection() {
 
     if (isGrid) {
         // --- 网格布局模式 ---
-        // 识别每个节点所属的行索引和列索引
         nodes.forEach(n => {
             n.rIdx = rowCenters.findIndex(c => Math.abs(n.cy - c) < avgH * 0.7);
             n.cIdx = colCenters.findIndex(c => Math.abs(n.cx - c) < avgW * 0.7);
@@ -125,13 +130,11 @@ export function smartAlignSelection() {
             if (n.rIdx !== -1) rowHeights[n.rIdx] = Math.max(rowHeights[n.rIdx], n.h || 40);
         });
 
-        // 计算网格间距：优先保持原有的分布范围，但设定合理的最小间距
         const gridGapX = colCenters.length > 1 ? 
             Math.max(40, (maxX - minX - colWidths.reduce((a, b) => a + b, 0)) / (colCenters.length - 1)) : 40;
         const gridGapY = rowCenters.length > 1 ? 
             Math.max(20, (maxY - minY - rowHeights.reduce((a, b) => a + b, 0)) / (rowCenters.length - 1)) : 20;
 
-        // 计算各行各列的中心位置，以保持整体中心不变
         const colX = new Array(colCenters.length).fill(0);
         const rowY = new Array(rowCenters.length).fill(0);
         
@@ -199,4 +202,3 @@ export function smartAlignSelection() {
     // 4. 执行平滑动画
     animateNodesTo(targets);
 }
-// --- END: CREATE NEW FILE modules/animation.js ---

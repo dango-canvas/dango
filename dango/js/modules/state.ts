@@ -1,15 +1,22 @@
-// modules/state.js
-
+// modules/state.ts
 import { uid } from './utils.js';
 import { packLinkStrokeStyle, unpackLinkStrokeStyle } from './links.js';
+import type {
+    CanvasState,
+    CanvasNode,
+    CanvasGroup,
+    CanvasLink,
+    CanvasSettings,
+    SerializedData
+} from './types.js';
 
 export const MAX_HISTORY = 50;
 const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams('');
 const isEmbed = urlParams.has('embed');
-const getStorageItem = (key) => typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+const getStorageItem = (key: string): string | null => (typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null);
 
 // --- App State ---
-export const state = {
+export const state: CanvasState = {
     nodes: [],
     groups: [],
     links: [],
@@ -18,7 +25,7 @@ export const state = {
         y: typeof window !== 'undefined' ? window.innerHeight / 2 : 500, 
         scale: 1.2 
     },
-    selection: new Set(),
+    selection: new Set<string>(),
     selectionSource: 'click',
     mouse: { x: 0, y: 0 },
     searchResultId: null,
@@ -42,9 +49,9 @@ export const CONFIG = {
 };
 
 // --- History System ---
-export const history = { undo: [], redo: [] };
+export const history: { undo: string[]; redo: string[] } = { undo: [], redo: [] };
 
-export function pushHistory() {
+export function pushHistory(): void {
     const snapshot = JSON.stringify({
         nodes: state.nodes,
         groups: state.groups,
@@ -57,7 +64,7 @@ export function pushHistory() {
     history.redo = [];
 }
 
-export function undo(renderCallback) {
+export function undo(renderCallback: () => void): void {
     if (history.undo.length === 0) return;
     const currentSnapshot = JSON.stringify({
         nodes: state.nodes,
@@ -66,7 +73,7 @@ export function undo(renderCallback) {
         selection: Array.from(state.selection)
     });
     history.redo.push(currentSnapshot);
-    const prev = JSON.parse(history.undo.pop());
+    const prev = JSON.parse(history.undo.pop()!);
     state.nodes = prev.nodes;
     state.groups = prev.groups;
     state.links = prev.links;
@@ -74,7 +81,7 @@ export function undo(renderCallback) {
     renderCallback();
 }
 
-export function redo(renderCallback) {
+export function redo(renderCallback: () => void): void {
     if (history.redo.length === 0) return;
     const currentSnapshot = JSON.stringify({
         nodes: state.nodes,
@@ -83,7 +90,7 @@ export function redo(renderCallback) {
         selection: Array.from(state.selection)
     });
     history.undo.push(currentSnapshot);
-    const next = JSON.parse(history.redo.pop());
+    const next = JSON.parse(history.redo.pop()!);
     state.nodes = next.nodes;
     state.groups = next.groups;
     state.links = next.links;
@@ -94,7 +101,7 @@ export function redo(renderCallback) {
 // --- Data Persistence ---
 const LS_KEY = 'cc-canvas-data';
 
-export function initializeData(loadFromUrlFn) {
+export function initializeData(loadFromUrlFn?: () => boolean): void {
     // 1. 总是先从 LocalStorage 加载本地数据，作为“基础”状态
     loadData();
 
@@ -104,7 +111,8 @@ export function initializeData(loadFromUrlFn) {
     }
 }
 
-export function loadData() {
+export function loadData(): void {
+    if (typeof localStorage === 'undefined') return;
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
         try {
@@ -119,8 +127,8 @@ export function loadData() {
     }
 }
 
-export function saveData() {
-    if (state.isEmbed) return;
+export function saveData(): void {
+    if (state.isEmbed || typeof localStorage === 'undefined') return;
     localStorage.setItem(LS_KEY, JSON.stringify({
         nodes: state.nodes,
         groups: state.groups,
@@ -129,33 +137,51 @@ export function saveData() {
     }));
 }
 
-export function unpackData(packed) {
+export function unpackData(packed: any[]): {
+    nodes: CanvasNode[];
+    groups: CanvasGroup[];
+    links: CanvasLink[];
+    settings: CanvasSettings;
+} {
     const [version, pNodes, pGroups, pLinks, pSettings] = packed;
-    const shortToLongId = {};
-    const genNewId = (shortId) => {
+    const shortToLongId: Record<string | number, string> = {};
+    const genNewId = (shortId: string | number) => {
         const newId = uid();
         shortToLongId[shortId] = newId;
         return newId;
     };
-    const nodes = pNodes.map(n => ({
-        id: genNewId(n[0]), text: n[1], x: n[2], y: n[3], w: n[4], h: n[5],
+    const nodes: CanvasNode[] = (pNodes || []).map((n: any) => ({
+        id: genNewId(n[0]),
+        text: n[1],
+        x: n[2],
+        y: n[3],
+        w: n[4],
+        h: n[5],
         color: CONFIG.colors[n[6]] || 'c-white'
     }));
-    const groups = pGroups.map(g => ({
-        id: genNewId(g[0]), x: g[1], y: g[2], w: g[3], h: g[4], _tempMemberIds: g[5]
+    const groups: CanvasGroup[] = (pGroups || []).map((g: any) => ({
+        id: genNewId(g[0]),
+        x: g[1],
+        y: g[2],
+        w: g[3],
+        h: g[4],
+        isGroup: true,
+        memberIds: [],
+        _tempMemberIds: g[5] || []
     }));
-    groups.forEach(g => {
-        g.memberIds = g._tempMemberIds.map(sid => shortToLongId[sid]).filter(id => id);
+    groups.forEach((g: any) => {
+        g.memberIds = g._tempMemberIds.map((sid: any) => shortToLongId[sid]).filter(Boolean);
         delete g._tempMemberIds;
     });
-    const links = pLinks.map(l => ({
-        id: uid(), 
+    const links: CanvasLink[] = (pLinks || []).map((l: any) => ({
+        id: uid(),
         sourceId: shortToLongId[l[0]], 
         targetId: shortToLongId[l[1]],
         direction: l[2] === 1 ? 'target' : (l[2] === 2 ? 'source' : 'none'),
         strokeStyle: version >= 4 ? unpackLinkStrokeStyle(l[3]) : 'solid'
-    })).filter(l => l.sourceId && l.targetId);
-    let settings = state.settings;
+    })).filter((l: CanvasLink) => l.sourceId && l.targetId);
+
+    let settings: CanvasSettings = { ...state.settings };
     if (pSettings) {
         if (version >= 3) {
             settings = {
@@ -183,25 +209,35 @@ export function unpackData(packed) {
     return { nodes, groups, links, settings };
 }
 
-export function packData() {
-    const idMap = {};
+export function packData(): SerializedData {
+    const idMap: Record<string, number> = {};
     let idCounter = 0;
     const allIds = [...state.nodes.map(n => n.id), ...state.groups.map(g => g.id)];
-    allIds.forEach(id => idMap[id] = idCounter++);
-    const pNodes = state.nodes.map(n => [
-        idMap[n.id], n.text, Math.round(n.x), Math.round(n.y),
-        Math.round(n.w), Math.round(n.h), CONFIG.colors.indexOf(n.color || 'c-white')
+    allIds.forEach(id => { idMap[id] = idCounter++; });
+
+    const pNodes: any[] = state.nodes.map(n => [
+        idMap[n.id],
+        n.text,
+        Math.round(n.x),
+        Math.round(n.y),
+        Math.round(n.w),
+        Math.round(n.h),
+        CONFIG.colors.indexOf(n.color || 'c-white') !== -1 ? CONFIG.colors.indexOf(n.color || 'c-white') : 0
     ]);
-    const pGroups = state.groups.map(g => [
-        idMap[g.id], Math.round(g.x), Math.round(g.y),
-        Math.round(g.w), Math.round(g.h), g.memberIds.map(mid => idMap[mid])
+    const pGroups: any[] = state.groups.map((g: any) => [
+        idMap[g.id],
+        Math.round(g.x),
+        Math.round(g.y),
+        Math.round(g.w),
+        Math.round(g.h),
+        (g.memberIds || []).map((mid: string) => idMap[mid])
     ]);
-    const pLinks = state.links.map(l => {
+    const pLinks: any[] = state.links.map(l => {
         const d = l.direction === 'target' ? 1 : (l.direction === 'source' ? 2 : 0);
         const s = packLinkStrokeStyle(l.strokeStyle);
         return [idMap[l.sourceId], idMap[l.targetId], d, s];
     });
-    const pSettings = [
+    const pSettings: [number, number, number, string] = [
         state.settings.hideGrid ? 1 : 0,
         state.settings.handDrawn ? 1 : 0,
         state.settings.altAsCtrl ? 1 : 0,

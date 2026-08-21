@@ -1,31 +1,30 @@
-// modules/dom.js
+// modules/dom.ts
 
-const getEl = (id) => typeof document !== 'undefined' ? document.getElementById(id) : null;
+export const getEl = <T extends HTMLElement | SVGElement = HTMLElement>(id: string): T | null =>
+    (typeof document !== 'undefined' ? (document.getElementById(id) as T | null) : null);
 
 export const els = {
-    bgWallpaperLayer: getEl('bg-wallpaper-layer'),
-    bgWallpaperImage: getEl('bg-wallpaper-image'),
-    bgWallpaperMask: getEl('bg-wallpaper-mask'),
-    container: getEl('canvas-container'),
-    world: getEl('world'),
-    nodesLayer: getEl('nodes-layer'),
-    groupsLayer: getEl('groups-layer'),
-    connectionsLayer: getEl('connections-layer'),
-    input: getEl('input-text'),
-    selectBox: getEl('selection-box'),
-    btnHelp: getEl('btn-help'),
-    helpModal: getEl('help-modal'),
-    uiLayer: getEl('ui-layer'),
-    spotlight: getEl('spotlight-layer'),
-    snapGuidesLayer: getEl('snap-guides-layer'),
+    get bgWallpaperLayer() { return getEl<HTMLElement>('bg-wallpaper-layer'); },
+    get bgWallpaperImage() { return getEl<HTMLImageElement>('bg-wallpaper-image'); },
+    get bgWallpaperMask() { return getEl<HTMLElement>('bg-wallpaper-mask'); },
+    get container() { return getEl<HTMLElement>('canvas-container'); },
+    get world() { return getEl<HTMLElement>('world'); },
+    get nodesLayer() { return getEl<HTMLElement>('nodes-layer'); },
+    get groupsLayer() { return getEl<HTMLElement>('groups-layer'); },
+    get connectionsLayer() { return getEl<SVGSVGElement>('connections-layer'); },
+    get input() { return getEl<HTMLInputElement>('input-text'); },
+    get selectBox() { return getEl<HTMLElement>('selection-box'); },
+    get btnHelp() { return getEl<HTMLButtonElement>('btn-help'); },
+    get helpModal() { return getEl<HTMLElement>('help-modal'); },
+    get uiLayer() { return getEl<HTMLElement>('ui-layer'); },
+    get spotlight() { return getEl<HTMLElement>('spotlight-layer'); },
+    get snapGuidesLayer() { return getEl<SVGSVGElement>('snap-guides-layer'); },
 };
 
 /**
  * 安全地设置 HTML 内容
- * @param {HTMLElement} el 
- * @param {string} html 
  */
-export function setSafeHTML(el, html) {
+export function setSafeHTML(el: HTMLElement, html: string): void {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     el.textContent = '';
@@ -36,10 +35,8 @@ export function setSafeHTML(el, html) {
 
 /**
  * 安全地设置 SVG 内容
- * @param {SVGElement|HTMLElement} el 
- * @param {string} svgString 
  */
-export function setSafeSVG(el, svgString) {
+export function setSafeSVG(el: SVGElement | HTMLElement | null, svgString: string): void {
     if (!el) return;
     
     const isTargetSVG = el.tagName.toLowerCase() === 'svg';
@@ -47,7 +44,6 @@ export function setSafeSVG(el, svgString) {
     
     if (isTargetSVG) {
         // 情况 A：目标本身就是 SVG 元素，同步内容和属性
-        // 为了保留 viewBox 等大小写敏感属性，使用 image/svg+xml 解析
         let xmlString = trimmed;
         if (!xmlString.toLowerCase().startsWith('<svg')) {
             xmlString = `<svg xmlns="http://www.w3.org/2000/svg">${xmlString}</svg>`;
@@ -71,13 +67,12 @@ export function setSafeSVG(el, svgString) {
         });
     } else {
         // 情况 B：目标是容器（如 button），直接设置 innerHTML
-        // 现代浏览器会自动处理 HTML5 中的 SVG 标签，但可能会将 viewBox 误认为 viewbox (小写)
-        setSafeHTML(el, trimmed);
+        setSafeHTML(el as HTMLElement, trimmed);
         const svg = el.querySelector('svg');
         if (svg) {
-            // 强制修复 viewBox 大小写问题，这在 HTML 环境下很常见
+            // 强制修复 viewBox 大小写问题
             if (svg.hasAttribute('viewbox') && !svg.hasAttribute('viewBox')) {
-                svg.setAttribute('viewBox', svg.getAttribute('viewbox'));
+                svg.setAttribute('viewBox', svg.getAttribute('viewbox') || '');
             }
         }
     }

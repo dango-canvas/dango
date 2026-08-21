@@ -1,6 +1,8 @@
-// modules/i18n.js
+// modules/i18n.ts
 
-const TRANSLATIONS = {
+export type LangCode = 'zh' | 'en';
+
+const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
     zh: {
         page_title: "团子画板：组织灵感，一目了然",
         brand_name: "团子画板",
@@ -17,10 +19,10 @@ const TRANSLATIONS = {
         help_edit: "编辑 / 多选",
         help_copy: "复制 / 粘贴",
         help_group: "编组 / 解组",
-        help_link: "连线",
-        help_align: "对齐",
+        help_link: "连线 / 断线",
+        help_align: "方向对齐",
         help_color: "切换颜色",
-        alert_file_err: "文件格式错误",
+        alert_file_err: "文件格式错误，请上传 .dango 文件",
         settings_tooltip: "设置",
         settings_hide_grid: "隐藏网格点",
         settings_bg_url: "背景图片 URL",
@@ -49,10 +51,8 @@ const TRANSLATIONS = {
         btn_export_link: "链接",
         btn_export_file: "文件",
         btn_export_embed: "嵌入",
-        help_link: "连线 / 断线",
         help_link_style: "切换线形",
         help_directional_create: "方向创建 / 重复",
-        help_align: "方向对齐",
         about_title: "关于",
         feedback: "反馈",
         about_desc: "简单、优雅的概念关系可视化工具。\n\n组织灵感，一目了然。",
@@ -62,7 +62,6 @@ const TRANSLATIONS = {
         privacy_policy: "隐私声明",
         terms_of_service: "用户条款",
         buy_coffee: "请喝咖啡",
-        alert_file_err: "文件格式错误，请上传 .dango 文件",
         toast_copy_link_success: "链接已复制 ✨",
         help_spotlight: "聚光灯",
         embed_info_text: "嵌入模式，修改不保存。",
@@ -99,10 +98,10 @@ const TRANSLATIONS = {
         help_edit: "Edit / Multi-select",
         help_copy: "Copy / Paste",
         help_group: "Group / Ungroup",
-        help_link: "Link Nodes",
-        help_align: "Align",
+        help_link: "Link / Unlink",
+        help_align: "Align Direction",
         help_color: "Change Color",
-        alert_file_err: "Invalid file format",
+        alert_file_err: "Invalid format, please upload .dango file",
         settings_tooltip: "Settings",
         settings_hide_grid: "Hide Grid Dots",
         settings_bg_url: "Background URL",
@@ -131,11 +130,8 @@ const TRANSLATIONS = {
         btn_export_link: "LINK",
         btn_export_file: "FILE",
         btn_export_embed: "EMBED",
-        help_group: "Group / Ungroup",
-        help_link: "Link / Unlink",
         help_link_style: "Cycle Line Style",
         help_directional_create: "Directional Create",
-        help_align: "Align Direction",
         about_title: "About",
         feedback: "Feedback",
         about_desc: "Drop a nugget, get organized.",
@@ -145,7 +141,6 @@ const TRANSLATIONS = {
         privacy_policy: "Privacy Policy",
         terms_of_service: "Terms of Service",
         buy_coffee: "Buy me a coffee",
-        alert_file_err: "Invalid format, please upload .dango file",
         toast_copy_link_success: "Link copied ✨",
         help_spotlight: "Spotlight",
         embed_info_text: "Preview Mode: Changes are temporary. To save permanently, open in full version to export.",
@@ -169,65 +164,77 @@ const TRANSLATIONS = {
 };
 
 const LS_LANG_KEY = 'cc-lang';
-let currentLang;
+let currentLang: LangCode = 'zh';
 
 /**
  * 初始化语言设置，从本地存储或浏览器设置中获取
  */
-export function initI18n() {
-    currentLang = localStorage.getItem(LS_LANG_KEY) ||
-        (navigator.language.startsWith('zh') ? 'zh' : 'en');
+export function initI18n(): void {
+    if (typeof localStorage !== 'undefined') {
+        const saved = localStorage.getItem(LS_LANG_KEY) as LangCode | null;
+        if (saved === 'zh' || saved === 'en') {
+            currentLang = saved;
+            return;
+        }
+    }
+    if (typeof navigator !== 'undefined' && navigator.language) {
+        currentLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+    } else {
+        currentLang = 'zh';
+    }
 }
 
 /**
  * 切换语言
  */
-export function toggleLang() {
+export function toggleLang(): LangCode {
     currentLang = currentLang === 'zh' ? 'en' : 'zh';
-    localStorage.setItem(LS_LANG_KEY, currentLang);
+    if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(LS_LANG_KEY, currentLang);
+    }
     return currentLang;
 }
 
 /**
  * 获取当前语言代码
- * @returns {string} 'zh' or 'en'
  */
-export function getCurrentLang() {
+export function getCurrentLang(): LangCode {
     return currentLang;
 }
 
 /**
  * 获取当前语言的文本集
- * @returns {object}
  */
-export function getTexts() {
+export function getTexts(): Record<string, string> {
     return TRANSLATIONS[currentLang];
 }
 
 /**
  * 根据当前语言更新页面所有UI文本
  */
-export function updateI18n() {
+export function updateI18n(): void {
+    if (typeof document === 'undefined') return;
     const texts = getTexts();
     document.title = texts.page_title;
-    document.querySelectorAll('[data-i18n]').forEach(el => {
+    document.querySelectorAll<HTMLElement>('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
-        if (texts[key]) el.innerText = texts[key];
+        if (key && texts[key]) el.innerText = texts[key];
     });
-    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    document.querySelectorAll<HTMLElement>('[data-i18n-title]').forEach(el => {
         const key = el.getAttribute('data-i18n-title');
-        if (texts[key]) el.title = texts[key];
+        if (key && texts[key]) el.title = texts[key];
     });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    document.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
-        if (texts[key]) el.placeholder = texts[key];
+        if (key && texts[key]) el.placeholder = texts[key];
     });
-    document.getElementById('btn-lang').innerText = texts['lang_toggle'];
-    // 注意：我们将清空按钮的重置逻辑留在了 updateI18n 中，因为它是一个伴随语言切换的全局UI重置
+    const btnLang = document.getElementById('btn-lang');
+    if (btnLang) btnLang.innerText = texts['lang_toggle'];
+
     const btnClear = document.getElementById('btn-clear');
-    if (btnClear.classList.contains('btn-danger') === false) {
+    if (btnClear && !btnClear.classList.contains('btn-danger')) {
         btnClear.innerText = "🗑️";
     }
-    const mainBtn = document.querySelector('#export-container [data-i18n="btn_export"]');
+    const mainBtn = document.querySelector<HTMLElement>('#export-container [data-i18n="btn_export"]');
     if (mainBtn) mainBtn.innerText = texts.btn_export;
 }

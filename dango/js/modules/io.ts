@@ -1,17 +1,22 @@
-// modules/io.js
+// modules/io.ts
 import { state, pushHistory, packData, unpackData } from './state.js';
 import { getTexts } from './i18n.js';
 import { showToast, applySettings } from './ui.js';
 import { getTimestamp } from './utils.js';
 import { fitView } from './view.js';
 
-let renderRef = null;
+declare const LZString: {
+    compressToEncodedURIComponent: (str: string) => string;
+    decompressFromEncodedURIComponent: (str: string) => string;
+};
 
-export function initIO(render) {
+let renderRef: (() => void) | null = null;
+
+export function initIO(render: () => void): void {
     renderRef = render;
 }
 
-export function exportJson() {
+export function exportJson(): void {
     const data = JSON.stringify({ 
         nodes: state.nodes, 
         groups: state.groups, 
@@ -27,17 +32,18 @@ export function exportJson() {
     URL.revokeObjectURL(url);
 }
 
-export function processDangoFile(file) {
+export function processDangoFile(file: File): void {
     if (!file) return;
     if (!file.name.endsWith('.dango') && !file.name.endsWith('.json')) {
         showToast(getTexts().alert_file_err);
         return;
     }
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = (ev: ProgressEvent<FileReader>) => {
         try {
-            const data = JSON.parse(ev.target.result);
-            let oldSnapshot = null;
+            const content = ev.target?.result as string;
+            const data = JSON.parse(content);
+            let oldSnapshot: any = null;
             if (state.nodes.length > 0) {
                 oldSnapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links], settings: { ...state.settings } };
             }
@@ -51,13 +57,15 @@ export function processDangoFile(file) {
             state.selection.clear();
             
             // 导入文件时重置视角到中心
+            const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
+            const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
             state.view = { 
-                x: window.innerWidth / 2, 
-                y: window.innerHeight / 2, 
+                x: winW / 2, 
+                y: winH / 2, 
                 scale: 1.2 
             };
             
-            renderRef();
+            if (renderRef) renderRef();
             applySettings(state);
             showToast(getTexts().toast_import_success, oldSnapshot);
         } catch (err) {
@@ -68,7 +76,7 @@ export function processDangoFile(file) {
     reader.readAsText(file);
 }
 
-export function createShareLink() {
+export function createShareLink(): void {
     const packed = packData();
     const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
     const baseUrl = window.location.origin + window.location.pathname;
@@ -78,7 +86,7 @@ export function createShareLink() {
     });
 }
 
-export function createEmbedCode() {
+export function createEmbedCode(): void {
     const packed = packData();
     const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
     const baseUrl = window.location.origin + window.location.pathname;
@@ -88,9 +96,9 @@ export function createEmbedCode() {
     });
 }
 
-export function updateOpenFullLink() {
+export function updateOpenFullLink(): void {
     if (!state.isEmbed) return;
-    const btn = document.getElementById('btn-open-full');
+    const btn = document.getElementById('btn-open-full') as HTMLAnchorElement | null;
     if (!btn) return;
     const packed = packData();
     const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
@@ -98,7 +106,8 @@ export function updateOpenFullLink() {
     btn.href = baseUrl + '#' + compressed;
 }
 
-export function loadFromUrl() {
+export function loadFromUrl(): boolean {
+    if (typeof window === 'undefined') return false;
     const hash = window.location.hash.substring(1);
     if (!hash) return false;
     try {
@@ -120,7 +129,7 @@ export function loadFromUrl() {
         state.links = data.links || [];
         state.selection.clear();
         if (data.settings) Object.assign(state.settings, data.settings);
-        renderRef();
+        if (renderRef) renderRef();
         applySettings(state);
         if (state.isEmbed) {
             // 嵌入模式下，加载完数据后自动缩放至合适大小
@@ -133,7 +142,7 @@ export function loadFromUrl() {
                 scale: 1.2
             };
             showToast(getTexts().toast_imported, oldSnapshot);
-            window.history.replaceState(null, null, window.location.pathname);
+            window.history.replaceState(null, '', window.location.pathname);
         }
         return true;
     } catch (e) {

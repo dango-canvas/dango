@@ -1,22 +1,24 @@
-// modules/links.js
+// modules/links.ts
+import { uid } from './utils.js';
+import type { CanvasLink, LinkStrokeStyle, LinkDirection, CanvasNode } from './types.js';
 
-export const DEFAULT_LINK_STROKE_STYLE = 'solid';
-export const LINK_STROKE_STYLE_ORDER = ['solid', 'dashed', 'wavy'];
-export const LINK_STROKE_STYLE_TO_CODE = { solid: 0, dashed: 1, wavy: 2 };
-export const LINK_STROKE_STYLE_FROM_CODE = ['solid', 'dashed', 'wavy'];
+export const DEFAULT_LINK_STROKE_STYLE: LinkStrokeStyle = 'solid';
+export const LINK_STROKE_STYLE_ORDER: LinkStrokeStyle[] = ['solid', 'dashed', 'wavy'];
+export const LINK_STROKE_STYLE_TO_CODE: Record<LinkStrokeStyle, number> = { solid: 0, dashed: 1, wavy: 2 };
+export const LINK_STROKE_STYLE_FROM_CODE: LinkStrokeStyle[] = ['solid', 'dashed', 'wavy'];
 
 const DIRECTIONAL_LINK_TINT_RATIO = 0.46;
-const COLOR_PARSE_CACHE = new Map();
+const COLOR_PARSE_CACHE = new Map<string, { r: number; g: number; b: number } | null>();
 const ARCH_OFFSET_MAX = 28; // 最大拱起高度
 const ARCH_DY_SCALE = 32;   // 偏移敏感度平滑常数（更灵敏平滑）
 const DISTANCE_DAMPING_MIN = 14;
 const DISTANCE_DAMPING_MAX = 56;
 
-export function getLinkStrokeStyle(link) {
+export function getLinkStrokeStyle(link?: { strokeStyle?: LinkStrokeStyle } | null): LinkStrokeStyle {
     return link?.strokeStyle || DEFAULT_LINK_STROKE_STYLE;
 }
 
-export function cycleLinkStrokeStyle(link) {
+export function cycleLinkStrokeStyle(link?: CanvasLink | null): LinkStrokeStyle {
     if (!link) return DEFAULT_LINK_STROKE_STYLE;
     const current = getLinkStrokeStyle(link);
     const currentIndex = LINK_STROKE_STYLE_ORDER.indexOf(current);
@@ -26,28 +28,40 @@ export function cycleLinkStrokeStyle(link) {
     return nextStyle;
 }
 
-export function createLink({ id, sourceId, targetId, direction = 'none', strokeStyle = DEFAULT_LINK_STROKE_STYLE }) {
+export function createLink({
+    id = uid(),
+    sourceId,
+    targetId,
+    direction = 'none',
+    strokeStyle = DEFAULT_LINK_STROKE_STYLE
+}: {
+    id?: string;
+    sourceId: string;
+    targetId: string;
+    direction?: LinkDirection;
+    strokeStyle?: LinkStrokeStyle;
+}): CanvasLink {
     return { id, sourceId, targetId, direction, strokeStyle };
 }
 
-export function packLinkStrokeStyle(strokeStyle) {
+export function packLinkStrokeStyle(strokeStyle?: LinkStrokeStyle): number {
     return LINK_STROKE_STYLE_TO_CODE[getLinkStrokeStyle({ strokeStyle })] ?? 0;
 }
 
-export function unpackLinkStrokeStyle(code) {
-    return LINK_STROKE_STYLE_FROM_CODE[code] || DEFAULT_LINK_STROKE_STYLE;
+export function unpackLinkStrokeStyle(code?: number): LinkStrokeStyle {
+    return (code !== undefined ? LINK_STROKE_STYLE_FROM_CODE[code] : undefined) || DEFAULT_LINK_STROKE_STYLE;
 }
 
-export function buildStraightLinkPath(startPoint, endPoint) {
+export function buildStraightLinkPath(startPoint: { x: number; y: number }, endPoint: { x: number; y: number }): string {
     return `M ${startPoint.x} ${startPoint.y} L ${endPoint.x} ${endPoint.y}`;
 }
 
-function smoothstep(edge0, edge1, x) {
+function smoothstep(edge0: number, edge1: number, x: number): number {
     const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
     return t * t * (3 - 2 * t);
 }
 
-export function buildAutoCurveLinkPath(startPoint, endPoint) {
+export function buildAutoCurveLinkPath(startPoint: { x: number; y: number }, endPoint: { x: number; y: number }): string {
     const dx = endPoint.x - startPoint.x;
     const dy = endPoint.y - startPoint.y;
     const absDx = Math.abs(dx);
@@ -90,7 +104,7 @@ export function buildAutoCurveLinkPath(startPoint, endPoint) {
     return `M ${startPoint.x} ${startPoint.y} Q ${controlX} ${controlY} ${endPoint.x} ${endPoint.y}`;
 }
 
-export function buildWavyLinkPath(startPoint, endPoint) {
+export function buildWavyLinkPath(startPoint: { x: number; y: number }, endPoint: { x: number; y: number }): string {
     const dx = endPoint.x - startPoint.x;
     const dy = endPoint.y - startPoint.y;
     const distance = Math.hypot(dx, dy);
@@ -122,18 +136,18 @@ export function buildWavyLinkPath(startPoint, endPoint) {
     return d;
 }
 
-export function buildLinkPathData(link, startPoint, endPoint) {
+export function buildLinkPathData(link: CanvasLink | null, startPoint: { x: number; y: number }, endPoint: { x: number; y: number }): string {
     return getLinkStrokeStyle(link) === 'wavy'
         ? buildWavyLinkPath(startPoint, endPoint)
         : buildAutoCurveLinkPath(startPoint, endPoint);
 }
 
-function parseCssColor(colorText) {
+function parseCssColor(colorText: string): { r: number; g: number; b: number } | null {
     const normalized = colorText.trim().toLowerCase();
     if (!normalized) return null;
-    if (COLOR_PARSE_CACHE.has(normalized)) return COLOR_PARSE_CACHE.get(normalized);
+    if (COLOR_PARSE_CACHE.has(normalized)) return COLOR_PARSE_CACHE.get(normalized) || null;
 
-    let parsed = null;
+    let parsed: { r: number; g: number; b: number } | null = null;
     if (normalized.startsWith('#')) {
         const hex = normalized.slice(1);
         if (hex.length === 3) {
@@ -163,32 +177,39 @@ function parseCssColor(colorText) {
     return parsed;
 }
 
-function mixCssColors(baseColor, accentColor, accentRatio = DIRECTIONAL_LINK_TINT_RATIO) {
+function mixCssColors(baseColor: string, accentColor: string, accentRatio = DIRECTIONAL_LINK_TINT_RATIO): string {
     const base = parseCssColor(baseColor);
     const accent = parseCssColor(accentColor);
     if (!base || !accent) return baseColor;
 
     const baseRatio = 1 - accentRatio;
-    const mixChannel = (from, to) => Math.round(from * baseRatio + to * accentRatio);
+    const mixChannel = (from: number, to: number) => Math.round(from * baseRatio + to * accentRatio);
     return `rgb(${mixChannel(base.r, accent.r)}, ${mixChannel(base.g, accent.g)}, ${mixChannel(base.b, accent.b)})`;
 }
 
-function getDirectionalSourceNode(link, sourceNode, targetNode) {
-    if (link.direction === 'target') return sourceNode;
-    if (link.direction === 'source') return targetNode;
+function getDirectionalSourceNode(link: CanvasLink, sourceNode?: CanvasNode | null, targetNode?: CanvasNode | null): CanvasNode | null {
+    if (link.direction === 'target') return sourceNode || null;
+    if (link.direction === 'source') return targetNode || null;
     return null;
 }
 
-export function getLinkStrokeColor(link, sourceNode, targetNode, rootStyle = getComputedStyle(document.documentElement)) {
-    const baseColor = rootStyle.getPropertyValue('--link-color').trim() || '#94a3b8';
+export function getLinkStrokeColor(
+    link: CanvasLink,
+    sourceNode?: CanvasNode | null,
+    targetNode?: CanvasNode | null,
+    rootStyle?: CSSStyleDeclaration
+): string {
+    const style = rootStyle || (typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null);
+    const baseColor = style?.getPropertyValue('--link-color').trim() || '#94a3b8';
     const tintNode = getDirectionalSourceNode(link, sourceNode, targetNode);
     if (!tintNode) return baseColor;
 
-    const accentColor = rootStyle.getPropertyValue(`--${tintNode.color || 'c-white'}-border`).trim() || baseColor;
+    const colorKey = tintNode.color || 'c-white';
+    const accentColor = style?.getPropertyValue(`--${colorKey}-border`).trim() || baseColor;
     return mixCssColors(baseColor, accentColor);
 }
 
-export function getLinkOpacity(link) {
+export function getLinkOpacity(link?: CanvasLink | null): number {
     const strokeStyle = getLinkStrokeStyle(link);
     const isDirectional = link?.direction === 'target' || link?.direction === 'source';
 

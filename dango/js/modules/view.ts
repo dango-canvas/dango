@@ -1,17 +1,18 @@
-// modules/view.js
+// modules/view.ts
 import { screenToWorld } from './utils.js';
+import type { CanvasState } from './types.js';
 
-let renderRef = null;
-let stateRef = null;
-let viewAnimationId = null;
+let renderRef: (() => void) | null = null;
+let stateRef: CanvasState | null = null;
+let viewAnimationId: number | null = null;
 
-export function initView(state, render) {
+export function initView(state: CanvasState, render: () => void): void {
     stateRef = state;
     renderRef = render;
 }
 
 // 停止当前所有视口动画
-export function cancelViewAnimation() {
+export function cancelViewAnimation(): void {
     if (viewAnimationId) {
         cancelAnimationFrame(viewAnimationId);
         viewAnimationId = null;
@@ -19,7 +20,12 @@ export function cancelViewAnimation() {
 }
 
 // 通用缩放函数
-export function changeZoom(factor, mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2) {
+export function changeZoom(
+    factor: number,
+    mouseX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500,
+    mouseY = typeof window !== 'undefined' ? window.innerHeight / 2 : 500
+): void {
+    if (!stateRef || !renderRef) return;
     cancelViewAnimation();
     
     const worldPos = screenToWorld(mouseX, mouseY, stateRef.view);
@@ -31,9 +37,10 @@ export function changeZoom(factor, mouseX = window.innerWidth / 2, mouseY = wind
     renderRef();
 }
 
-export function resetViewToCenter(animated = true) {
-    const targetX = window.innerWidth / 2;
-    const targetY = window.innerHeight / 2;
+export function resetViewToCenter(animated = true): void {
+    if (!stateRef || !renderRef) return;
+    const targetX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500;
+    const targetY = typeof window !== 'undefined' ? window.innerHeight / 2 : 500;
     const targetScale = 1.2;
 
     if (animated) {
@@ -49,7 +56,9 @@ export function resetViewToCenter(animated = true) {
 /**
  * 自动缩放并平移，使所有节点都可见
  */
-export function fitView(padding = 40, animated = true, duration = 400) {
+export function fitView(padding = 40, animated = true, duration = 400): void {
+    if (!stateRef || !renderRef) return;
+
     if (!stateRef.nodes.length && !stateRef.groups.length) {
         resetViewToCenter(animated);
         return;
@@ -76,8 +85,11 @@ export function fitView(padding = 40, animated = true, duration = 400) {
     const centerWorldX = minX + contentW / 2;
     const centerWorldY = minY + contentH / 2;
 
-    const availableW = window.innerWidth - padding * 2;
-    const availableH = window.innerHeight - padding * 2;
+    const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
+    const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+    const availableW = winW - padding * 2;
+    const availableH = winH - padding * 2;
 
     // 计算适合的缩放比例
     let targetScale = Math.min(availableW / contentW, availableH / contentH);
@@ -86,8 +98,8 @@ export function fitView(padding = 40, animated = true, duration = 400) {
     // 限制最小缩放比例
     targetScale = Math.max(targetScale, 0.2);
 
-    const targetX = window.innerWidth / 2 - centerWorldX * targetScale;
-    const targetY = window.innerHeight / 2 - centerWorldY * targetScale;
+    const targetX = winW / 2 - centerWorldX * targetScale;
+    const targetY = winH / 2 - centerWorldY * targetScale;
 
     if (animated) {
         animateView(targetX, targetY, targetScale, duration);
@@ -99,7 +111,8 @@ export function fitView(padding = 40, animated = true, duration = 400) {
     }
 }
 
-export function animateView(targetX, targetY, targetScale, duration = 400) {
+export function animateView(targetX: number, targetY: number, targetScale: number, duration = 400): void {
+    if (!stateRef || !renderRef) return;
     cancelViewAnimation();
     const startX = stateRef.view.x;
     const startY = stateRef.view.y;
@@ -117,7 +130,8 @@ export function animateView(targetX, targetY, targetScale, duration = 400) {
 
     const startTime = performance.now();
 
-    function step(now) {
+    function step(now: number) {
+        if (!stateRef || !renderRef) return;
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
         const ease = progress >= 1 ? 1 : 1 - Math.pow(2, -10 * progress);

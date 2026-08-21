@@ -1,11 +1,29 @@
-// modules/directional.js
+// modules/directional.ts
 import { state, pushHistory } from './state.js';
 import { uid, getEdgeIntersection } from './utils.js';
 import { createLink } from './links.js';
+import type { CanvasNode, LinkDirection } from './types.js';
 
-let ghostState = null;
+interface DirectionOffset {
+    dx: number;
+    dy: number;
+}
 
-const DIRECTIONS = {
+interface GhostState {
+    key: string;
+    dir: DirectionOffset;
+    sourceNode: CanvasNode;
+    targetBox: { w: number; h: number };
+    lineMode: 'target' | 'none' | 'detached';
+    nodeEl: HTMLElement;
+    linkEl: SVGLineElement;
+    isModifierDown: boolean;
+    isArrowDown: boolean;
+}
+
+let ghostState: GhostState | null = null;
+
+const DIRECTIONS: Record<string, DirectionOffset> = {
     'ArrowUp':    { dx:  0, dy: -1 },
     'ArrowDown':  { dx:  0, dy:  1 },
     'ArrowLeft':  { dx: -1, dy:  0 },
@@ -13,11 +31,11 @@ const DIRECTIONS = {
 };
 
 const DISTANCE = 80;
-
 const DEFAULT_NODE_BOX_FALLBACK = { w: 102, h: 44 };
-const GHOST_LINK_MODE_ORDER = ['target', 'none', 'detached'];
+const GHOST_LINK_MODE_ORDER: Array<'target' | 'none' | 'detached'> = ['target', 'none', 'detached'];
 
-function getDefaultNodeBoxSize() {
+function getDefaultNodeBoxSize(): { w: number; h: number } {
+    if (typeof document === 'undefined') return { ...DEFAULT_NODE_BOX_FALLBACK };
     const nodesLayer = document.getElementById('nodes-layer');
     if (!nodesLayer) return { ...DEFAULT_NODE_BOX_FALLBACK };
 
@@ -40,8 +58,11 @@ function getDefaultNodeBoxSize() {
 }
 
 // 给定源节点、目标节点尺寸和方向，返回目标节点应放置的左上角坐标：
-// 沿方向贴源节点对应边、距离 DISTANCE，并在垂直方向上居中对齐。
-function computePosition(sourceNode, targetBox, dir) {
+function computePosition(
+    sourceNode: { x: number; y: number; w: number; h: number },
+    targetBox: { w: number; h: number },
+    dir: DirectionOffset
+): { x: number; y: number } {
     const sw = sourceNode.w;
     const sh = sourceNode.h;
     const tw = targetBox.w;
@@ -53,9 +74,7 @@ function computePosition(sourceNode, targetBox, dir) {
     return { x: sourceNode.x, y: sourceNode.y };
 }
 
-// content-box 下强制元素最小视觉尺寸到 targetW × targetH：
-// min-width/min-height 按实际 padding/border 剔除，保证 offsetWidth/Height 恰好命中目标。
-function forceMinBoxSize(el, targetW, targetH) {
+function forceMinBoxSize(el: HTMLElement, targetW: number, targetH: number): void {
     const cs = getComputedStyle(el);
     const hp = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
     const vp = parseFloat(cs.paddingTop)  + parseFloat(cs.paddingBottom);
@@ -65,13 +84,13 @@ function forceMinBoxSize(el, targetW, targetH) {
     el.style.minHeight = `${Math.max(0, targetH - vp - vb)}px`;
 }
 
-function getNextGhostLinkMode(currentMode) {
+function getNextGhostLinkMode(currentMode: 'target' | 'none' | 'detached'): 'target' | 'none' | 'detached' {
     const currentIndex = GHOST_LINK_MODE_ORDER.indexOf(currentMode);
     const safeIndex = currentIndex === -1 ? 0 : currentIndex;
     return GHOST_LINK_MODE_ORDER[(safeIndex + 1) % GHOST_LINK_MODE_ORDER.length];
 }
 
-function applyGhostLinkMode(ghost) {
+function applyGhostLinkMode(ghost: GhostState | null): void {
     if (!ghost?.linkEl) return;
 
     const { linkEl, lineMode } = ghost;
@@ -85,13 +104,13 @@ function applyGhostLinkMode(ghost) {
     }
 }
 
-function cycleGhostLinkMode() {
+function cycleGhostLinkMode(): void {
     if (!ghostState) return;
     ghostState.lineMode = getNextGhostLinkMode(ghostState.lineMode);
     applyGhostLinkMode(ghostState);
 }
 
-function setDirectionalAnchorMeta(node, sourceId, dir) {
+function setDirectionalAnchorMeta(node: any, sourceId: string, dir: DirectionOffset): void {
     Object.defineProperty(node, '_directionalSourceId', {
         value: sourceId,
         writable: true,
@@ -104,12 +123,12 @@ function setDirectionalAnchorMeta(node, sourceId, dir) {
     });
 }
 
-function clearDirectionalAnchorMeta(node) {
+function clearDirectionalAnchorMeta(node: any): void {
     delete node._directionalSourceId;
     delete node._directionalDir;
 }
 
-export function realignDirectionalNodeAfterEdit(node) {
+export function realignDirectionalNodeAfterEdit(node: any): boolean {
     if (!node?._directionalSourceId || !node?._directionalDir) return false;
 
     const sourceNode = state.nodes.find(n => n.id === node._directionalSourceId);
@@ -126,7 +145,13 @@ export function realignDirectionalNodeAfterEdit(node) {
     return moved;
 }
 
-function createDirectionalGhost(key, sourceNode, dir, lineMode = 'target') {
+function createDirectionalGhost(
+    key: string,
+    sourceNode: CanvasNode,
+    dir: DirectionOffset,
+    lineMode: 'target' | 'none' | 'detached' = 'target'
+): boolean {
+    if (typeof document === 'undefined') return false;
     const targetBox = getDefaultNodeBoxSize();
     const { x, y } = computePosition(sourceNode, targetBox, dir);
     const gw = targetBox.w;
@@ -134,8 +159,6 @@ function createDirectionalGhost(key, sourceNode, dir, lineMode = 'target') {
 
     const ghostNodeEl = document.createElement('div');
     ghostNodeEl.className = 'node';
-    // 幽灵用 border-box，style.width/height 直接等于视觉尺寸，
-    // 跟真节点（content-box，但 offsetWidth 含 padding/border）在"外包围盒"这层对齐。
     ghostNodeEl.style.boxSizing = 'border-box';
     ghostNodeEl.style.left = `${x}px`;
     ghostNodeEl.style.top = `${y}px`;
@@ -146,7 +169,7 @@ function createDirectionalGhost(key, sourceNode, dir, lineMode = 'target') {
     ghostNodeEl.style.backgroundColor = 'transparent';
     ghostNodeEl.style.pointerEvents = 'none';
     ghostNodeEl.style.zIndex = '0';
-    document.getElementById('nodes-layer').appendChild(ghostNodeEl);
+    document.getElementById('nodes-layer')?.appendChild(ghostNodeEl);
 
     const ghostLinkEl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     ghostLinkEl.classList.add('ghost-link');
@@ -154,15 +177,15 @@ function createDirectionalGhost(key, sourceNode, dir, lineMode = 'target') {
     ghostLinkEl.setAttribute('stroke-width', '2');
     ghostLinkEl.setAttribute('stroke-dasharray', '5,5');
     ghostLinkEl.setAttribute('opacity', '0.5');
-    document.getElementById('connections-layer').appendChild(ghostLinkEl);
+    document.getElementById('connections-layer')?.appendChild(ghostLinkEl);
 
     const ghostNodeObj = { x, y, w: gw, h: gh };
     const startPoint = getEdgeIntersection(ghostNodeObj, sourceNode);
     const endPoint   = getEdgeIntersection(sourceNode, ghostNodeObj);
-    ghostLinkEl.setAttribute('x1', startPoint.x);
-    ghostLinkEl.setAttribute('y1', startPoint.y);
-    ghostLinkEl.setAttribute('x2', endPoint.x);
-    ghostLinkEl.setAttribute('y2', endPoint.y);
+    ghostLinkEl.setAttribute('x1', String(startPoint.x));
+    ghostLinkEl.setAttribute('y1', String(startPoint.y));
+    ghostLinkEl.setAttribute('x2', String(endPoint.x));
+    ghostLinkEl.setAttribute('y2', String(endPoint.y));
 
     ghostState = {
         key,
@@ -180,7 +203,7 @@ function createDirectionalGhost(key, sourceNode, dir, lineMode = 'target') {
     return true;
 }
 
-export function handleDirectionalCreateStart(key) {
+export function handleDirectionalCreateStart(key: string, _e?: any): boolean {
     if (state.selection.size !== 1) return false;
 
     const dir = DIRECTIONS[key];
@@ -205,7 +228,11 @@ export function handleDirectionalCreateStart(key) {
     return createDirectionalGhost(key, sourceNode, dir, preservedLineMode);
 }
 
-export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
+export function handleDirectionalCreateEnd(
+    key: string,
+    callbacks: { render: () => void; handleNodeEdit?: (el: HTMLElement) => void },
+    releasedKeyType?: 'arrow' | 'modifier'
+): boolean {
     if (!ghostState || ghostState.key !== key) return false;
 
     if (releasedKeyType === 'arrow')        ghostState.isArrowDown = false;
@@ -221,11 +248,13 @@ export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
 
     const pos = computePosition(sourceNode, targetBox, dir);
     const newId = uid();
-    const newNode = {
+    const newNode: CanvasNode = {
         id: newId,
         text: '',
         x: pos.x,
         y: pos.y,
+        w: targetBox.w,
+        h: targetBox.h,
         color: sourceNode.color,
     };
     setDirectionalAnchorMeta(newNode, sourceNode.id, dir);
@@ -235,46 +264,46 @@ export function handleDirectionalCreateEnd(key, callbacks, releasedKeyType) {
             id: uid(),
             sourceId: sourceNode.id,
             targetId: newId,
-            direction: lineMode,
+            direction: lineMode as LinkDirection,
         }));
     }
     state.selection.clear();
     state.selection.add(newId);
 
-    // 第一次 render 把 DOM 元素挂上去，sync 块按自然尺寸填上 w/h。
-    // 随后 forceMinBoxSize 把空节点撑到普通空节点尺寸，并把 newNode.w/h 同步
-    // 到"撑起来后"的 offsetWidth/Height——否则第二次 render 里连线几何会
-    // 沿用自然尺寸，端点落进节点内部、箭头被本体盖住看不见。
     callbacks.render();
-    const nodeEl = document.querySelector(`.node[data-id="${newId}"]`);
-    if (nodeEl) {
-        forceMinBoxSize(nodeEl, targetBox.w, targetBox.h);
-        newNode.w = nodeEl.offsetWidth;
-        newNode.h = nodeEl.offsetHeight;
+    if (typeof document !== 'undefined') {
+        const nodeEl = document.querySelector<HTMLElement>(`.node[data-id="${newId}"]`);
+        if (nodeEl) {
+            forceMinBoxSize(nodeEl, targetBox.w, targetBox.h);
+            newNode.w = nodeEl.offsetWidth;
+            newNode.h = nodeEl.offsetHeight;
+        }
     }
     callbacks.render();
 
     setTimeout(() => {
-        const el = document.querySelector(`.node[data-id="${newId}"]`);
-        if (el && callbacks.handleNodeEdit) {
-            callbacks.handleNodeEdit(el);
+        if (typeof document !== 'undefined') {
+            const el = document.querySelector<HTMLElement>(`.node[data-id="${newId}"]`);
+            if (el && callbacks.handleNodeEdit) {
+                callbacks.handleNodeEdit(el);
+            }
         }
     }, 10);
 
     return true;
 }
 
-export function handleDirectionalModifierUp(callbacks) {
+export function handleDirectionalModifierUp(callbacks: { render: () => void; handleNodeEdit?: (el: HTMLElement) => void }): void {
     if (ghostState) {
         handleDirectionalCreateEnd(ghostState.key, callbacks, 'modifier');
     }
 }
 
-export function clearDirectionalGhost() {
+export function clearDirectionalGhost(): void {
     clearGhost();
 }
 
-function clearGhost() {
+function clearGhost(): void {
     if (ghostState) {
         if (ghostState.nodeEl.parentNode) ghostState.nodeEl.remove();
         if (ghostState.linkEl.parentNode) ghostState.linkEl.remove();
