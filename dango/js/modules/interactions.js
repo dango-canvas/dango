@@ -206,12 +206,14 @@ export function initInteractions() {
                 hasMovedDuringDrag = false;
                 if (isModifier(e)) {
                     state.selection.add(id);
+                    state.selectionSource = 'click';
                     isPrepareToClone = true;
                     render();
                 } else {
                     if (!targetAlreadySelectedAtStart) {
                         state.selection.clear();
                         state.selection.add(id);
+                        state.selectionSource = 'click';
                         render();
                     }
                     isPrepareToClone = false;
@@ -307,7 +309,11 @@ export function initInteractions() {
                 x: (rect.x - state.view.x) / state.view.scale, y: (rect.y - state.view.y) / state.view.scale,
                 w: rect.w / state.view.scale, h: rect.h / state.view.scale
             };
+            const prevSize = state.selection.size;
             [...state.nodes, ...state.groups].forEach(item => { if (isIntersect(worldRect, item)) state.selection.add(item.id); });
+            if (state.selection.size > prevSize) {
+                state.selectionSource = 'box';
+            }
             els.selectBox.style.display = 'none';
             render();
         }

@@ -391,6 +391,7 @@ export function updateViewTransform() {
  * 主渲染函数
  */
 export function render() {
+    if (typeof document === 'undefined') return;
     document.body.classList.toggle('is-empty', appState.nodes.length === 0);
     updateViewTransform();
 

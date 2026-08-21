@@ -4,8 +4,9 @@ import { uid } from './utils.js';
 import { packLinkStrokeStyle, unpackLinkStrokeStyle } from './links.js';
 
 export const MAX_HISTORY = 50;
-const urlParams = new URLSearchParams(window.location.search);
+const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams('');
 const isEmbed = urlParams.has('embed');
+const getStorageItem = (key) => typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
 
 // --- App State ---
 export const state = {
@@ -13,20 +14,21 @@ export const state = {
     groups: [],
     links: [],
     view: { 
-        x: window.innerWidth / 2, 
-        y: window.innerHeight / 2, 
+        x: typeof window !== 'undefined' ? window.innerWidth / 2 : 500, 
+        y: typeof window !== 'undefined' ? window.innerHeight / 2 : 500, 
         scale: 1.2 
     },
     selection: new Set(),
+    selectionSource: 'click',
     mouse: { x: 0, y: 0 },
     searchResultId: null,
     clipboard: null,
     theme: 'light',
     settings: {
-        hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
-        altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
-        handDrawn: localStorage.getItem('cc-hand-drawn') === 'true',
-        bgUrl: localStorage.getItem('cc-bg-url') || '',
+        hideGrid: getStorageItem('cc-hide-grid') === 'true',
+        altAsCtrl: getStorageItem('cc-alt-as-ctrl') === 'true',
+        handDrawn: getStorageItem('cc-hand-drawn') === 'true',
+        bgUrl: getStorageItem('cc-bg-url') || '',
     },
     isEmbed: isEmbed
 };

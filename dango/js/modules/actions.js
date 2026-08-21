@@ -231,60 +231,307 @@ export function toggleGroup() {
     }
 }
 
+function getNodeCenter(node) {
+    const w = typeof node.w === 'number' && node.w > 0 ? node.w : 120;
+    const h = typeof node.h === 'number' && node.h > 0 ? node.h : 60;
+    return {
+        cx: node.x + w / 2,
+        cy: node.y + h / 2,
+        x: node.x,
+        y: node.y,
+        w,
+        h,
+        node
+    };
+}
+
+/**
+ * 检测框选下的 1 对 N 辐射发散结构（左1右N、上1下N、右1左N、下1上N）
+ */
+function detectStarTopology(nodes) {
+    if (nodes.length < 3) return null;
+    const centers = nodes.map(getNodeCenter);
+
+    const candidates = [];
+
+    // 1. 左 1 右 (N-1)
+    const byXAsc = [...centers].sort((a, b) => a.cx - b.cx);
+    const leftRoot = byXAsc[0];
+    const rightLeaves = byXAsc.slice(1);
+    const minRightX = Math.min(...rightLeaves.map(c => c.cx));
+    const maxRightX = Math.max(...rightLeaves.map(c => c.cx));
+    const minRightY = Math.min(...rightLeaves.map(c => c.cy));
+    const maxRightY = Math.max(...rightLeaves.map(c => c.cy));
+    const leftGap = minRightX - leftRoot.cx;
+    const rightXSpread = maxRightX - minRightX;
+    const rightYSpread = maxRightY - minRightY;
+
+    if (leftGap >= 25 &&
+        (rightYSpread >= rightXSpread || rightXSpread <= 40) &&
+        leftRoot.cy >= minRightY - 100 && leftRoot.cy <= maxRightY + 100) {
+        const score = (leftGap / (rightXSpread + 20)) * ((rightYSpread + 20) / (rightXSpread + 20));
+        const sortedLeaves = [...rightLeaves].sort((a, b) => a.cy - b.cy);
+        candidates.push({
+            score,
+            pairs: sortedLeaves.map(leaf => ({ sourceId: leftRoot.node.id, targetId: leaf.node.id }))
+        });
+    }
+
+    // 2. 上 1 下 (N-1)
+    const byYAsc = [...centers].sort((a, b) => a.cy - b.cy);
+    const topRoot = byYAsc[0];
+    const bottomLeaves = byYAsc.slice(1);
+    const minBottomY = Math.min(...bottomLeaves.map(c => c.cy));
+    const maxBottomY = Math.max(...bottomLeaves.map(c => c.cy));
+    const minBottomX = Math.min(...bottomLeaves.map(c => c.cx));
+    const maxBottomX = Math.max(...bottomLeaves.map(c => c.cx));
+    const topGap = minBottomY - topRoot.cy;
+    const bottomYSpread = maxBottomY - minBottomY;
+    const bottomXSpread = maxBottomX - minBottomX;
+
+    if (topGap >= 25 &&
+        (bottomXSpread >= bottomYSpread || bottomYSpread <= 40) &&
+        topRoot.cx >= minBottomX - 100 && topRoot.cx <= maxBottomX + 100) {
+        const score = (topGap / (bottomYSpread + 20)) * ((bottomXSpread + 20) / (bottomYSpread + 20));
+        const sortedLeaves = [...bottomLeaves].sort((a, b) => a.cx - b.cx);
+        candidates.push({
+            score,
+            pairs: sortedLeaves.map(leaf => ({ sourceId: topRoot.node.id, targetId: leaf.node.id }))
+        });
+    }
+
+    // 3. 右 1 左 (N-1)
+    const byXDesc = [...centers].sort((a, b) => b.cx - a.cx);
+    const rightRoot = byXDesc[0];
+    const leftLeaves = byXDesc.slice(1);
+    const maxLeftX = Math.max(...leftLeaves.map(c => c.cx));
+    const minLeftX = Math.min(...leftLeaves.map(c => c.cx));
+    const minLeftY = Math.min(...leftLeaves.map(c => c.cy));
+    const maxLeftY = Math.max(...leftLeaves.map(c => c.cy));
+    const rightGap = rightRoot.cx - maxLeftX;
+    const leftXSpread = maxLeftX - minLeftX;
+    const leftYSpread = maxLeftY - minLeftY;
+
+    if (rightGap >= 25 &&
+        (leftYSpread >= leftXSpread || leftXSpread <= 40) &&
+        rightRoot.cy >= minLeftY - 100 && rightRoot.cy <= maxLeftY + 100) {
+        const score = (rightGap / (leftXSpread + 20)) * ((leftYSpread + 20) / (leftXSpread + 20));
+        const sortedLeaves = [...leftLeaves].sort((a, b) => a.cy - b.cy);
+        candidates.push({
+            score,
+            pairs: sortedLeaves.map(leaf => ({ sourceId: rightRoot.node.id, targetId: leaf.node.id }))
+        });
+    }
+
+    // 4. 下 1 上 (N-1)
+    const byYDesc = [...centers].sort((a, b) => b.cy - a.cy);
+    const bottomRoot = byYDesc[0];
+    const topLeaves = byYDesc.slice(1);
+    const maxTopY = Math.max(...topLeaves.map(c => c.cy));
+    const minTopY = Math.min(...topLeaves.map(c => c.cy));
+    const minTopX = Math.min(...topLeaves.map(c => c.cx));
+    const maxTopX = Math.max(...topLeaves.map(c => c.cx));
+    const bottomGap = bottomRoot.cy - maxTopY;
+    const topYSpread = maxTopY - minTopY;
+    const topXSpread = maxTopX - minTopX;
+
+    if (bottomGap >= 25 &&
+        (topXSpread >= topYSpread || topYSpread <= 40) &&
+        bottomRoot.cx >= minTopX - 100 && bottomRoot.cx <= maxTopX + 100) {
+        const score = (bottomGap / (topYSpread + 20)) * ((topXSpread + 20) / (topYSpread + 20));
+        const sortedLeaves = [...topLeaves].sort((a, b) => a.cx - b.cx);
+        candidates.push({
+            score,
+            pairs: sortedLeaves.map(leaf => ({ sourceId: bottomRoot.node.id, targetId: leaf.node.id }))
+        });
+    }
+
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0].pairs;
+}
+
+function getLinearChainPairs(nodes) {
+    const centers = nodes.map(getNodeCenter);
+    const minX = Math.min(...centers.map(c => c.cx));
+    const maxX = Math.max(...centers.map(c => c.cx));
+    const minY = Math.min(...centers.map(c => c.cy));
+    const maxY = Math.max(...centers.map(c => c.cy));
+
+    const dx = maxX - minX;
+    const dy = maxY - minY;
+
+    let sorted;
+    if (dx >= dy) {
+        sorted = [...centers].sort((a, b) => (Math.abs(a.cx - b.cx) < 15 ? a.cy - b.cy : a.cx - b.cx));
+    } else {
+        sorted = [...centers].sort((a, b) => (Math.abs(a.cy - b.cy) < 15 ? a.cx - b.cx : a.cy - b.cy));
+    }
+
+    const pairs = [];
+    for (let i = 0; i < sorted.length - 1; i++) {
+        pairs.push({
+            sourceId: sorted[i].node.id,
+            targetId: sorted[i + 1].node.id
+        });
+    }
+    return pairs;
+}
+
+function getSequentialChainPairs(nodes) {
+    const pairs = [];
+    for (let i = 0; i < nodes.length - 1; i++) {
+        pairs.push({
+            sourceId: nodes[i].id,
+            targetId: nodes[i + 1].id
+        });
+    }
+    return pairs;
+}
+
+export function resolveLinkingPairs(nodes, selectionSource = 'click') {
+    if (nodes.length < 2) return [];
+    if (nodes.length === 2) {
+        return [{ sourceId: nodes[0].id, targetId: nodes[1].id }];
+    }
+
+    if (selectionSource === 'box') {
+        const starPairs = detectStarTopology(nodes);
+        if (starPairs && starPairs.length > 0) {
+            return starPairs;
+        }
+        return getLinearChainPairs(nodes);
+    } else {
+        return getSequentialChainPairs(nodes);
+    }
+}
+
 export function toggleLink() {
     const sel = Array.from(state.selection);
-    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(n => n);
-    if (nodes.length !== 2) return;
+    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(Boolean);
+    if (nodes.length < 2) return;
 
-    const [n1, n2] = nodes;
-    const existingLinkIndex = state.links.findIndex(l =>
-        (l.sourceId === n1.id && l.targetId === n2.id) ||
-        (l.sourceId === n2.id && l.targetId === n1.id)
-    );
+    if (nodes.length === 2) {
+        const [n1, n2] = nodes;
+        const existingLinkIndex = state.links.findIndex(l =>
+            (l.sourceId === n1.id && l.targetId === n2.id) ||
+            (l.sourceId === n2.id && l.targetId === n1.id)
+        );
 
-    if (existingLinkIndex !== -1) {
-        const link = state.links[existingLinkIndex];
-        const isReversed = link.sourceId === n2.id;
-        switch (link.direction) {
-            case 'none':
-                link.direction = isReversed ? 'source' : 'target';
-                break;
-            case 'target':
-                link.direction = isReversed ? 'none' : 'source';
-                if (isReversed) link.direction = 'none';
-                else link.direction = 'source';
-                break;
-            case 'source':
-                state.links.splice(existingLinkIndex, 1);
-                break;
-            default:
-                link.direction = 'target';
-                break;
+        if (existingLinkIndex === -1) {
+            state.links.push(createLink({
+                id: uid(),
+                sourceId: n1.id,
+                targetId: n2.id,
+                direction: 'target'
+            }));
+        } else {
+            const link = state.links[existingLinkIndex];
+            const isReversed = link.sourceId === n2.id;
+            if (!isReversed) {
+                if (link.direction === 'target') {
+                    link.direction = 'none';
+                } else if (link.direction === 'none') {
+                    link.direction = 'source';
+                } else {
+                    state.links.splice(existingLinkIndex, 1);
+                }
+            } else {
+                if (link.direction === 'source') {
+                    link.direction = 'none';
+                } else if (link.direction === 'none') {
+                    link.direction = 'target';
+                } else {
+                    state.links.splice(existingLinkIndex, 1);
+                }
+            }
         }
-    } else {
-        state.links.push(createLink({
-            id: uid(),
-            sourceId: n1.id,
-            targetId: n2.id,
-            direction: 'none'
-        }));
+        render();
+        return;
     }
+
+    const selectionSource = state.selectionSource || 'click';
+    const targetPairs = resolveLinkingPairs(nodes, selectionSource);
+    if (targetPairs.length === 0) return;
+
+    const selectedNodeIds = new Set(nodes.map(n => n.id));
+
+    let allTargetMatched = true;
+    let allNoneMatched = true;
+
+    for (const pair of targetPairs) {
+        const link = state.links.find(l =>
+            (l.sourceId === pair.sourceId && l.targetId === pair.targetId) ||
+            (l.sourceId === pair.targetId && l.targetId === pair.sourceId)
+        );
+
+        if (!link) {
+            allTargetMatched = false;
+            allNoneMatched = false;
+            break;
+        }
+
+        const isSameDir = link.sourceId === pair.sourceId && link.targetId === pair.targetId;
+        const isDirectedToTarget = (isSameDir && link.direction === 'target') || (!isSameDir && link.direction === 'source');
+        const isUndirected = link.direction === 'none';
+
+        if (!isDirectedToTarget) allTargetMatched = false;
+        if (!isUndirected) allNoneMatched = false;
+    }
+
+    if (!allTargetMatched && !allNoneMatched) {
+        for (const pair of targetPairs) {
+            const linkIndex = state.links.findIndex(l =>
+                (l.sourceId === pair.sourceId && l.targetId === pair.targetId) ||
+                (l.sourceId === pair.targetId && l.targetId === pair.sourceId)
+            );
+
+            if (linkIndex === -1) {
+                state.links.push(createLink({
+                    id: uid(),
+                    sourceId: pair.sourceId,
+                    targetId: pair.targetId,
+                    direction: 'target'
+                }));
+            } else {
+                const link = state.links[linkIndex];
+                link.sourceId = pair.sourceId;
+                link.targetId = pair.targetId;
+                link.direction = 'target';
+            }
+        }
+    } else if (allTargetMatched) {
+        for (const pair of targetPairs) {
+            const link = state.links.find(l =>
+                (l.sourceId === pair.sourceId && l.targetId === pair.targetId) ||
+                (l.sourceId === pair.targetId && l.targetId === pair.sourceId)
+            );
+            if (link) link.direction = 'none';
+        }
+    } else if (allNoneMatched) {
+        state.links = state.links.filter(l =>
+            !(selectedNodeIds.has(l.sourceId) && selectedNodeIds.has(l.targetId))
+        );
+    }
+
     render();
 }
 
 export function toggleLinkStrokeStyle() {
     const sel = Array.from(state.selection);
-    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(n => n);
-    if (nodes.length !== 2) return false;
+    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(Boolean);
+    if (nodes.length < 2) return false;
 
-    const [n1, n2] = nodes;
-    const link = state.links.find(l =>
-        (l.sourceId === n1.id && l.targetId === n2.id) ||
-        (l.sourceId === n2.id && l.targetId === n1.id)
+    const selectedIds = new Set(nodes.map(n => n.id));
+    const targetLinks = state.links.filter(l =>
+        selectedIds.has(l.sourceId) && selectedIds.has(l.targetId)
     );
-    if (!link) return false;
+    if (targetLinks.length === 0) return false;
 
-    cycleLinkStrokeStyle(link);
+    const nextStyle = cycleLinkStrokeStyle(targetLinks[0]);
+    for (let i = 1; i < targetLinks.length; i++) {
+        targetLinks[i].strokeStyle = nextStyle;
+    }
     return true;
 }
 

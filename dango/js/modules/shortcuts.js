@@ -128,6 +128,7 @@ export function initShortcuts(callbacks) {
             if (e.code === 'KeyA') {
                 e.preventDefault();
                 state.selection = new Set([...state.nodes.map(n => n.id), ...state.groups.map(g => g.id)]);
+                state.selectionSource = 'box';
                 render();
                 return;
             }

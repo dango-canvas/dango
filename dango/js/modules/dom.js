@@ -1,20 +1,22 @@
 // modules/dom.js
 
+const getEl = (id) => typeof document !== 'undefined' ? document.getElementById(id) : null;
+
 export const els = {
-    bgWallpaperLayer: document.getElementById('bg-wallpaper-layer'),
-    bgWallpaperImage: document.getElementById('bg-wallpaper-image'),
-    bgWallpaperMask: document.getElementById('bg-wallpaper-mask'),
-    container: document.getElementById('canvas-container'),
-    world: document.getElementById('world'),
-    nodesLayer: document.getElementById('nodes-layer'),
-    groupsLayer: document.getElementById('groups-layer'),
-    connectionsLayer: document.getElementById('connections-layer'),
-    input: document.getElementById('input-text'),
-    selectBox: document.getElementById('selection-box'),
-    btnHelp: document.getElementById('btn-help'),
-    helpModal: document.getElementById('help-modal'),
-    uiLayer: document.getElementById('ui-layer'),
-    spotlight: document.getElementById('spotlight-layer'),
+    bgWallpaperLayer: getEl('bg-wallpaper-layer'),
+    bgWallpaperImage: getEl('bg-wallpaper-image'),
+    bgWallpaperMask: getEl('bg-wallpaper-mask'),
+    container: getEl('canvas-container'),
+    world: getEl('world'),
+    nodesLayer: getEl('nodes-layer'),
+    groupsLayer: getEl('groups-layer'),
+    connectionsLayer: getEl('connections-layer'),
+    input: getEl('input-text'),
+    selectBox: getEl('selection-box'),
+    btnHelp: getEl('btn-help'),
+    helpModal: getEl('help-modal'),
+    uiLayer: getEl('ui-layer'),
+    spotlight: getEl('spotlight-layer'),
 };
 
 /**
