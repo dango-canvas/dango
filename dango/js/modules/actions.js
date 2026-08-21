@@ -83,8 +83,10 @@ export function createNodesFromInput(text) {
 
     const spacingX = 160;
     const spacingY = 80;
-    const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
-    const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
+    const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
+    const winH = typeof window !== 'undefined' ? window.innerHeight : 1000;
+    const centerX = (winW / 2 - state.view.x) / state.view.scale;
+    const centerY = (winH / 2 - state.view.y) / state.view.scale;
 
     const offsetStep = 20;
     const maxOffsets = 5;
