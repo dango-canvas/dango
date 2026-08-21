@@ -334,3 +334,9 @@ input[type="checkbox"] {
     background: #422006;
     border-color: #f59e0b;
 }
+
+.settings-item.hidden {
+    display: none !important;
+}
+
+

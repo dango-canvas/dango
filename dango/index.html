@@ -116,7 +116,7 @@
                             <span data-i18n="settings_hand_drawn">手写风格 (实验性)</span>
                             <input type="checkbox" id="check-hand-drawn">
                         </div>
-                        <div class="settings-item">
+                        <div class="settings-item hidden" id="settings-bg-item">
                             <span data-i18n="settings_bg_url">背景图片 URL</span>
                             <input type="text" id="input-bg-url" data-i18n-placeholder="settings_bg_url_placeholder"
                                 style="width: 65px; margin-left: 10px; font-size: 12px; padding: 2px 6px; border: 1px solid var(--ui-border); border-radius: 4px; background: var(--bg-color); color: var(--ui-text); text-overflow: ellipsis;">
@@ -143,11 +143,13 @@
                                 <div class="help-row"><span class="help-desc" data-i18n="help_search">搜索节点</span> <span
                                         class="help-keys">Ctrl + F</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_pan_zoom">平移 / 缩放</span>
-                                    <span class="help-keys">Space + Drag / Wheel</span></div>
+                                    <span class="help-keys">Space + Drag / Wheel</span>
+                                </div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_center">回归中心</span> <span
                                         class="help-keys">Home</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_select">多选 / 框选</span>
-                                    <span class="help-keys">Ctrl + Click</span></div>
+                                    <span class="help-keys">Ctrl + Click</span>
+                                </div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_clone">克隆节点</span> <span
                                         class="help-keys">Ctrl + Drag</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_delete">删除选中</span> <span
@@ -163,19 +165,24 @@
                                 <div class="help-row"><span class="help-desc" data-i18n="help_save">保存画板文件</span> <span
                                         class="help-keys">Ctrl + S</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_group">编组 / 解组</span>
-                                    <span class="help-keys">Ctrl + G</span></div>
+                                    <span class="help-keys">Ctrl + G</span>
+                                </div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_link_style">切换线形</span>
-                                    <span class="help-keys">Ctrl + '</span></div>
+                                    <span class="help-keys">Ctrl + '</span>
+                                </div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_smart_align">智能对齐</span>
-                                    <span class="help-keys">Alt + .</span></div>
+                                    <span class="help-keys">Alt + .</span>
+                                </div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_align">方向对齐</span> <span
                                         class="help-keys">Alt + W A S D H J</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_center_align">分布对齐</span>
-                                    <span class="help-keys">Alt + Shift + H J</span></div>
+                                    <span class="help-keys">Alt + Shift + H J</span>
+                                </div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_color">切换颜色</span> <span
                                         class="help-keys">Alt + 1 ~ 9</span></div>
                                 <div class="help-row"><span class="help-desc" data-i18n="help_spotlight">聚光灯</span>
-                                    <span class="help-keys">Q</span></div>
+                                    <span class="help-keys">Q</span>
+                                </div>
                             </div>
                         </div>
 
@@ -274,7 +281,7 @@
                 <div class="about-logo dango-easter-egg">🍡</div>
                 <!-- 这里使用 brand_name，会根据语言变成 "团子画板" 或 "Dango" -->
                 <div class="about-title" data-i18n="brand_name">团子画板</div>
-                <div class="about-version">v1.0.7 (2026.08.20)</div>
+                <div class="about-version">v1.0.8 (2026.08.21)</div>
             </div>
 
             <p class="about-desc" data-i18n="about_desc">

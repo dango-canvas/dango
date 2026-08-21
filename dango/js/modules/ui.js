@@ -223,22 +223,39 @@ export function applyBackgroundImage(bgUrl) {
     image.src = normalizedBgUrl;
 }
 
+export function isBgUnlocked(currentState) {
+    if (typeof localStorage === 'undefined') return false;
+    const s = currentState || appState;
+    return localStorage.getItem('cc-bg-unlocked') === 'true' || Boolean(s?.settings?.bgUrl);
+}
+
 // --- 设置 ---
 export function applySettings(currentState) {
     // 如果没有传入 currentState，就使用模块内部的 appState（用于 initUI 后的常规调用）
     const s = currentState || appState; 
     if (!s) return; // 如果都没有，直接返回，防止错误
 
-    document.getElementById('check-hide-grid').checked = s.settings.hideGrid;
-    document.getElementById('check-alt-as-ctrl').checked = s.settings.altAsCtrl;
-    document.getElementById('check-hand-drawn').checked = s.settings.handDrawn;
+    const hideGridEl = document.getElementById('check-hide-grid');
+    if (hideGridEl) hideGridEl.checked = s.settings.hideGrid;
+    const altAsCtrlEl = document.getElementById('check-alt-as-ctrl');
+    if (altAsCtrlEl) altAsCtrlEl.checked = s.settings.altAsCtrl;
+    const handDrawnEl = document.getElementById('check-hand-drawn');
+    if (handDrawnEl) handDrawnEl.checked = s.settings.handDrawn;
+
+    const isUnlocked = isBgUnlocked(s);
+    const settingsBgItem = document.getElementById('settings-bg-item');
+    if (settingsBgItem) {
+        settingsBgItem.classList.toggle('hidden', !isUnlocked);
+    }
     
     const bgUrlInput = document.getElementById('input-bg-url');
     if (bgUrlInput) {
         bgUrlInput.value = s.settings.bgUrl || '';
     }
 
-    document.body.classList.toggle('hide-grid', s.settings.hideGrid);
+    if (typeof document !== 'undefined' && document.body) {
+        document.body.classList.toggle('hide-grid', s.settings.hideGrid);
+    }
     
     const finalBgUrl = normalizeBgUrl(s.settings.bgUrl);
     applyBackgroundImage(finalBgUrl);
@@ -352,7 +369,8 @@ function initEasterEggs() {
             if (logoClickCount >= 5) {
                 logoClickCount = 0;
                 logoComboCount++;
-                showToast(`${getTexts().toast_easter_dango} x${logoComboCount}`);
+                const comboSuffix = logoComboCount > 1 ? ` x${logoComboCount}` : '';
+                showToast(`${getTexts().toast_easter_dango}${comboSuffix}`);
                 logoBox.classList.remove('easter-pop');
                 void logoBox.offsetWidth;
                 logoBox.classList.add('easter-pop');
@@ -388,6 +406,12 @@ function initEasterEggs() {
     const starBtns = document.querySelectorAll('.btn-star');
     starBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('cc-bg-unlocked', 'true');
+            }
+            const settingsBgItem = document.getElementById('settings-bg-item');
+            if (settingsBgItem) settingsBgItem.classList.remove('hidden');
+
             const span = btn.querySelector('span');
             if (span) {
                 const texts = getTexts();
