@@ -104,16 +104,27 @@ export function animateView(targetX, targetY, targetScale, duration = 400) {
     const startX = stateRef.view.x;
     const startY = stateRef.view.y;
     const startScale = stateRef.view.scale;
+
+    // 如果已经在目标位置，直接精准对齐并返回，避免冗余空跑
+    if (Math.abs(startX - targetX) < 0.001 &&
+        Math.abs(startY - targetY) < 0.001 &&
+        Math.abs(startScale - targetScale) < 0.0001) {
+        stateRef.view.x = targetX;
+        stateRef.view.y = targetY;
+        stateRef.view.scale = targetScale;
+        return;
+    }
+
     const startTime = performance.now();
 
     function step(now) {
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        const ease = 1 - Math.pow(2, -10 * progress);
+        const ease = progress >= 1 ? 1 : 1 - Math.pow(2, -10 * progress);
         
-        stateRef.view.x = startX + (targetX - startX) * ease;
-        stateRef.view.y = startY + (targetY - startY) * ease;
-        stateRef.view.scale = startScale + (targetScale - startScale) * ease;
+        stateRef.view.x = progress >= 1 ? targetX : startX + (targetX - startX) * ease;
+        stateRef.view.y = progress >= 1 ? targetY : startY + (targetY - startY) * ease;
+        stateRef.view.scale = progress >= 1 ? targetScale : startScale + (targetScale - startScale) * ease;
         renderRef();
 
         if (progress < 1) {
