@@ -1,54 +1,68 @@
-# 🍡 团子画板 | Dango
-[English README](./README_EN.md) | [在线使用](https://dango.ink) | [Firefox 拓展](https://addons.mozilla.org/zh-CN/firefox/addon/dango-canvas)
+# 🍡 Dango
 
-    
+<p align="center">
+  <a href="./README.md"><b>English</b></a> | <a href="./README_ZH.md"><b>简体中文</b></a> | <a href="https://dango.ink"><b>Web App</b></a> | <a href="https://addons.mozilla.org/firefox/addon/dango-canvas"><b>Firefox Add-on</b></a>
+</p>
+
 <div align="center">
-  <img height="800" alt="Image" src="https://github.com/user-attachments/assets/949089ff-5b03-4e00-85ec-ebe39dba8feb" />
+  <img height="800" alt="Dango Canvas Screenshot" src="https://github.com/user-attachments/assets/949089ff-5b03-4e00-85ec-ebe39dba8feb" />
   <br />
   <br />
-  <b>组织灵感，一目了然。</b>
-  <br />
+  <b>Drop a nugget, get organized.</b>
   <br />
 </div>
 
 ---
 
-团子画板（Dango）是一个为**高效绘制框图**而生的轻量、原子化的思维整理工具。
+Dango is a lightweight, atomic thought-organizing tool born for **high-efficiency diagramming**.
 
-它不试图成为复杂的绘图软件或笔记应用，它可以在灵感迸发瞬间，快速组织散乱的想法，并迅速理清关系。
+It doesn't try to be a complex drawing software or a heavy note-taking app. Instead, it helps you quickly organize scattered ideas and clarify relationships the moment inspiration strikes.
 
-### ✨ 核心特性
 
-- **效率优先**：
+### Features
 
-    - **键入即生成**：通过输入框批量键入想法，瞬间转化为原子节点。
-    - **全键盘操作**：连线、分组、对齐，无需频繁切换鼠标，手不离位即可完成构图。
-    - **智能排版**：一键智能对齐，让凌乱的节点瞬间变得整齐专业。
+Dango supports:
 
-- **本地优先**：
+* 🔍 Infinite canvas with fluid panning, zooming & view centering
+* 🌓 Dark / light
+* 📥 Import / Export
+* 🔙 Undo / Redo
+* ⌨️ Smooth keyboard-first workflow
+* 🧠 Heuristic layout: topology-aware arrangement & auto-linking
+* 🖼️ Seamlessly embed into Obsidian, Notion, or personal blogs
+* 🔦 Spotlight mode
+* ✍️ Organic hand-drawn style
+* 🌐 Localization (i18n) support
+* 🔒 Local-first & privacy
+* 📦 Multiple distributions: Web / Standalone HTML / Container / Extension
+* 💯 Free & open-source
+* ❤️ Crafted with care
 
-    - **无后端设计**：你的数据仅存在于本地浏览器中。
-    - **链接即数据**：状态编码到链接，分享链接即分享数据，无需注册，无需数据库。
-    - **数据防丢失**：撤销重做系统、多种导出方式、破坏性操作提供救命稻草等作为安全保障，确保不丢失任何瞬间的灵感。
 
-- **体验优先**：
+### Usage
 
-    - **心流设计**：功能极简克制，符合直觉，确保使用过程中能忘掉工具存在本身。
-    - **嵌入模式**：可轻松嵌入 Notion、Obsidian、个人博客等任何支持 iframe 的地方。
-    - **手写风格**：内置可选的手写字体与不规则边框，提供更具亲和力的视觉风格。
+* **Online**: Visit [dango.ink](https://dango.ink) to get started instantly.
+* **Standalone Single File**: Download `index.html` from [Releases](https://github.com/dango-canvas/dango/releases), and double-click to run.
+* **Docker**:
+  ```bash
+  docker run -d -p 8080:80 ghcr.io/dango-canvas/dango:latest
+  ```
+  Then visit `http://localhost:8080` in your browser.
 
-### 🤝 贡献与反馈
 
-如果你在使用过程中有任何建议，或者发现了 Bug，欢迎通过以下方式参与：
+### Community & Feedback
 
-- **提交 Issue**：在 GitHub 上提出你的想法或反馈问题。
-- **点亮 Star**：如果你喜欢这个项目，请在 GitHub 上点个 Star，这是对我最大的鼓励。
-- **分享作品**：生成一个分享链接，分享到 [团子博客](https://blog.dango.ink)，让更多人看到你的思维火花。
+* **Report Issues**: Share ideas or report bugs by opening an issue on GitHub.
+* **Share Your Work**: Generate a shareable link and share your thought maps on the [Dango Blog](https://blog.dango.ink).
+* **Star the Project**: If Dango brings clarity to your thinking, consider giving it a Star on GitHub!
 
-### 💖 致谢
 
-- **Gemini 3.0 Flash**：Vibe coding。
-- **Cloudflare**：快速的全球托管服务。
+### Acknowledgments
 
-### 📕 许可证
-AGPL-3.0 license
+* **Gemini 3.0 & 3.7 Flash**: Vibe coding.
+* **Cloudflare**: Fast, reliable global hosting.
+
+
+### License
+
+[AGPL-3.0 License](LICENSE)
