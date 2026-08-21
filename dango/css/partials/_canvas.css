@@ -167,6 +167,22 @@ path.link[data-stroke-style="wavy"] {
     opacity: 0.46;
 }
 
+svg.snap-guides {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    z-index: 6;
+    pointer-events: none;
+}
+
+line.snap-guide {
+    stroke: var(--select-color, #6366f1);
+    stroke-width: 1px;
+    stroke-dasharray: 4 3;
+    opacity: 0.45;
+}
+
 #selection-box {
     position: absolute;
     border: 1px solid var(--select-color);

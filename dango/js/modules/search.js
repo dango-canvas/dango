@@ -7,13 +7,15 @@ let results = [];
 let currentIndex = -1;
 let lastQuery = '';
 
+const getEl = (id) => typeof document !== 'undefined' ? document.getElementById(id) : null;
+
 const els = {
-    container: document.getElementById('search-container'),
-    input: document.getElementById('search-input'),
-    info: document.getElementById('search-info'),
-    prev: document.getElementById('search-prev'),
-    next: document.getElementById('search-next'),
-    close: document.getElementById('search-close')
+    container: getEl('search-container'),
+    input: getEl('search-input'),
+    info: getEl('search-info'),
+    prev: getEl('search-prev'),
+    next: getEl('search-next'),
+    close: getEl('search-close')
 };
 
 export function initSearch(state, render) {

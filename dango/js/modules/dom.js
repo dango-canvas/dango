@@ -17,6 +17,7 @@ export const els = {
     helpModal: getEl('help-modal'),
     uiLayer: getEl('ui-layer'),
     spotlight: getEl('spotlight-layer'),
+    snapGuidesLayer: getEl('snap-guides-layer'),
 };
 
 /**

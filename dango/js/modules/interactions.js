@@ -21,6 +21,108 @@ let middleClickCount = 0;
 let isGlobalViewActive = false;
 let preGlobalViewScale = 1;
 
+export const SNAP_THRESHOLD = 5;
+export const MAX_SNAP_NEIGHBOR_DIST = 350;
+
+export function calculateMagneticSnap(leadNodeId, rawDx, rawDy, initialPosSnapshot) {
+    if (!initialPosSnapshot) {
+        return { effectiveDx: rawDx, effectiveDy: rawDy, guides: [] };
+    }
+
+    const leadId = leadNodeId || Array.from(state.selection)[0];
+    const draggedNode = state.nodes.find(n => n.id === leadId);
+    const initPos = initialPosSnapshot[leadId];
+
+    if (!draggedNode || !initPos) {
+        return { effectiveDx: rawDx, effectiveDy: rawDy, guides: [] };
+    }
+
+    const nodeW = typeof draggedNode.w === 'number' && draggedNode.w > 0 ? draggedNode.w : 120;
+    const nodeH = typeof draggedNode.h === 'number' && draggedNode.h > 0 ? draggedNode.h : 60;
+    const rawX = initPos.x + rawDx;
+    const rawY = initPos.y + rawDy;
+    const nodeCx = rawX + nodeW / 2;
+    const nodeCy = rawY + nodeH / 2;
+
+    const candidateNodes = state.nodes.filter(n => !state.selection.has(n.id));
+    if (candidateNodes.length === 0) {
+        return { effectiveDx: rawDx, effectiveDy: rawDy, guides: [] };
+    }
+
+    let minDeltaX = Infinity;
+    let bestCandX = null;
+    let minDeltaY = Infinity;
+    let bestCandY = null;
+
+    for (const other of candidateNodes) {
+        const ow = typeof other.w === 'number' && other.w > 0 ? other.w : 120;
+        const oh = typeof other.h === 'number' && other.h > 0 ? other.h : 60;
+        const ocx = other.x + ow / 2;
+        const ocy = other.y + oh / 2;
+        const dist = Math.hypot(ocx - nodeCx, ocy - nodeCy);
+
+        if (dist > MAX_SNAP_NEIGHBOR_DIST) continue;
+
+        // X轴（垂直中心对齐）
+        const deltaX = Math.abs(ocx - nodeCx);
+        if (deltaX <= SNAP_THRESHOLD && deltaX < minDeltaX) {
+            minDeltaX = deltaX;
+            bestCandX = { other, ocx, ocy, offset: ocx - nodeCx };
+        }
+
+        // Y轴（水平中心对齐）
+        const deltaY = Math.abs(ocy - nodeCy);
+        if (deltaY <= SNAP_THRESHOLD && deltaY < minDeltaY) {
+            minDeltaY = deltaY;
+            bestCandY = { other, ocx, ocy, offset: ocy - nodeCy };
+        }
+    }
+
+    const snapDx = bestCandX ? bestCandX.offset : 0;
+    const snapDy = bestCandY ? bestCandY.offset : 0;
+    const finalNodeCx = nodeCx + snapDx;
+    const finalNodeCy = nodeCy + snapDy;
+
+    const guides = [];
+    if (bestCandX) {
+        guides.push({
+            type: 'vertical',
+            x1: bestCandX.ocx,
+            y1: Math.min(finalNodeCy, bestCandX.ocy),
+            x2: bestCandX.ocx,
+            y2: Math.max(finalNodeCy, bestCandX.ocy)
+        });
+    }
+    if (bestCandY) {
+        guides.push({
+            type: 'horizontal',
+            x1: Math.min(finalNodeCx, bestCandY.ocx),
+            y1: bestCandY.ocy,
+            x2: Math.max(finalNodeCx, bestCandY.ocx),
+            y2: bestCandY.ocy
+        });
+    }
+
+    return {
+        effectiveDx: rawDx + snapDx,
+        effectiveDy: rawDy + snapDy,
+        guides
+    };
+}
+
+export function renderSnapGuides(guides = []) {
+    if (!els.snapGuidesLayer) return;
+    if (guides.length === 0) {
+        els.snapGuidesLayer.innerHTML = '';
+        return;
+    }
+    let html = '';
+    for (const g of guides) {
+        html += `<line class="snap-guide" x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}"></line>`;
+    }
+    els.snapGuidesLayer.innerHTML = html;
+}
+
 function cancelTransientInteraction() {
     mode = null;
     dragStart = null;
@@ -31,6 +133,7 @@ function cancelTransientInteraction() {
     hasMovedDuringDrag = false;
     document.body.classList.remove('mode-pan');
     if (els.selectBox) els.selectBox.style.display = 'none';
+    renderSnapGuides([]);
 }
 
 function forceFinishActiveEdit() {
@@ -240,15 +343,22 @@ export function initInteractions() {
             updateViewTransform();
         } else if (mode === 'move') {
             const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
-            const dx = worldPos.x - dragStart.x;
-            const dy = worldPos.y - dragStart.y;
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+            const rawDx = worldPos.x - dragStart.x;
+            const rawDy = worldPos.y - dragStart.y;
+            if (Math.abs(rawDx) > 3 || Math.abs(rawDy) > 3) {
                 hasMovedDuringDrag = true;
                 if (isPrepareToClone) {
                     cloneSelectionInPlace();
                     isPrepareToClone = false;
                 }
             }
+
+            // 计算轻量微磁吸与局部参考线
+            const snapResult = calculateMagneticSnap(targetIdAtMouseDown, rawDx, rawDy, dragStart.initialPos);
+            const dx = snapResult.effectiveDx;
+            const dy = snapResult.effectiveDy;
+            renderSnapGuides(snapResult.guides);
+
             state.selection.forEach(id => {
                 const init = dragStart.initialPos[id];
                 if (init) {
@@ -274,6 +384,7 @@ export function initInteractions() {
     });
 
     els.container.addEventListener('mouseup', e => {
+        renderSnapGuides([]);
         if (e.button === 1 && isGlobalViewActive) {
             isGlobalViewActive = false;
             middleClickCount = 0;
