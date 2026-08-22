@@ -28,7 +28,7 @@ async function bundle() {
 
   if (!jsBuild.success) {
     console.error("Build failed", jsBuild.logs);
-    return;
+    process.exit(1);
   }
   const bundledJs = await jsBuild.outputs[0].text();
 

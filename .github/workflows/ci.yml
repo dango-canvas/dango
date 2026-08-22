@@ -20,8 +20,8 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Build single-file distribution
+        run: bun build.ts
+
       - name: Run automated test suite
         run: bun test
-
-      - name: Verify single-file distribution build
-        run: bun build.ts
