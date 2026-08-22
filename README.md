@@ -9,6 +9,8 @@
   <br />
   <br />
   <b>Drop a nugget, get organized.</b>
+  <br />
+  <br />
 </div>
 
 Dango is a lightweight, atomic thought-organizing tool born for **high-efficiency diagramming**.
