@@ -32,6 +32,26 @@ export function exportJson(): void {
     URL.revokeObjectURL(url);
 }
 
+function persistSettings(settings: Partial<typeof state.settings>): void {
+    if (typeof localStorage === 'undefined') return;
+    if (typeof settings.handDrawn === 'boolean') {
+        localStorage.setItem('cc-hand-drawn', String(settings.handDrawn));
+    }
+    if (typeof settings.hideGrid === 'boolean') {
+        localStorage.setItem('cc-hide-grid', String(settings.hideGrid));
+    }
+    if (typeof settings.altAsCtrl === 'boolean') {
+        localStorage.setItem('cc-alt-as-ctrl', String(settings.altAsCtrl));
+    }
+    if (typeof settings.bgUrl === 'string') {
+        if (settings.bgUrl) {
+            localStorage.setItem('cc-bg-url', settings.bgUrl);
+        } else {
+            localStorage.removeItem('cc-bg-url');
+        }
+    }
+}
+
 export function processDangoFile(file: File): void {
     if (!file) return;
     if (!file.name.endsWith('.dango') && !file.name.endsWith('.json')) {
@@ -53,6 +73,7 @@ export function processDangoFile(file: File): void {
             state.links = data.links || [];
             if (data.settings) {
                 Object.assign(state.settings, data.settings);
+                persistSettings(data.settings);
             }
             state.selection.clear();
             
@@ -128,7 +149,12 @@ export function loadFromUrl(): boolean {
         state.groups = data.groups || [];
         state.links = data.links || [];
         state.selection.clear();
-        if (data.settings) Object.assign(state.settings, data.settings);
+        if (data.settings) {
+            Object.assign(state.settings, data.settings);
+            if (!state.isEmbed) {
+                persistSettings(data.settings);
+            }
+        }
         if (renderRef) renderRef();
         applySettings(state);
         if (state.isEmbed) {

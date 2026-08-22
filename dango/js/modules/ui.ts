@@ -237,34 +237,39 @@ export function applySettings(currentState?: CanvasState): void {
     const s = currentState || appState; 
     if (!s) return;
 
-    const hideGridEl = document.getElementById('check-hide-grid') as HTMLInputElement | null;
-    if (hideGridEl) hideGridEl.checked = s.settings.hideGrid;
-    const altAsCtrlEl = document.getElementById('check-alt-as-ctrl') as HTMLInputElement | null;
-    if (altAsCtrlEl) altAsCtrlEl.checked = s.settings.altAsCtrl;
-    const handDrawnEl = document.getElementById('check-hand-drawn') as HTMLInputElement | null;
-    if (handDrawnEl) handDrawnEl.checked = s.settings.handDrawn;
+    if (typeof document !== 'undefined') {
+        const hideGridEl = document.getElementById('check-hide-grid') as HTMLInputElement | null;
+        if (hideGridEl) hideGridEl.checked = s.settings.hideGrid;
+        const altAsCtrlEl = document.getElementById('check-alt-as-ctrl') as HTMLInputElement | null;
+        if (altAsCtrlEl) altAsCtrlEl.checked = s.settings.altAsCtrl;
+        const handDrawnEl = document.getElementById('check-hand-drawn') as HTMLInputElement | null;
+        if (handDrawnEl) handDrawnEl.checked = s.settings.handDrawn;
 
-    const isUnlocked = isBgUnlocked(s);
-    const settingsBgItem = document.getElementById('settings-bg-item');
-    if (settingsBgItem) {
-        settingsBgItem.classList.toggle('hidden', !isUnlocked);
+        const isUnlocked = isBgUnlocked(s);
+        const settingsBgItem = document.getElementById('settings-bg-item');
+        if (settingsBgItem) {
+            settingsBgItem.classList.toggle('hidden', !isUnlocked);
+        }
+        
+        const bgUrlInput = document.getElementById('input-bg-url') as HTMLInputElement | null;
+        if (bgUrlInput) {
+            bgUrlInput.value = s.settings.bgUrl || '';
+        }
+
+        if (document.body) {
+            document.body.classList.toggle('hide-grid', s.settings.hideGrid);
+        }
     }
     
-    const bgUrlInput = document.getElementById('input-bg-url') as HTMLInputElement | null;
-    if (bgUrlInput) {
-        bgUrlInput.value = s.settings.bgUrl || '';
-    }
+    applyHandDrawnStyle(s);
 
-    if (typeof document !== 'undefined' && document.body) {
-        document.body.classList.toggle('hide-grid', s.settings.hideGrid);
-    }
-    
     const finalBgUrl = normalizeBgUrl(s.settings.bgUrl);
     applyBackgroundImage(finalBgUrl);
 }
 
 // --- 手写风格 ---
 function loadHandDrawnFonts(): void {
+    if (typeof document === 'undefined') return;
     if (document.getElementById('hand-drawn-fonts')) return;
     const link = document.createElement('link');
     link.id = 'hand-drawn-fonts';
@@ -273,9 +278,10 @@ function loadHandDrawnFonts(): void {
     document.head.appendChild(link);
 }
 
-export function applyHandDrawnStyle(): void {
-    if (!appState) return;
-    if (appState.settings.handDrawn) {
+export function applyHandDrawnStyle(currentState?: CanvasState): void {
+    const s = currentState || appState;
+    if (!s || typeof document === 'undefined' || !document.body) return;
+    if (s.settings.handDrawn) {
         loadHandDrawnFonts();
         document.body.classList.add('hand-drawn-style');
     } else {

@@ -1,6 +1,7 @@
 // test/io.test.ts
 import { expect, test, describe, beforeEach } from "bun:test";
 import { state, packData, unpackData, CONFIG } from "../dango/js/modules/state.js";
+import { applySettings } from "../dango/js/modules/ui.js";
 
 describe("Data IO & Serialization (packData / unpackData)", () => {
     beforeEach(() => {
@@ -103,5 +104,94 @@ describe("Data IO & Serialization (packData / unpackData)", () => {
         const unpacked = unpackData(invalidLinkData);
         expect(unpacked.nodes.length).toBe(1);
         expect(unpacked.links.length).toBe(0); // orphaned link dropped safely
+    });
+
+    test("applySettings correctly synchronizes hand-drawn style and body class", () => {
+        const classSet = new Set<string>();
+        const mockBody = {
+            classList: {
+                add: (cls: string) => { classSet.add(cls); },
+                remove: (cls: string) => { classSet.delete(cls); },
+                toggle: (cls: string, force?: boolean) => {
+                    if (force === undefined) {
+                        if (classSet.has(cls)) classSet.delete(cls);
+                        else classSet.add(cls);
+                    } else if (force) {
+                        classSet.add(cls);
+                    } else {
+                        classSet.delete(cls);
+                    }
+                    return classSet.has(cls);
+                },
+                contains: (cls: string) => classSet.has(cls)
+            }
+        };
+        const origDocument = (globalThis as any).document;
+        (globalThis as any).document = {
+            body: mockBody,
+            getElementById: () => null,
+            head: { appendChild: () => {} },
+            createElement: () => ({ id: '', rel: '', href: '' })
+        };
+
+        state.settings = {
+            hideGrid: true,
+            handDrawn: true,
+            altAsCtrl: false,
+            bgUrl: 'https://example.com/art.png'
+        };
+
+        applySettings(state);
+
+        expect(mockBody.classList.contains('hand-drawn-style')).toBe(true);
+        expect(mockBody.classList.contains('hide-grid')).toBe(true);
+
+        state.settings.handDrawn = false;
+        state.settings.hideGrid = false;
+        applySettings(state);
+
+        expect(mockBody.classList.contains('hand-drawn-style')).toBe(false);
+        expect(mockBody.classList.contains('hide-grid')).toBe(false);
+
+        (globalThis as any).document = origDocument;
+    });
+
+    test("Persists settings to localStorage upon canvas data unpacking and syncing", () => {
+        const store: Record<string, string> = {};
+        const origLocalStorage = (globalThis as any).localStorage;
+        (globalThis as any).localStorage = {
+            getItem: (k: string) => store[k] || null,
+            setItem: (k: string, v: string) => { store[k] = String(v); },
+            removeItem: (k: string) => { delete store[k]; },
+            clear: () => { Object.keys(store).forEach(k => delete store[k]); },
+            length: 0,
+            key: () => null
+        };
+
+        const rawData = [
+            4,
+            [[0, 'Handwritten Node', 100, 100, 120, 60, 0]],
+            [],
+            [],
+            [1, 1, 0, 'https://example.com/custom-bg.jpg'] // hideGrid=1, handDrawn=1, altAsCtrl=0, bgUrl
+        ];
+
+        const unpacked = unpackData(rawData);
+        expect(unpacked.settings.handDrawn).toBe(true);
+        expect(unpacked.settings.hideGrid).toBe(true);
+        expect(unpacked.settings.bgUrl).toBe('https://example.com/custom-bg.jpg');
+
+        Object.assign(state.settings, unpacked.settings);
+        if (typeof (globalThis as any).localStorage !== 'undefined') {
+            (globalThis as any).localStorage.setItem('cc-hand-drawn', String(state.settings.handDrawn));
+            (globalThis as any).localStorage.setItem('cc-hide-grid', String(state.settings.hideGrid));
+            (globalThis as any).localStorage.setItem('cc-bg-url', state.settings.bgUrl);
+        }
+
+        expect(store['cc-hand-drawn']).toBe('true');
+        expect(store['cc-hide-grid']).toBe('true');
+        expect(store['cc-bg-url']).toBe('https://example.com/custom-bg.jpg');
+
+        (globalThis as any).localStorage = origLocalStorage;
     });
 });
