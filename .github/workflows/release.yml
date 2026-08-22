@@ -53,16 +53,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          TAG="${{ github.event.release.tag_name }}"
-          ASSET_BASENAME="dango-${TAG}"
-
-          mkdir -p release
-          cp dist/index.html "release/${ASSET_BASENAME}.html"
+          mkdir -p release staging
+          cp dist/index.html staging/dango.html
 
           (
+            cd staging
+            zip -9 ../release/dango.zip dango.html
+          )
+          (
             cd release
-            zip -9 "${ASSET_BASENAME}.zip" "${ASSET_BASENAME}.html"
-            sha256sum "${ASSET_BASENAME}.html" "${ASSET_BASENAME}.zip" > SHA256SUMS.txt
+            sha256sum dango.zip > SHA256SUMS.txt
           )
 
       - name: Build and push Docker image
@@ -105,15 +105,14 @@ jobs:
 
 ## Release Assets
 
-- Single-file HTML bundle attached to this release
-- ZIP bundle attached to this release
+- \`dango.zip\` (Standalone HTML bundle: \`dango.html\`)
 - Docker image: \`${IMAGE}\`
 
 ## Self-Host
 
-```bash
+\`\`\`bash
 docker run --rm -p 8080:80 ${IMAGE}
-```
+\`\`\`
 EOF
 
           gh release edit "$TAG" --repo "$REPO" --notes-file /tmp/release-assets-note.md

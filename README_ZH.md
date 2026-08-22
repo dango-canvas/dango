@@ -1,18 +1,16 @@
-# 🍡 团子画板 | Dango
+<h1 align="center">🍡 团子画板 | Dango</h1>
 
 <p align="center">
   <a href="./README.md"><b>English</b></a> | <a href="./README_ZH.md"><b>简体中文</b></a> | <a href="https://dango.ink"><b>在线体验</b></a> | <a href="https://addons.mozilla.org/zh-CN/firefox/addon/dango-canvas"><b>Firefox 拓展</b></a>
 </p>
 
 <div align="center">
-  <img height="800" alt="团子画板截图" src="https://github.com/user-attachments/assets/949089ff-5b03-4e00-85ec-ebe39dba8feb" />
+  <img alt="团子画板截图" src="https://github.com/user-attachments/assets/f48833ac-c5b2-4ebc-b740-3484e27d9795" />
   <br />
   <br />
   <b>组织灵感，一目了然。</b>
-  <br />
 </div>
 
----
 
 团子画板（Dango）是一个为**高效绘制框图**而生的轻量、原子化的思维整理工具。
 
@@ -29,12 +27,13 @@
 * 🔙 撤销 / 重做
 * ⌨️ 流畅的全键盘操作
 * 🧠 启发式布局算法：拓扑识别排版和连线
+* 🔗 文件即链接
 * 🖼️ 无缝嵌入到 Obsidian、Notion 或你的独立博客
 * 🔦 聚光灯
 * ✍️ 手绘风格
 * 🌐 多语言支持
 * 🔒 纯本地优先与隐私
-* 📦 在线 / 单文件 / 容器 / 拓展 多种分发形式
+* 📦 在线 / 单文件 / 容器 / 拓展等多种分发形式
 * 💯 免费且开源
 * ❤️ 用心打磨
 
@@ -42,7 +41,7 @@
 ### 使用方式
 
 * **在线使用**：访问 [dango.ink](https://dango.ink) 即可开始使用。
-* **单文件离线使用**：从 [Releases](https://github.com/dango-canvas/dango/releases) 下载 `index.html`，双击即可直接运行。
+* **单文件离线使用**：从 [Releases](https://github.com/dango-canvas/dango/releases) 下载 `dango.zip`，解压后双击 `dango.html` 即可直接运行。
 * **Docker 部署**：
   ```bash
   docker run -d -p 8080:80 ghcr.io/dango-canvas/dango:latest
