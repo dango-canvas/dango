@@ -8,6 +8,8 @@ import {
     nudgeSelection,
     toggleGroupSelection
 } from "../dango/js/modules/actions.js";
+import { createNodeAt } from "../dango/js/modules/interactions.js";
+import { initRender, renderNode } from "../dango/js/modules/render.js";
 
 describe("Canvas Actions & History Management", () => {
     beforeEach(() => {
@@ -17,6 +19,7 @@ describe("Canvas Actions & History Management", () => {
         state.selection = new Set();
         history.undo = [];
         history.redo = [];
+        initRender(state, {});
     });
 
     test("createNodesFromInput: parses comma-separated items", () => {
@@ -123,5 +126,42 @@ describe("Canvas Actions & History Management", () => {
         redo(() => {});
         expect(state.nodes[0].text).toBe('Modified');
         expect(state.nodes[0].x).toBe(150);
+    });
+
+    test("createNodeAt on empty canvas initializes node with solid default color 'c-white'", () => {
+        state.nodes = [];
+        const newNode = createNodeAt({ x: 200, y: 300 });
+        expect(newNode.color).toBe('c-white');
+        expect(typeof newNode.color).toBe('string');
+        expect(newNode.color).not.toBe(0);
+    });
+
+    test("createNodeAt near colored neighbor inherits neighbor's valid color string", () => {
+        state.nodes = [{ id: 'n1', text: 'Parent', x: 200, y: 200, w: 100, h: 50, color: 'c-red' }];
+        const newNode = createNodeAt({ x: 250, y: 220 });
+        expect(newNode.color).toBe('c-red');
+    });
+
+    test("renderNode correctly maps numeric color 0 to 'c-white' avoiding transparent node bug", () => {
+        // Minimal DOM mock if in pure node/bun environment
+        const classSet = new Set<string>();
+        const mockEl = {
+            setAttribute: () => {},
+            classList: {
+                contains: (cls: string) => classSet.has(cls),
+                add: (cls: string) => classSet.add(cls),
+                remove: (cls: string) => classSet.delete(cls)
+            },
+            style: {},
+            dataset: {},
+            className: '',
+            querySelector: () => null,
+            appendChild: () => {}
+        } as any;
+
+        // Legacy node with numeric color 0
+        renderNode(mockEl, { id: 'legacy_1', text: 'Legacy Node', x: 0, y: 0, w: 100, h: 40, color: 0 as any });
+        expect(mockEl.className).toContain('c-white');
+        expect(mockEl.className).not.toContain('c-0');
     });
 });

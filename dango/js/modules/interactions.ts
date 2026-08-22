@@ -1,5 +1,5 @@
 // modules/interactions.ts
-import { state, history, pushHistory, MAX_HISTORY, saveData } from './state.js';
+import { state, history, pushHistory, MAX_HISTORY, saveData, CONFIG } from './state.js';
 import { render, updateViewTransform } from './render.js';
 import { uid, screenToWorld, getStandardRect, isIntersect } from './utils.js';
 import { changeZoom, cancelViewAnimation, fitView, animateView } from './view.js';
@@ -1084,7 +1084,7 @@ function cloneSelectionInPlace(): void {
     state.selection = newSelection;
 }
 
-function createNodeAt(pos: { x: number; y: number }): CanvasNode {
+export function createNodeAt(pos: { x: number; y: number }): CanvasNode {
     pushHistory();
     const color = getNearestNodeColor(pos);
     const node: CanvasNode = { id: uid(), text: '', x: pos.x, y: pos.y, w: 0, h: 0, color };
@@ -1094,7 +1094,7 @@ function createNodeAt(pos: { x: number; y: number }): CanvasNode {
     return node;
 }
 
-function getNearestNodeColor(pos: { x: number; y: number }): number {
+function getNearestNodeColor(pos: { x: number; y: number }): string {
     let nearest: CanvasNode | null = null;
     let minDist = Infinity;
     state.nodes.forEach(n => {
@@ -1106,8 +1106,14 @@ function getNearestNodeColor(pos: { x: number; y: number }): number {
             nearest = n;
         }
     });
-    if (nearest && minDist <= 300) return (nearest as CanvasNode).color || 0;
-    return 0;
+    if (nearest && minDist <= 300) {
+        const c = (nearest as any).color;
+        if (typeof c === 'number') {
+            return CONFIG.colors[c] || 'c-white';
+        }
+        return c || 'c-white';
+    }
+    return 'c-white';
 }
 
 function getTouchPos(e: TouchEvent): { x: number; y: number } {

@@ -24,7 +24,9 @@
 /* 1. 基础节点样式：保持稳定 */
 .node {
     position: absolute;
-    border: 1px solid transparent;
+    background: var(--c-white-bg);
+    border: 1px solid var(--c-white-border);
+    color: var(--c-white-text);
     border-radius: 12px;
     padding: 12px 20px;
     min-width: 60px;

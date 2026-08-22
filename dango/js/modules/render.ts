@@ -3,6 +3,7 @@ import { isUrl, getEdgeIntersection } from './utils.js';
 import { getTexts } from './i18n.js';
 import { els, setSafeHTML, setSafeSVG } from './dom.js';
 import { buildLinkPathData, getLinkOpacity, getLinkStrokeColor, getLinkStrokeStyle } from './links.js';
+import { CONFIG } from './state.js';
 import type { CanvasState, CanvasNode, CanvasGroup, CanvasLink } from './types.js';
 
 // --- 模块内部变量 ---
@@ -189,11 +190,11 @@ function applyImageSize(node: CanvasNode, img: HTMLImageElement | null, width: n
     return true;
 }
 
-function renderNode(el: HTMLElement, node: CanvasNode): void {
+export function renderNode(el: HTMLElement, node: CanvasNode): void {
     el.setAttribute('role', 'button');
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
     
-    const colorClass = typeof node.color === 'number' ? `c-${node.color}` : (node.color || 'c-white');
+    const colorClass = typeof node.color === 'number' ? (CONFIG.colors[node.color] || 'c-white') : (node.color || 'c-white');
 
     if (el.classList.contains('editing')) {
         const isSelected = appState.selection.has(node.id);
