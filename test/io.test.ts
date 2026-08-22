@@ -1,7 +1,7 @@
 // test/io.test.ts
 import { expect, test, describe, beforeEach } from "bun:test";
 import { state, packData, unpackData, CONFIG } from "../dango/js/modules/state.js";
-import { applySettings } from "../dango/js/modules/ui.js";
+import { applySettings, getSeasonalEmoji } from "../dango/js/modules/ui.js";
 
 describe("Data IO & Serialization (packData / unpackData)", () => {
     beforeEach(() => {
@@ -193,5 +193,28 @@ describe("Data IO & Serialization (packData / unpackData)", () => {
         expect(store['cc-bg-url']).toBe('https://example.com/custom-bg.jpg');
 
         (globalThis as any).localStorage = origLocalStorage;
+    });
+
+    test("getSeasonalEmoji returns correct festive emojis across the calendar", () => {
+        // Helper to construct local date (year, month 1-12, date 1-31)
+        const makeDate = (y: number, m: number, d: number) => new Date(y, m - 1, d);
+
+        expect(getSeasonalEmoji(makeDate(2027, 1, 1))).toBe("🎉"); // New Year
+        expect(getSeasonalEmoji(makeDate(2027, 2, 6))).toBe("🧧"); // Chinese New Year
+        expect(getSeasonalEmoji(makeDate(2027, 2, 14))).toBe("💖"); // Valentine's Day
+        expect(getSeasonalEmoji(makeDate(2027, 2, 20))).toBe("🏮"); // Lantern Festival
+        expect(getSeasonalEmoji(makeDate(2027, 3, 12))).toBe("🌱"); // Tree Planting Day
+        expect(getSeasonalEmoji(makeDate(2027, 3, 14))).toBe("🥧"); // Pi Day / White Valentine
+        expect(getSeasonalEmoji(makeDate(2027, 4, 1))).toBe("🤡");  // April Fools' Day
+        expect(getSeasonalEmoji(makeDate(2027, 4, 22))).toBe("🌱"); // Earth Day
+        expect(getSeasonalEmoji(makeDate(2027, 6, 1))).toBe("🎈");  // Children's Day
+        expect(getSeasonalEmoji(makeDate(2027, 6, 19))).toBe("🛶"); // Dragon Boat Festival
+        expect(getSeasonalEmoji(makeDate(2027, 8, 19))).toBe("🌌"); // Qixi Festival
+        expect(getSeasonalEmoji(makeDate(2026, 9, 25))).toBe("🥮"); // Mid-Autumn Festival
+        expect(getSeasonalEmoji(makeDate(2026, 10, 31))).toBe("🎃"); // Halloween
+        expect(getSeasonalEmoji(makeDate(2026, 11, 26))).toBe("🦃"); // Thanksgiving
+        expect(getSeasonalEmoji(makeDate(2026, 12, 25))).toBe("🎄"); // Christmas
+        expect(getSeasonalEmoji(makeDate(2026, 12, 31))).toBe("🎉"); // New Year's Eve
+        expect(getSeasonalEmoji(makeDate(2026, 5, 15))).toBe("✨");  // Default daily sparkle
     });
 });

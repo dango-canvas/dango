@@ -290,19 +290,54 @@ export function applyHandDrawnStyle(currentState?: CanvasState): void {
 }
 
 // --- 节日 Logo ---
+export function getSeasonalEmoji(dateObj: Date = new Date()): string {
+    const month = dateObj.getMonth() + 1;
+    const date = dateObj.getDate();
+
+    // 1月: 元旦 (1.1-1.3)
+    if (month === 1 && date <= 3) return "🎉";
+    // 2月: 春节 (2.5-2.12), 情人节 (2.14), 元宵节 (2.19-2.21)
+    if (month === 2) {
+        if (date >= 5 && date <= 12) return "🧧";
+        if (date === 14) return "💖";
+        if (date >= 19 && date <= 21) return "🏮";
+    }
+    // 3月: 植树日 (3.12), 白色情人节/Pi Day (3.14)
+    if (month === 3) {
+        if (date === 12) return "🌱";
+        if (date === 14) return "🥧";
+    }
+    // 4月: 愚人节 (4.1), 世界地球日 (4.22)
+    if (month === 4) {
+        if (date === 1) return "🤡";
+        if (date === 22) return "🌱";
+    }
+    // 6月: 儿童节 (6.1), 端午节 (6.18-6.20)
+    if (month === 6) {
+        if (date === 1) return "🎈";
+        if (date >= 18 && date <= 20) return "🛶";
+    }
+    // 8月: 七夕节 (8.18-8.20)
+    if (month === 8 && date >= 18 && date <= 20) return "🌌";
+    // 9月: 中秋节 (9.24-9.26)
+    if (month === 9 && date >= 24 && date <= 26) return "🥮";
+    // 10月: 万圣节 (10.28-10.31)
+    if (month === 10 && date >= 28) return "🎃";
+    // 11月: 感恩节 (11.25-11.27)
+    if (month === 11 && date >= 25 && date <= 27) return "🦃";
+    // 12月: 圣诞季 (12.23-12.26), 跨年 (12.31)
+    if (month === 12) {
+        if (date >= 23 && date <= 26) return "🎄";
+        if (date === 31) return "🎉";
+    }
+
+    return "✨";
+}
+
 function updateSeasonalLogo(): void {
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const date = now.getDate();
     const logoBox = document.getElementById('ui-logo-box');
     if (!logoBox) return;
-    let emoji = "✨";
-    if ((month === 2 && date >= 16) || (month === 2 && date <= 23)) emoji = "🧧";
-    else if (month === 2 && date === 14) emoji = "💖";
-    else if (month === 10 && date >= 25) emoji = "🎃";
-    else if (month === 12 && date >= 20 && date <= 31) emoji = "🎄";
-    else if ((month === 1 && date <= 3)) emoji = "🎉";
-    logoBox.innerText = emoji;
+    logoBox.innerText = getSeasonalEmoji();
 }
 
 function createDangoConfettiBurst(originX: number, originY: number): void {
