@@ -271,11 +271,13 @@ describe("Dango Presentation Engine & Step Tagging (T / P)", () => {
         revealAll();
         expect(getCurrentStep()).toBe(3);
 
-        // Exit returns directly to normal canvas
+        // Exit returns directly to normal canvas and restores saved view
+        animateViewCalls = [];
         exitPresentationMode();
         expect(isPresentationModeActive()).toBe(false);
         expect(isTaggingModeActive()).toBe(false);
         expect(isItemVisibleInPresentation(state.nodes[2])).toBe(true);
+        expect(animateViewCalls.length).toBe(1);
     });
 
     test("handlePresenterKeyDown: handles presentation shortcuts correctly", () => {

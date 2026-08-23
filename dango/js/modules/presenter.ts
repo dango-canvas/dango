@@ -348,9 +348,17 @@ export function handleBadgeEdit(badgeEl: HTMLElement, item: CanvasNode | CanvasG
     };
 }
 
+let savedViewBeforePresentation: { x: number; y: number; scale: number } | null = null;
+
 export function enterPresentationMode(): void {
     if (isTaggingActive) exitTaggingMode(false);
     dismissPersistentToast(FINALE_TOAST_ID);
+
+    savedViewBeforePresentation = {
+        x: appState.view.x,
+        y: appState.view.y,
+        scale: appState.view.scale
+    };
 
     appState.selection.clear();
     isPresentingActive = true;
@@ -393,7 +401,17 @@ export function exitPresentationMode(): void {
         }
     }
 
-    callbacks.render();
+    if (savedViewBeforePresentation) {
+        callbacks.animateView(
+            savedViewBeforePresentation.x,
+            savedViewBeforePresentation.y,
+            savedViewBeforePresentation.scale,
+            400
+        );
+        savedViewBeforePresentation = null;
+    } else {
+        callbacks.render();
+    }
 }
 
 function showFinaleToast(): void {
