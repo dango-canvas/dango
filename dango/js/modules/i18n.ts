@@ -92,7 +92,6 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         tagging_guide_tip1: "· 选中节点按 <kbd>T</kbd> ：添加 / 取消序号",
         tagging_guide_tip2: "· 点击数字角标 ：直接输入修改序号",
         help_tagging: "标记演示模式",
-        help_present: "开始演示",
         help_present_step: "下一步 / 上一步",
         help_present_all: "全景展开 / 退出"
     },
@@ -109,6 +108,10 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         help_undo: "Undo / Redo",
         help_pan: "Pan Canvas",
         help_color: "Change Color",
+        help_copy: "Copy / Paste",
+        help_group: "Group / Ungroup",
+        help_link: "Link / Unlink",
+        help_align: "Directional Align",
         alert_file_err: "Invalid format, please upload .dango file",
         settings_tooltip: "Settings",
         settings_hide_grid: "Hide Grid Dots",
@@ -132,7 +135,7 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         help_center: "Reset View",
         help_save: "Save Dango File",
         help_center_align: "Align Distribution",
-        help_clone: "Clone Selection",
+        help_clone: "Clone Node",
         help_select: "Multi-select",
         help_nudge: "Nudge Position",
         btn_export_link: "LINK",
@@ -179,7 +182,6 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         tagging_guide_tip1: "· Press <kbd>T</kbd> on selection: Tag / untag step",
         tagging_guide_tip2: "· Click number badge: Edit step number",
         help_tagging: "Tag & Present Mode",
-        help_present: "Start Presentation",
         help_present_step: "Next / Prev Step",
         help_present_all: "Reveal All / Exit"
     }

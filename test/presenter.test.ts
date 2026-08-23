@@ -304,6 +304,9 @@ describe("Dango Presentation Engine & Step Tagging (T / P)", () => {
         expect(handlePresenterKeyDown(makeKeyEv('Home'))).toBe(true);
         expect(getCurrentStep()).toBe(3);
 
+        // KeyQ activates spotlight in presentation mode
+        expect(handlePresenterKeyDown(makeKeyEv('KeyQ'))).toBe(true);
+
         // Escape exits directly to normal canvas
         expect(handlePresenterKeyDown(makeKeyEv('Escape'))).toBe(true);
         expect(isPresentationModeActive()).toBe(false);
@@ -329,6 +332,6 @@ describe("Dango Presentation Engine & Step Tagging (T / P)", () => {
         animateViewCalls = [];
         checkAndSoftPanToStep(2);
         expect(animateViewCalls.length).toBe(1);
-        expect(animateViewCalls[0].duration).toBe(450);
+        expect(animateViewCalls[0].duration).toBe(500);
     });
 });

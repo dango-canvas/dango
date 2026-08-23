@@ -387,7 +387,7 @@ export function exitPresentationMode(): void {
     currentStepIndex = 0;
 
     if (typeof document !== 'undefined') {
-        document.body?.classList?.remove('mode-presenting', 'mode-tagging');
+        document.body?.classList?.remove('mode-presenting', 'mode-tagging', 'spotlight-active');
         if (document.fullscreenElement && document.exitFullscreen) {
             document.exitFullscreen().catch(() => {});
         }
@@ -495,8 +495,8 @@ export function checkAndSoftPanToStep(step: number): void {
     const winW = window.innerWidth;
     const winH = window.innerHeight;
 
-    const safeMarginX = winW * 0.15;
-    const safeMarginY = winH * 0.15;
+    const safeMarginX = Math.max(80, winW * 0.15);
+    const safeMarginY = Math.max(80, winH * 0.15);
 
     const isInsideSafeZone =
         screenX1 >= safeMarginX &&
@@ -504,17 +504,19 @@ export function checkAndSoftPanToStep(step: number): void {
         screenY1 >= safeMarginY &&
         screenY2 <= (winH - safeMarginY);
 
-    // 智能软跟焦：若已在舒适视口安全区内，镜头保持静止不晃动
+    // 智能纯平移软跟焦：当前步骤节点若已在舒适视口安全区内，镜头保持静止不晃动
     if (isInsideSafeZone) {
         return;
     }
 
+    // 严格保持当前缩放不变（字号不缩水），仅平移镜头至新节点中心
     const centerWorldX = (minX + maxX) / 2;
     const centerWorldY = (minY + maxY) / 2;
+
     const targetX = winW / 2 - centerWorldX * scale;
     const targetY = winH / 2 - centerWorldY * scale;
 
-    callbacks.animateView(targetX, targetY, scale, 450);
+    callbacks.animateView(targetX, targetY, scale, 500);
 }
 
 export function handlePresenterKeyDown(e: KeyboardEvent): boolean {
@@ -523,6 +525,13 @@ export function handlePresenterKeyDown(e: KeyboardEvent): boolean {
     if (e.code === 'Escape') {
         e.preventDefault();
         exitPresentationMode();
+        return true;
+    }
+
+    if (e.code === 'KeyQ') {
+        if (typeof document !== 'undefined') {
+            document.body.classList.add('spotlight-active');
+        }
         return true;
     }
 
@@ -542,6 +551,11 @@ export function handlePresenterKeyDown(e: KeyboardEvent): boolean {
         e.preventDefault();
         revealAll();
         return true;
+    }
+
+    // 允许修饰键正常流转
+    if (['ControlLeft', 'ControlRight', 'MetaLeft', 'MetaRight', 'AltLeft', 'AltRight', 'ShiftLeft', 'ShiftRight'].includes(e.code)) {
+        return false;
     }
 
     // 阻止其他快捷键干扰演示
