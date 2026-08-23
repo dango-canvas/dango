@@ -4,9 +4,10 @@ import { state, initializeData, saveData, undo, redo } from './modules/state.js'
 import { initRender, render } from './modules/render.js';
 import { createNodesFromInput, clearCanvas } from './modules/actions.js';
 import { initIO, exportJson, createShareLink, createEmbedCode, loadFromUrl, updateOpenFullLink } from './modules/io.js';
-import { initView } from './modules/view.js';
+import { initView, animateView, fitView } from './modules/view.js';
 import { initSearch } from './modules/search.js';
 import { initHints } from './modules/hints.js';
+import { initPresenter } from './modules/presenter.js';
 import { initShortcuts } from './modules/shortcuts.js';
 import { initInteractions, handleNodeEdit } from './modules/interactions.js';
 
@@ -27,6 +28,12 @@ initIO(render);
 initView(state, render);
 initSearch(state, render);
 initHints(state, { render, handleNodeEdit });
+initPresenter(state, {
+    render,
+    animateView,
+    fitView,
+    saveData
+});
 initInteractions();
 
 // 3. Load Initial Data (MUST be after initIO as it uses renderRef)

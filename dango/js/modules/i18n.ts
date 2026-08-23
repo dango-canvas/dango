@@ -81,7 +81,20 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         help_search: "搜索节点",
         search_prev: "上一个 (Shift+Enter)",
         search_next: "下一个 (Enter)",
-        search_close: "关闭 (Esc)"
+        search_close: "关闭 (Esc)",
+        toast_tagging_enter: "标记演示模式",
+        toast_tagging_exit: "已退出标记演示模式 ✨",
+        btn_tagging_exit: "退出标记 (T)",
+        btn_tagging_present: "开始演示 (P)",
+        toast_presentation_finished: "演示已完成 ✨",
+        btn_presentation_exit: "退出演示",
+        toast_no_steps_to_present: "尚未标记任何时间步骤（按 T 标记）",
+        tagging_guide_tip1: "· 选中节点按 <kbd>T</kbd> ：添加 / 取消序号",
+        tagging_guide_tip2: "· 点击数字角标 ：直接输入修改序号",
+        help_tagging: "标记演示模式",
+        help_present: "开始演示",
+        help_present_step: "下一步 / 上一步",
+        help_present_all: "全景展开 / 退出"
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -95,12 +108,6 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         confirm_clear: "Sure?",
         help_undo: "Undo / Redo",
         help_pan: "Pan Canvas",
-        help_zoom: "Zoom",
-        help_edit: "Edit / Multi-select",
-        help_copy: "Copy / Paste",
-        help_group: "Group / Ungroup",
-        help_link: "Link / Unlink",
-        help_align: "Align Direction",
         help_color: "Change Color",
         alert_file_err: "Invalid format, please upload .dango file",
         settings_tooltip: "Settings",
@@ -161,7 +168,20 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         help_search: "Search Nodes",
         search_prev: "Previous (Shift+Enter)",
         search_next: "Next (Enter)",
-        search_close: "Close (Esc)"
+        search_close: "Close (Esc)",
+        toast_tagging_enter: "Tag & Present Mode",
+        toast_tagging_exit: "Exited Tag & Present Mode ✨",
+        btn_tagging_exit: "Exit (T)",
+        btn_tagging_present: "Present (P)",
+        toast_presentation_finished: "Presentation completed ✨",
+        btn_presentation_exit: "Exit",
+        toast_no_steps_to_present: "No timeline steps tagged yet (Press T to tag)",
+        tagging_guide_tip1: "· Press <kbd>T</kbd> on selection: Tag / untag step",
+        tagging_guide_tip2: "· Click number badge: Edit step number",
+        help_tagging: "Tag & Present Mode",
+        help_present: "Start Presentation",
+        help_present_step: "Next / Prev Step",
+        help_present_all: "Reveal All / Exit"
     }
 };
 

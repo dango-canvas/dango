@@ -13,6 +13,7 @@ export interface CanvasNode {
     color: string;
     isGroup?: boolean;
     groupId?: string | null;
+    step?: number;
 }
 
 export interface CanvasGroup {
@@ -25,6 +26,7 @@ export interface CanvasGroup {
     isGroup?: boolean;
     text?: string;
     color?: string;
+    step?: number;
 }
 
 export interface CanvasLink {
@@ -84,6 +86,7 @@ export interface CanvasItem {
     color?: string;
     memberIds?: string[];
     isGroup?: boolean;
+    step?: number;
 }
 
 export interface SnapResult {
@@ -98,8 +101,8 @@ export interface SnapResult {
     }>;
 }
 
-export type SerializedNode = [number, string, number, number, number, number, number];
-export type SerializedGroup = [number, number, number, number, number, number[]];
+export type SerializedNode = [number, string, number, number, number, number, number, number?];
+export type SerializedGroup = [number, number, number, number, number, number[], number?];
 export type SerializedLink = [number, number, number, number];
 export type SerializedSettings = [number, number, number, string];
 

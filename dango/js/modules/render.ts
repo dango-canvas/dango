@@ -4,6 +4,15 @@ import { getTexts } from './i18n.js';
 import { els, setSafeHTML, setSafeSVG } from './dom.js';
 import { buildLinkPathData, getLinkOpacity, getLinkStrokeColor, getLinkStrokeStyle } from './links.js';
 import { CONFIG } from './state.js';
+import { 
+    getStepBadgeText, 
+    isItemVisibleInPresentation, 
+    isLinkVisibleInPresentation, 
+    isPresentationModeActive,
+    isItemGhostedInTagging,
+    isLinkGhostedInTagging,
+    handleBadgeEdit
+} from './presenter.js';
 import type { CanvasState, CanvasNode, CanvasGroup, CanvasLink } from './types.js';
 
 // --- 模块内部变量 ---
@@ -323,8 +332,32 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
         }
     }
 
+    // Step Badge
+    const hasStep = typeof node.step === 'number' && node.step > 0;
+    let stepBadge = el.querySelector<HTMLElement>('.dango-step-badge');
+    if (hasStep) {
+        if (!stepBadge) {
+            stepBadge = document.createElement('span');
+            stepBadge.className = 'dango-step-badge';
+            el.appendChild(stepBadge);
+        }
+        stepBadge.onmousedown = (e) => e.stopPropagation();
+        stepBadge.onclick = (e) => {
+            e.stopPropagation();
+            handleBadgeEdit(stepBadge!, node);
+        };
+        const badgeText = getStepBadgeText(node.step);
+        if (!stepBadge.classList.contains('editing-badge') && stepBadge.innerText !== badgeText) {
+            stepBadge.innerText = badgeText;
+        }
+    } else if (stepBadge) {
+        stepBadge.remove();
+    }
+
     const isSelected = appState.selection.has(node.id);
     const isFound = appState.searchResultId === node.id;
+    const isVisibleInPresentation = isItemVisibleInPresentation(node);
+
     const classes = ['node', colorClass];
     if (isImage) classes.push('image-node');
     if (isLink) classes.push('is-link');
@@ -338,6 +371,16 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
     
     if (node.text.startsWith('//')) classes.push('node-comment');
     if (node.text.startsWith('```') && node.text.endsWith('```')) classes.push('node-code');
+
+    if (isItemGhostedInTagging(node)) {
+        classes.push('tagging-ghost');
+    }
+
+    if (!isVisibleInPresentation) {
+        classes.push('presentation-hidden');
+    } else if (isPresentationModeActive()) {
+        classes.push('step-bounce-in');
+    }
 
     el.className = classes.join(' ');
     
@@ -370,10 +413,38 @@ function renderGroup(el: HTMLElement, group: any): void {
         }
     }
 
+    // Step Badge on Group
+    const hasStep = typeof group.step === 'number' && group.step > 0;
+    let stepBadge = el.querySelector<HTMLElement>('.dango-step-badge');
+    if (hasStep) {
+        if (!stepBadge) {
+            stepBadge = document.createElement('span');
+            stepBadge.className = 'dango-step-badge group-step-badge';
+            el.appendChild(stepBadge);
+        }
+        stepBadge.onmousedown = (e) => e.stopPropagation();
+        stepBadge.onclick = (e) => {
+            e.stopPropagation();
+            handleBadgeEdit(stepBadge!, group);
+        };
+        const badgeText = getStepBadgeText(group.step);
+        if (!stepBadge.classList.contains('editing-badge') && stepBadge.innerText !== badgeText) {
+            stepBadge.innerText = badgeText;
+        }
+    } else if (stepBadge) {
+        stepBadge.remove();
+    }
+
+    const isVisibleInPresentation = isItemVisibleInPresentation(group);
+    const groupClasses = ['group'];
+    if (appState.selection.has(group.id)) groupClasses.push('selected');
+    if (isItemGhostedInTagging(group)) groupClasses.push('tagging-ghost');
+    if (!isVisibleInPresentation) groupClasses.push('presentation-hidden');
+
     el.style.transform = `translate(${group.x}px, ${group.y}px)`;
     el.style.width = `${group.w}px`;
     el.style.height = `${group.h}px`;
-    el.className = `group ${appState.selection.has(group.id) ? 'selected' : ''}`;
+    el.className = groupClasses.join(' ');
 }
 
 export function updateViewTransform(): void {
@@ -419,6 +490,8 @@ export function render(): void {
         if (pathEl.dataset.id) existingPaths.set(pathEl.dataset.id, pathEl);
     });
 
+    const isPresenting = isPresentationModeActive();
+
     appState.links.forEach((l: any) => {
         const sourceId = l.source || l.sourceId;
         const targetId = l.target || l.targetId;
@@ -427,6 +500,7 @@ export function render(): void {
         const n2 = appState.nodes.find(n => n.id === targetId);
         if (n1 && n2 && n1.w && n1.h && n2.w && n2.h) {
             let pathEl = existingPaths.get(linkId);
+            let isNewPath = false;
             if (!pathEl || pathEl.tagName.toLowerCase() !== 'path') {
                 if (pathEl) (pathEl as HTMLElement).remove();
                 pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -434,6 +508,7 @@ export function render(): void {
                 pathEl.dataset.id = linkId;
                 pathEl.setAttribute('fill', 'none');
                 els.connectionsLayer!.appendChild(pathEl);
+                isNewPath = true;
             }
             
             const startPoint = getEdgeIntersection(n2, n1);
@@ -461,6 +536,38 @@ export function render(): void {
             } else {
                 pathEl.removeAttribute('marker-end');
                 pathEl.removeAttribute('marker-start');
+            }
+
+            // Tagging Mode Ghosting
+            if (isLinkGhostedInTagging(l)) {
+                pathEl.classList.add('tagging-ghost');
+            } else {
+                pathEl.classList.remove('tagging-ghost');
+            }
+
+            // Presentation Mode: visibility & ink flow
+            const isLinkVisible = isLinkVisibleInPresentation(l);
+            if (!isLinkVisible) {
+                pathEl.classList.add('presentation-hidden');
+                pathEl.classList.remove('ink-flow');
+                delete pathEl.dataset.inkAnimated;
+            } else {
+                pathEl.classList.remove('presentation-hidden');
+                if (isPresenting && (!pathEl.dataset.inkAnimated || isNewPath)) {
+                    pathEl.dataset.inkAnimated = 'true';
+                    try {
+                        const len = Math.ceil(pathEl.getTotalLength ? pathEl.getTotalLength() : 100);
+                        pathEl.style.setProperty('--link-length', `${len}px`);
+                        pathEl.classList.remove('ink-flow');
+                        void pathEl.offsetWidth; // trigger reflow for smooth animation
+                        pathEl.classList.add('ink-flow');
+                        pathEl.onanimationend = () => {
+                            pathEl.classList.remove('ink-flow');
+                            pathEl.style.removeProperty('--link-length');
+                            pathEl.onanimationend = null;
+                        };
+                    } catch (e) {}
+                }
             }
             
             existingPaths.delete(linkId);

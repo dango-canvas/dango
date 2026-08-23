@@ -1,0 +1,550 @@
+// modules/presenter.ts
+import { state, pushHistory, saveData } from './state.js';
+import { getTexts } from './i18n.js';
+import { showToast, showPersistentToast, dismissPersistentToast } from './ui.js';
+import type { CanvasState, CanvasNode, CanvasGroup, CanvasLink } from './types.js';
+
+const TAGGING_TOAST_ID = 'dango-tagging-toast';
+
+let appState: CanvasState = state;
+let callbacks: {
+    render: () => void;
+    animateView: (targetX: number, targetY: number, targetScale: number, duration?: number) => void;
+    fitView: (padding?: number, animated?: boolean, duration?: number) => void;
+    saveData?: () => void;
+} = {
+    render: () => {},
+    animateView: () => {},
+    fitView: () => {},
+    saveData: () => {}
+};
+
+let isTaggingActive = false;
+let isPresentingActive = false;
+let currentStepIndex = 0;
+let currentStepNumber = 0;
+
+export function initPresenter(
+    _state: CanvasState,
+    _callbacks: {
+        render: () => void;
+        animateView: (targetX: number, targetY: number, targetScale: number, duration?: number) => void;
+        fitView: (padding?: number, animated?: boolean, duration?: number) => void;
+        saveData?: () => void;
+    }
+): void {
+    appState = _state;
+    callbacks = _callbacks;
+}
+
+export function isTaggingModeActive(): boolean {
+    return isTaggingActive;
+}
+
+export function isPresentationModeActive(): boolean {
+    return isPresentingActive;
+}
+
+export function getCurrentStep(): number {
+    return currentStepNumber;
+}
+
+export function getStepBadgeText(step?: number): string {
+    if (!step || step <= 0) return '';
+    return String(step);
+}
+
+export function getUniqueSteps(
+    nodes: CanvasNode[] = appState.nodes,
+    groups: CanvasGroup[] = appState.groups
+): number[] {
+    const set = new Set<number>();
+    nodes.forEach(n => {
+        if (typeof n.step === 'number' && n.step > 0) set.add(n.step);
+    });
+    groups.forEach(g => {
+        if (typeof g.step === 'number' && g.step > 0) set.add(g.step);
+    });
+    return Array.from(set).sort((a, b) => a - b);
+}
+
+export function getMaxStep(
+    nodes: CanvasNode[] = appState.nodes,
+    groups: CanvasGroup[] = appState.groups
+): number {
+    let max = 0;
+    nodes.forEach(n => {
+        if (typeof n.step === 'number' && n.step > max) max = n.step;
+    });
+    groups.forEach(g => {
+        if (typeof g.step === 'number' && g.step > max) max = g.step;
+    });
+    return max;
+}
+
+function updateTaggingToast(): void {
+    if (!isTaggingActive) return;
+    const texts = getTexts();
+    const uniqueSteps = getUniqueSteps(appState.nodes, appState.groups);
+    const pillHtml = uniqueSteps.length > 0 
+        ? `<span class="toast-step-pill">${uniqueSteps.length}</span>` 
+        : '';
+    const message = `<span>${texts.toast_tagging_enter}</span>${pillHtml}`;
+
+    const popoverHtml = `
+        <ul class="toast-popover-list">
+            <li class="toast-popover-item">${texts.tagging_guide_tip1}</li>
+            <li class="toast-popover-item">${texts.tagging_guide_tip2}</li>
+        </ul>
+    `;
+
+    showPersistentToast(TAGGING_TOAST_ID, message, [
+        {
+            text: texts.btn_tagging_present,
+            onClick: () => {
+                exitTaggingMode(false);
+                enterPresentationMode();
+            },
+            className: 'btn-toast-primary'
+        },
+        {
+            text: texts.btn_tagging_exit,
+            onClick: () => exitTaggingMode(true)
+        },
+        {
+            text: '?',
+            onClick: () => {},
+            className: 'btn-toast-help',
+            popoverHtml
+        }
+    ]);
+}
+
+export function enterTaggingMode(): void {
+    if (isPresentingActive) exitPresentationMode();
+    isTaggingActive = true;
+    if (typeof document !== 'undefined') {
+        document.body.classList.add('mode-tagging');
+    }
+
+    updateTaggingToast();
+    callbacks.render();
+}
+
+export function exitTaggingMode(showExitNotice = true): void {
+    if (!isTaggingActive) return;
+    isTaggingActive = false;
+    if (typeof document !== 'undefined') {
+        document.body.classList.remove('mode-tagging');
+    }
+    dismissPersistentToast(TAGGING_TOAST_ID);
+
+    if (showExitNotice) {
+        showToast(getTexts().toast_tagging_exit);
+    }
+    callbacks.render();
+}
+
+export function tagSelectionStep(): void {
+    if (isPresentingActive) return;
+
+    if (appState.selection.size === 0) {
+        if (isTaggingActive) {
+            exitTaggingMode(true);
+        } else {
+            enterTaggingMode();
+        }
+        return;
+    }
+
+    if (!isTaggingActive) {
+        enterTaggingMode();
+    }
+
+    pushHistory();
+
+    const selectedNodes = appState.nodes.filter(n => appState.selection.has(n.id));
+    const selectedGroups = appState.groups.filter(g => appState.selection.has(g.id));
+
+    // 检查是否所有选中的项都已经带有相同的非零 step（若是，则执行 Toggle 取消步骤）
+    const allSelectedItems = [...selectedNodes, ...selectedGroups];
+    const firstStep = allSelectedItems[0]?.step;
+    const allHaveSameStep = typeof firstStep === 'number' && firstStep > 0 &&
+        allSelectedItems.every(item => item.step === firstStep);
+
+    if (allHaveSameStep) {
+        // Toggle 清除步骤
+        selectedNodes.forEach(n => { delete n.step; });
+        selectedGroups.forEach(g => {
+            delete g.step;
+            if (g.memberIds) {
+                g.memberIds.forEach(mid => {
+                    const m = appState.nodes.find(n => n.id === mid);
+                    if (m && m.step === firstStep) delete m.step;
+                });
+            }
+        });
+    } else {
+        // 赋予下一个自增序号
+        const nextStep = getMaxStep(appState.nodes, appState.groups) + 1;
+        selectedNodes.forEach(n => { n.step = nextStep; });
+        selectedGroups.forEach(g => {
+            g.step = nextStep;
+            if (g.memberIds) {
+                g.memberIds.forEach(mid => {
+                    const m = appState.nodes.find(n => n.id === mid);
+                    if (m && typeof m.step !== 'number') {
+                        m.step = nextStep;
+                    }
+                });
+            }
+        });
+    }
+
+    updateTaggingToast();
+    callbacks.render();
+    if (callbacks.saveData) callbacks.saveData();
+}
+
+export function isItemGhostedInTagging(item: { step?: number }): boolean {
+    if (!isTaggingActive) return false;
+    return typeof item.step !== 'number' || item.step <= 0;
+}
+
+export function isLinkGhostedInTagging(link: CanvasLink): boolean {
+    if (!isTaggingActive) return false;
+    const n1 = appState.nodes.find(n => n.id === link.sourceId);
+    const n2 = appState.nodes.find(n => n.id === link.targetId);
+    if (!n1 || !n2) return true;
+    return isItemGhostedInTagging(n1) || isItemGhostedInTagging(n2);
+}
+
+export function isItemVisibleInPresentation(item: { step?: number }): boolean {
+    if (!isPresentingActive) return true;
+    const maxStep = getMaxStep(appState.nodes, appState.groups);
+
+    // 未标记节点：在 Grand Finale 阶段全部绽放
+    if (typeof item.step !== 'number' || item.step <= 0) {
+        return currentStepNumber > maxStep;
+    }
+
+    return item.step <= currentStepNumber;
+}
+
+export function isLinkVisibleInPresentation(link: CanvasLink): boolean {
+    if (!isPresentingActive) return true;
+    const n1 = appState.nodes.find(n => n.id === link.sourceId);
+    const n2 = appState.nodes.find(n => n.id === link.targetId);
+    if (!n1 || !n2) return false;
+
+    return isItemVisibleInPresentation(n1) && isItemVisibleInPresentation(n2);
+}
+
+const FINALE_TOAST_ID = 'dango-finale-toast';
+
+export function handleBadgeEdit(badgeEl: HTMLElement, item: CanvasNode | CanvasGroup): void {
+    if (!isTaggingActive || !badgeEl || badgeEl.getAttribute('contenteditable') === 'true') return;
+    
+    badgeEl.contentEditable = 'true';
+    badgeEl.classList.add('editing-badge');
+    
+    if (typeof document !== 'undefined' && typeof document.createRange === 'function') {
+        const range = document.createRange();
+        range.selectNodeContents(badgeEl);
+        const sel = window.getSelection();
+        if (sel) {
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    }
+    try {
+        badgeEl.focus({ preventScroll: true });
+    } catch {
+        badgeEl.focus();
+    }
+
+    const handleInput = () => {
+        const rawText = badgeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+        if (!rawText.trim()) {
+            if (badgeEl.innerText !== '\u200B') {
+                badgeEl.innerText = '\u200B';
+                if (typeof document !== 'undefined' && typeof document.createRange === 'function') {
+                    const range = document.createRange();
+                    range.selectNodeContents(badgeEl);
+                    range.collapse(false);
+                    const sel = window.getSelection();
+                    if (sel) {
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            }
+        }
+    };
+    if (typeof badgeEl.addEventListener === 'function') {
+        badgeEl.addEventListener('input', handleInput);
+    }
+
+    let finished = false;
+    const finishEdit = (cancel = false) => {
+        if (finished) return;
+        finished = true;
+        badgeEl.contentEditable = 'false';
+        badgeEl.classList.remove('editing-badge');
+        badgeEl.onblur = null;
+        badgeEl.onkeydown = null;
+        if (typeof badgeEl.removeEventListener === 'function') {
+            badgeEl.removeEventListener('input', handleInput);
+        }
+
+        if (cancel) {
+            badgeEl.innerText = getStepBadgeText(item.step);
+            return;
+        }
+
+        const rawText = badgeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '').trim();
+        const num = parseInt(rawText, 10);
+
+        if (!isNaN(num) && num > 0) {
+            if (item.step !== num) {
+                pushHistory();
+                item.step = num;
+                updateTaggingToast();
+                callbacks.render();
+                if (callbacks.saveData) callbacks.saveData();
+            } else {
+                badgeEl.innerText = String(num);
+            }
+        } else {
+            // 输入为空或0时清除步骤
+            pushHistory();
+            delete item.step;
+            updateTaggingToast();
+            callbacks.render();
+            if (callbacks.saveData) callbacks.saveData();
+        }
+    };
+
+    badgeEl.onblur = () => finishEdit(false);
+
+    badgeEl.onkeydown = (e: KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            finishEdit(false);
+            return;
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            finishEdit(true);
+            return;
+        }
+        if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && !/\d/.test(e.key)) {
+            e.preventDefault();
+            return;
+        }
+        e.stopPropagation();
+    };
+}
+
+export function enterPresentationMode(): void {
+    if (isTaggingActive) exitTaggingMode(false);
+    dismissPersistentToast(FINALE_TOAST_ID);
+
+    appState.selection.clear();
+    isPresentingActive = true;
+
+    if (typeof document !== 'undefined') {
+        document.body?.classList?.add('mode-presenting');
+        if (!document.fullscreenElement && document.documentElement?.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        }
+    }
+
+    const steps = getUniqueSteps(appState.nodes, appState.groups);
+    if (steps.length === 0) {
+        // 画布无打标节点时，作为全景预览沉浸展示
+        currentStepIndex = 0;
+        currentStepNumber = 1;
+        callbacks.fitView(60, true, 600);
+    } else {
+        currentStepIndex = 0;
+        currentStepNumber = steps[0];
+        checkAndSoftPanToStep(currentStepNumber);
+    }
+
+    callbacks.render();
+}
+
+export function exitPresentationMode(): void {
+    if (!isPresentingActive) return;
+    dismissPersistentToast(FINALE_TOAST_ID);
+    dismissPersistentToast(TAGGING_TOAST_ID);
+    isPresentingActive = false;
+    isTaggingActive = false;
+    currentStepNumber = 0;
+    currentStepIndex = 0;
+
+    if (typeof document !== 'undefined') {
+        document.body?.classList?.remove('mode-presenting', 'mode-tagging');
+        if (document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+        }
+    }
+
+    callbacks.render();
+}
+
+function showFinaleToast(): void {
+    const texts = getTexts();
+    showPersistentToast(FINALE_TOAST_ID, texts.toast_presentation_finished, [
+        {
+            text: texts.btn_presentation_exit,
+            onClick: () => {
+                dismissPersistentToast(FINALE_TOAST_ID);
+                exitPresentationMode();
+            },
+            className: 'btn-toast-primary'
+        }
+    ]);
+}
+
+export function nextStep(): void {
+    if (!isPresentingActive) return;
+    const steps = getUniqueSteps(appState.nodes, appState.groups);
+
+    if (steps.length === 0) {
+        callbacks.fitView(60, true, 600);
+        return;
+    }
+
+    if (currentStepIndex < steps.length - 1) {
+        dismissPersistentToast(FINALE_TOAST_ID);
+        currentStepIndex++;
+        currentStepNumber = steps[currentStepIndex];
+        checkAndSoftPanToStep(currentStepNumber);
+        callbacks.render();
+    } else if (currentStepIndex === steps.length - 1) {
+        // 终章全景（The Grand Finale）
+        currentStepIndex++;
+        currentStepNumber = (steps[steps.length - 1] || 0) + 1;
+        callbacks.fitView(60, true, 800);
+        callbacks.render();
+        showFinaleToast();
+    } else {
+        // 全景下再次按键：收官退出演示，回到标记模式
+        dismissPersistentToast(FINALE_TOAST_ID);
+        exitPresentationMode();
+    }
+}
+
+export function prevStep(): void {
+    if (!isPresentingActive) return;
+    dismissPersistentToast(FINALE_TOAST_ID);
+    const steps = getUniqueSteps(appState.nodes, appState.groups);
+
+    if (currentStepIndex > 0) {
+        currentStepIndex--;
+        currentStepNumber = steps[currentStepIndex];
+        checkAndSoftPanToStep(currentStepNumber);
+        callbacks.render();
+    }
+}
+
+export function revealAll(): void {
+    if (!isPresentingActive) return;
+    const steps = getUniqueSteps(appState.nodes, appState.groups);
+    currentStepIndex = steps.length;
+    currentStepNumber = (steps[steps.length - 1] || 0) + 1;
+    callbacks.fitView(60, true, 800);
+    callbacks.render();
+    showFinaleToast();
+}
+
+export function checkAndSoftPanToStep(step: number): void {
+    if (typeof window === 'undefined') return;
+
+    const nodesInStep = appState.nodes.filter(n => n.step === step);
+    const groupsInStep = appState.groups.filter(g => g.step === step);
+
+    if (nodesInStep.length === 0 && groupsInStep.length === 0) return;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    nodesInStep.forEach(n => {
+        minX = Math.min(minX, n.x);
+        minY = Math.min(minY, n.y);
+        maxX = Math.max(maxX, n.x + (n.w || 100));
+        maxY = Math.max(maxY, n.y + (n.h || 40));
+    });
+
+    groupsInStep.forEach(g => {
+        minX = Math.min(minX, g.x);
+        minY = Math.min(minY, g.y);
+        maxX = Math.max(maxX, g.x + (g.w || 120));
+        maxY = Math.max(maxY, g.y + (g.h || 60));
+    });
+
+    const scale = appState.view.scale || 1;
+    const screenX1 = minX * scale + appState.view.x;
+    const screenY1 = minY * scale + appState.view.y;
+    const screenX2 = maxX * scale + appState.view.x;
+    const screenY2 = maxY * scale + appState.view.y;
+
+    const winW = window.innerWidth;
+    const winH = window.innerHeight;
+
+    const safeMarginX = winW * 0.15;
+    const safeMarginY = winH * 0.15;
+
+    const isInsideSafeZone =
+        screenX1 >= safeMarginX &&
+        screenX2 <= (winW - safeMarginX) &&
+        screenY1 >= safeMarginY &&
+        screenY2 <= (winH - safeMarginY);
+
+    // 智能软跟焦：若已在舒适视口安全区内，镜头保持静止不晃动
+    if (isInsideSafeZone) {
+        return;
+    }
+
+    const centerWorldX = (minX + maxX) / 2;
+    const centerWorldY = (minY + maxY) / 2;
+    const targetX = winW / 2 - centerWorldX * scale;
+    const targetY = winH / 2 - centerWorldY * scale;
+
+    callbacks.animateView(targetX, targetY, scale, 450);
+}
+
+export function handlePresenterKeyDown(e: KeyboardEvent): boolean {
+    if (!isPresentingActive) return false;
+
+    if (e.code === 'Escape') {
+        e.preventDefault();
+        exitPresentationMode();
+        return true;
+    }
+
+    if (e.code === 'Space' || e.code === 'ArrowRight' || e.code === 'PageDown') {
+        e.preventDefault();
+        nextStep();
+        return true;
+    }
+
+    if (e.code === 'ArrowLeft' || e.code === 'PageUp') {
+        e.preventDefault();
+        prevStep();
+        return true;
+    }
+
+    if (e.code === 'KeyA' || e.code === 'Home') {
+        e.preventDefault();
+        revealAll();
+        return true;
+    }
+
+    // 阻止其他快捷键干扰演示
+    e.preventDefault();
+    return true;
+}

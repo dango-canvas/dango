@@ -11,6 +11,11 @@ import { changeZoom, resetViewToCenter } from './view.js';
 import { openSearch, closeSearch } from './search.js';
 import { handleDirectionalCreateStart, handleDirectionalCreateEnd, clearDirectionalGhost, handleDirectionalModifierUp } from './directional.js';
 import { isHintModeActive, handleHintKeyDown, enterHintMode, exitHintMode } from './hints.js';
+import { 
+    isPresentationModeActive, handlePresenterKeyDown, 
+    isTaggingModeActive, exitTaggingMode, 
+    tagSelectionStep, enterPresentationMode 
+} from './presenter.js';
 
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
 export const keys: Record<string, boolean> = {};
@@ -53,6 +58,13 @@ export function initShortcuts(callbacks: {
             return; // 编辑时屏蔽其他快捷键
         }
 
+        // 演讲模式专属拦截
+        if (isPresentationModeActive()) {
+            if (handlePresenterKeyDown(e)) {
+                return;
+            }
+        }
+
         // Hint 模式拦截
         if (isHintModeActive()) {
             if (handleHintKeyDown(e)) {
@@ -66,6 +78,14 @@ export function initShortcuts(callbacks: {
         // 2. 基础快捷键 (ESC / Space / Home)
         if (e.code === 'Escape') {
             exitHintMode();
+            if (isPresentationModeActive()) {
+                exitPresentationMode();
+                return;
+            }
+            if (isTaggingModeActive()) {
+                exitTaggingMode(true);
+                return;
+            }
             clearDirectionalGhost();
             closeSearch();
             const about = document.getElementById('about-overlay');
@@ -163,6 +183,18 @@ export function initShortcuts(callbacks: {
                 e.preventDefault();
                 enterHintMode(e.shiftKey || e.altKey);
                 return;
+            }
+            if (e.code === 'KeyT') {
+                e.preventDefault();
+                tagSelectionStep();
+                return;
+            }
+            if (e.code === 'KeyP') {
+                if (isTaggingModeActive()) {
+                    e.preventDefault();
+                    enterPresentationMode();
+                    return;
+                }
             }
         }
 

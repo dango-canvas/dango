@@ -541,6 +541,14 @@ function showManualCopyModal(url: string): void {
 }
 
 // --- Toast 通知 ---
+export interface ToastActionButton {
+    text: string;
+    onClick: () => void;
+    className?: string;
+    title?: string;
+    popoverHtml?: string;
+}
+
 interface ToastQueueItem {
     message: string;
     safetySnapshot: any;
@@ -553,6 +561,116 @@ const MAX_VISIBLE_TOASTS = 3;
 export function showToast(message: string, safetySnapshot: any = null): void {
     toastQueue.push({ message, safetySnapshot });
     processToastQueue();
+}
+
+export function showPersistentToast(id: string, message: string, actions: ToastActionButton[] = []): void {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    let existing = container.querySelector<HTMLElement>(`.toast[data-toast-id="${id}"]`);
+    if (existing) {
+        if (existing.dataset.dismissing === 'true') {
+            if ((existing as any)._dismissTimer) {
+                clearTimeout((existing as any)._dismissTimer);
+                delete (existing as any)._dismissTimer;
+            }
+            delete existing.dataset.dismissing;
+            existing.classList.add('show');
+        }
+        const textNode = existing.querySelector<HTMLElement>('.toast-title-wrap');
+        if (textNode) {
+            textNode.innerHTML = message;
+        }
+        return;
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast persistent-toast';
+    toast.dataset.toastId = id;
+    
+    const textNode = document.createElement('span');
+    textNode.className = 'toast-title-wrap';
+    textNode.innerHTML = message;
+    toast.appendChild(textNode);
+
+    if (actions.length > 0) {
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'toast-actions';
+        actions.forEach(act => {
+            const btn = document.createElement('button');
+            btn.className = act.className ? `btn-toast ${act.className}` : 'btn-toast';
+            btn.innerText = act.text;
+            if (act.title) btn.title = act.title;
+
+            if (act.popoverHtml) {
+                const wrap = document.createElement('div');
+                wrap.className = 'toast-help-wrap';
+                
+                const popover = document.createElement('div');
+                popover.className = 'toast-popover';
+                popover.innerHTML = act.popoverHtml;
+
+                let hideTimer: any = null;
+                const showPop = () => {
+                    clearTimeout(hideTimer);
+                    popover.classList.add('show');
+                    btn.classList.add('active');
+                };
+                const hidePop = () => {
+                    hideTimer = setTimeout(() => {
+                        popover.classList.remove('show');
+                        btn.classList.remove('active');
+                    }, 220);
+                };
+
+                btn.onmouseenter = showPop;
+                btn.onmouseleave = hidePop;
+                popover.onmouseenter = showPop;
+                popover.onmouseleave = hidePop;
+
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (popover.classList.contains('show')) {
+                        popover.classList.remove('show');
+                        btn.classList.remove('active');
+                    } else {
+                        showPop();
+                    }
+                    act.onClick();
+                };
+
+                wrap.appendChild(btn);
+                wrap.appendChild(popover);
+                actionsEl.appendChild(wrap);
+            } else {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    act.onClick();
+                };
+                actionsEl.appendChild(btn);
+            }
+        });
+        toast.appendChild(actionsEl);
+    }
+
+    container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+}
+
+export function dismissPersistentToast(id: string): void {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = container.querySelector<HTMLElement>(`.toast[data-toast-id="${id}"]`);
+    if (toast) {
+        toast.classList.remove('show');
+        toast.dataset.dismissing = 'true';
+        if ((toast as any)._dismissTimer) {
+            clearTimeout((toast as any)._dismissTimer);
+        }
+        (toast as any)._dismissTimer = setTimeout(() => {
+            toast.remove();
+        }, 400);
+    }
 }
 
 function processToastQueue(): void {

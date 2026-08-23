@@ -150,25 +150,37 @@ export function unpackData(packed: any[]): {
         shortToLongId[shortId] = newId;
         return newId;
     };
-    const nodes: CanvasNode[] = (pNodes || []).map((n: any) => ({
-        id: genNewId(n[0]),
-        text: n[1],
-        x: n[2],
-        y: n[3],
-        w: n[4],
-        h: n[5],
-        color: CONFIG.colors[n[6]] || 'c-white'
-    }));
-    const groups: CanvasGroup[] = (pGroups || []).map((g: any) => ({
-        id: genNewId(g[0]),
-        x: g[1],
-        y: g[2],
-        w: g[3],
-        h: g[4],
-        isGroup: true,
-        memberIds: [],
-        _tempMemberIds: g[5] || []
-    }));
+    const nodes: CanvasNode[] = (pNodes || []).map((n: any) => {
+        const node: CanvasNode = {
+            id: genNewId(n[0]),
+            text: n[1],
+            x: n[2],
+            y: n[3],
+            w: n[4],
+            h: n[5],
+            color: CONFIG.colors[n[6]] || 'c-white'
+        };
+        if (version >= 5 && typeof n[7] === 'number') {
+            node.step = n[7];
+        }
+        return node;
+    });
+    const groups: CanvasGroup[] = (pGroups || []).map((g: any) => {
+        const group: CanvasGroup = {
+            id: genNewId(g[0]),
+            x: g[1],
+            y: g[2],
+            w: g[3],
+            h: g[4],
+            isGroup: true,
+            memberIds: [],
+            _tempMemberIds: g[5] || []
+        } as any;
+        if (version >= 5 && typeof g[6] === 'number') {
+            group.step = g[6];
+        }
+        return group;
+    });
     groups.forEach((g: any) => {
         g.memberIds = g._tempMemberIds.map((sid: any) => shortToLongId[sid]).filter(Boolean);
         delete g._tempMemberIds;
@@ -215,23 +227,35 @@ export function packData(): SerializedData {
     const allIds = [...state.nodes.map(n => n.id), ...state.groups.map(g => g.id)];
     allIds.forEach(id => { idMap[id] = idCounter++; });
 
-    const pNodes: any[] = state.nodes.map(n => [
-        idMap[n.id],
-        n.text,
-        Math.round(n.x),
-        Math.round(n.y),
-        Math.round(n.w),
-        Math.round(n.h),
-        CONFIG.colors.indexOf(n.color || 'c-white') !== -1 ? CONFIG.colors.indexOf(n.color || 'c-white') : 0
-    ]);
-    const pGroups: any[] = state.groups.map((g: any) => [
-        idMap[g.id],
-        Math.round(g.x),
-        Math.round(g.y),
-        Math.round(g.w),
-        Math.round(g.h),
-        (g.memberIds || []).map((mid: string) => idMap[mid])
-    ]);
+    const pNodes: any[] = state.nodes.map(n => {
+        const item: any[] = [
+            idMap[n.id],
+            n.text,
+            Math.round(n.x),
+            Math.round(n.y),
+            Math.round(n.w),
+            Math.round(n.h),
+            CONFIG.colors.indexOf(n.color || 'c-white') !== -1 ? CONFIG.colors.indexOf(n.color || 'c-white') : 0
+        ];
+        if (typeof n.step === 'number') {
+            item.push(n.step);
+        }
+        return item;
+    });
+    const pGroups: any[] = state.groups.map((g: any) => {
+        const item: any[] = [
+            idMap[g.id],
+            Math.round(g.x),
+            Math.round(g.y),
+            Math.round(g.w),
+            Math.round(g.h),
+            (g.memberIds || []).map((mid: string) => idMap[mid])
+        ];
+        if (typeof g.step === 'number') {
+            item.push(g.step);
+        }
+        return item;
+    });
     const pLinks: any[] = state.links.map(l => {
         const d = l.direction === 'target' ? 1 : (l.direction === 'source' ? 2 : 0);
         const s = packLinkStrokeStyle(l.strokeStyle);
@@ -243,5 +267,5 @@ export function packData(): SerializedData {
         state.settings.altAsCtrl ? 1 : 0,
         state.settings.bgUrl || ''
     ];
-    return [4, pNodes, pGroups, pLinks, pSettings];
+    return [5, pNodes, pGroups, pLinks, pSettings];
 }

@@ -7,6 +7,7 @@ import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
 import { els } from './dom.js';
 import { realignDirectionalNodeAfterEdit } from './directional.js';
+import { isPresentationModeActive } from './presenter.js';
 import type { CanvasNode, CanvasGroup, CanvasItem } from './types.js';
 
 let dragStart: any = null;
@@ -202,6 +203,7 @@ export function initInteractions(): void {
     if (!els.nodesLayer || !els.container || !els.uiLayer) return;
 
     els.nodesLayer.addEventListener('click', (e: MouseEvent) => {
+        if (isPresentationModeActive()) return;
         const target = (e.target instanceof Element ? e.target : (e.target as Node | null)?.parentElement) as HTMLElement | null;
         const inlineLink = target?.closest('.node-inline-link');
         if (inlineLink) {
@@ -284,6 +286,16 @@ export function initInteractions(): void {
         if (target.isContentEditable) return;
         cancelViewAnimation();
         hasMovedDuringDrag = false;
+
+        // 演示模式下仅允许中键/空格平移画布，禁止拖选与节点移动
+        if (isPresentationModeActive()) {
+            if (e.button === 1 || (e.button === 0 && keys.Space)) {
+                mode = 'pan';
+                dragStart = { x: e.clientX, y: e.clientY, viewX: state.view.x, viewY: state.view.y };
+                document.body.classList.add('mode-pan');
+            }
+            return;
+        }
 
         // 中键双击逻辑
         if (e.button === 1) {
@@ -604,6 +616,7 @@ export function initInteractions(): void {
     });
 
     els.container.addEventListener('dblclick', (e: MouseEvent) => {
+        if (isPresentationModeActive()) return;
         const target = e.target as HTMLElement;
         const editingNodeEl = target.closest('.node');
         if (editingNodeEl?.getAttribute('contenteditable') === 'true') return;
@@ -868,7 +881,7 @@ export function applyMarkdownFormat(nodeEl: HTMLElement, formatType: 'bold' | 'i
 }
 
 export function handleNodeEdit(nodeEl: HTMLElement): void {
-    if (!nodeEl) return;
+    if (!nodeEl || isPresentationModeActive()) return;
     const nodeId = nodeEl.dataset.id;
     if (nodeEl.getAttribute('contenteditable') === 'true' || nodeEl.classList.contains('editing')) {
         nodeEl.focus();

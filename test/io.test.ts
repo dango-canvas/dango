@@ -16,13 +16,13 @@ describe("Data IO & Serialization (packData / unpackData)", () => {
         };
     });
 
-    test("packData and unpackData roundtrip fidelity", () => {
+    test("packData and unpackData roundtrip fidelity with step", () => {
         state.nodes = [
-            { id: 'node_1', text: 'Hello Dango', x: 100, y: 150, w: 120, h: 60, color: 'c-red' },
-            { id: 'node_2', text: 'Second Node', x: 300, y: 150, w: 140, h: 70, color: 'c-blue' }
+            { id: 'node_1', text: 'Hello Dango', x: 100, y: 150, w: 120, h: 60, color: 'c-red', step: 1 },
+            { id: 'node_2', text: 'Second Node', x: 300, y: 150, w: 140, h: 70, color: 'c-blue', step: 2 }
         ];
         state.groups = [
-            { id: 'group_1', x: 90, y: 140, w: 360, h: 90, memberIds: ['node_1', 'node_2'] }
+            { id: 'group_1', x: 90, y: 140, w: 360, h: 90, memberIds: ['node_1', 'node_2'], step: 1 }
         ];
         state.links = [
             { id: 'link_1', sourceId: 'node_1', targetId: 'node_2', direction: 'target', strokeStyle: 'wavy' }
@@ -35,17 +35,20 @@ describe("Data IO & Serialization (packData / unpackData)", () => {
         };
 
         const packed = packData();
-        expect(packed[0]).toBe(4); // Version 4
+        expect(packed[0]).toBe(5); // Version 5
 
         const unpacked = unpackData(packed);
         expect(unpacked.nodes.length).toBe(2);
         expect(unpacked.nodes[0].text).toBe('Hello Dango');
         expect(unpacked.nodes[0].color).toBe('c-red');
+        expect(unpacked.nodes[0].step).toBe(1);
         expect(unpacked.nodes[1].text).toBe('Second Node');
         expect(unpacked.nodes[1].color).toBe('c-blue');
+        expect(unpacked.nodes[1].step).toBe(2);
 
         expect(unpacked.groups.length).toBe(1);
         expect(unpacked.groups[0].memberIds.length).toBe(2);
+        expect(unpacked.groups[0].step).toBe(1);
 
         expect(unpacked.links.length).toBe(1);
         expect(unpacked.links[0].direction).toBe('target');
@@ -54,6 +57,23 @@ describe("Data IO & Serialization (packData / unpackData)", () => {
         expect(unpacked.settings.hideGrid).toBe(true);
         expect(unpacked.settings.handDrawn).toBe(true);
         expect(unpacked.settings.bgUrl).toBe('https://example.com/bg.png');
+    });
+
+    test("Backward compatibility with Version 4 format (without step)", () => {
+        const v4Data = [
+            4,
+            [[0, 'V4 Node', 100, 150, 120, 60, 1]],
+            [[1, 90, 140, 360, 90, [0]]],
+            [],
+            [1, 0, 0, '']
+        ];
+
+        const unpacked = unpackData(v4Data);
+        expect(unpacked.nodes.length).toBe(1);
+        expect(unpacked.nodes[0].text).toBe('V4 Node');
+        expect(unpacked.nodes[0].step).toBeUndefined();
+        expect(unpacked.groups.length).toBe(1);
+        expect(unpacked.groups[0].step).toBeUndefined();
     });
 
     test("Backward compatibility with Version 1 format", () => {
@@ -70,6 +90,7 @@ describe("Data IO & Serialization (packData / unpackData)", () => {
         expect(unpacked.nodes.length).toBe(1);
         expect(unpacked.nodes[0].text).toBe('Legacy Node');
         expect(unpacked.nodes[0].color).toBe('c-white');
+        expect(unpacked.nodes[0].step).toBeUndefined();
         expect(unpacked.settings.hideGrid).toBe(true);
         expect(unpacked.settings.handDrawn).toBe(false);
     });
@@ -87,6 +108,7 @@ describe("Data IO & Serialization (packData / unpackData)", () => {
         expect(unpacked.nodes.length).toBe(1);
         expect(unpacked.nodes[0].text).toBe('V2 Node');
         expect(unpacked.nodes[0].color).toBe(CONFIG.colors[3]);
+        expect(unpacked.nodes[0].step).toBeUndefined();
         expect(unpacked.settings.hideGrid).toBe(false);
         expect(unpacked.settings.handDrawn).toBe(true);
         expect(unpacked.settings.altAsCtrl).toBe(true);
@@ -94,7 +116,7 @@ describe("Data IO & Serialization (packData / unpackData)", () => {
 
     test("Filters out orphaned links with non-existent nodes", () => {
         const invalidLinkData = [
-            4,
+            5,
             [[0, 'Solo Node', 100, 100, 100, 50, 0]],
             [],
             [[0, 999, 1, 0]], // target ID 999 does not exist

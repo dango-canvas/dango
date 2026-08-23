@@ -132,3 +132,77 @@ body.spotlight-active #canvas-container {
         box-shadow: 0 0 0 0 rgba(var(--select-color-rgb, 59, 130, 246), 0);
     }
 }
+
+/* --- 标记模式半透明暗显与点亮反馈 --- */
+.tagging-ghost {
+    opacity: 0.32 !important;
+    filter: grayscale(0.35);
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease !important;
+}
+
+path.link.tagging-ghost {
+    opacity: 0.16 !important;
+    transition: opacity 0.25s ease !important;
+}
+
+/* --- 演示演讲模式（Presentation Engine） --- */
+body.mode-presenting #ui-layer,
+body.mode-presenting #search-container,
+body.mode-presenting #hints-layer,
+body.mode-presenting .empty-state,
+body.mode-presenting .snap-guide-line,
+body.mode-presenting .dango-step-badge {
+    display: none !important;
+}
+
+body.mode-presenting {
+    background-color: var(--bg-color);
+}
+
+body.mode-presenting .node.selected::after,
+body.mode-presenting .group.selected {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.presentation-hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    transition: opacity 0.2s ease, visibility 0.2s ease !important;
+}
+
+path.link.presentation-hidden {
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+/* 节点渐显入场 */
+.step-bounce-in {
+    animation: nodeFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes nodeFadeIn {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* 连线墨水流淌（Ink Flow） */
+path.link.ink-flow {
+    stroke-dasharray: var(--link-length, 200);
+    animation: linkInkFlow 0.22s ease-out forwards;
+}
+
+@keyframes linkInkFlow {
+    from {
+        stroke-dashoffset: var(--link-length, 200);
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
