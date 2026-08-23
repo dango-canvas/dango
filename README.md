@@ -31,6 +31,7 @@ Dango supports:
 * 🔗 File is link
 * 🖼️ Seamlessly embed into Obsidian, Notion, or personal blogs
 * 🔦 Spotlight mode
+* 🎬 Presentation mode
 * ✍️ Organic hand-drawn style
 * 🌐 Localization (i18n) support
 * 🔒 Local-first & privacy
