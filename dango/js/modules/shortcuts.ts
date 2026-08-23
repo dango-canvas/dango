@@ -10,6 +10,7 @@ import { smartAlignSelection } from './animation.js';
 import { changeZoom, resetViewToCenter } from './view.js';
 import { openSearch, closeSearch } from './search.js';
 import { handleDirectionalCreateStart, handleDirectionalCreateEnd, clearDirectionalGhost, handleDirectionalModifierUp } from './directional.js';
+import { isHintModeActive, handleHintKeyDown, enterHintMode, exitHintMode } from './hints.js';
 
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
 export const keys: Record<string, boolean> = {};
@@ -49,10 +50,19 @@ export function initShortcuts(callbacks: {
             return; // 编辑时屏蔽其他快捷键
         }
 
+        // Hint 模式拦截
+        if (isHintModeActive()) {
+            if (handleHintKeyDown(e)) {
+                e.preventDefault();
+                return;
+            }
+        }
+
         keys[e.code] = true;
 
         // 2. 基础快捷键 (ESC / Space / Home)
         if (e.code === 'Escape') {
+            exitHintMode();
             clearDirectionalGhost();
             closeSearch();
             const about = document.getElementById('about-overlay');
@@ -124,7 +134,7 @@ export function initShortcuts(callbacks: {
             }
             if (e.code === 'KeyC') { e.preventDefault(); copySelection(); return; }
             if (e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); render(); return; }
-            if (e.code === 'KeyF') { e.preventDefault(); openSearch(); return; }
+            if (e.code === 'KeyF' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); openSearch(); return; }
             if (e.code === 'KeyS') { 
                 if (!e.altKey) {
                     e.preventDefault(); exportJson(); return; 
@@ -142,6 +152,15 @@ export function initShortcuts(callbacks: {
         // 4. 其他操作
         if (e.code === 'Delete' || e.code === 'Backspace') {
             e.preventDefault(); pushHistory(); deleteSelection(); render(); return;
+        }
+
+        // 快捷跳转 (f: 单选跳转; Shift + F 或 Alt + F: 连选加选)
+        if (!e.ctrlKey && !e.metaKey) {
+            if (e.code === 'KeyF') {
+                e.preventDefault();
+                enterHintMode(e.shiftKey || e.altKey);
+                return;
+            }
         }
 
         if (e.code === 'Enter' && state.selection.size === 1) {
