@@ -38,12 +38,15 @@ export function initShortcuts(callbacks: {
         // 1. 编辑状态下的特殊处理
         if (isEditing) {
             if (e.code === 'Escape') {
-                target?.blur();
+                e.preventDefault();
                 e.stopPropagation();
+                target?.blur();
                 return;
             }
-            if (isContentEditable && e.code === 'Enter' && !e.shiftKey) {
+            if (isContentEditable && (e.key === 'Enter' || e.code === 'Enter') && !e.shiftKey) {
+                if (e.isComposing || e.keyCode === 229) return;
                 e.preventDefault();
+                e.stopPropagation();
                 target?.blur();
                 return;
             }
