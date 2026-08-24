@@ -264,6 +264,7 @@ function bindExtrudeDragEvents(): void {
  * 切换悬浮控制器显隐
  */
 export function toggleFloatingDock(forceVisible?: boolean): void {
+    if (state.isEmbed) return;
     const container = document.getElementById('dango-dock-container');
     if (!container) return;
 
@@ -289,8 +290,8 @@ export function updateFloatingDock(force: boolean = false): void {
     const dockEl = document.getElementById('dango-dock');
     if (!container || !dockEl) return;
 
-    // 演示模式或禁用时隐藏
-    if (isPresentationModeActive() || state.settings.hideToolbar) {
+    // 嵌入模式、演示模式或禁用时隐藏
+    if (state.isEmbed || isPresentationModeActive() || state.settings.hideToolbar) {
         container.classList.add('hidden-dock');
         return;
     } else {

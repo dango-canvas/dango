@@ -206,6 +206,7 @@ export function initShortcuts(callbacks: {
                 }
             }
             if (e.code === 'Backslash') {
+                if (state.isEmbed) return;
                 e.preventDefault();
                 toggleFloatingDock();
                 const texts = getTexts();

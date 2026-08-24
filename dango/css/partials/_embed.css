@@ -9,6 +9,10 @@ body[data-mode="embed"] #btn-safety {
     display: none !important;
 }
 
+body[data-mode="embed"] #dango-dock-container {
+    display: none !important;
+}
+
 #embed-footer {
     position: fixed !important;
     bottom: 20px !important;

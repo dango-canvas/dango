@@ -190,6 +190,18 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         expect(container.classList.contains('hidden-dock')).toBe(false);
     });
 
+    it('Hides floating dock in Embed mode and ignores toggle', () => {
+        state.isEmbed = true;
+        const container = mockElements['dango-dock-container'];
+
+        updateFloatingDock();
+        expect(container.classList.contains('hidden-dock')).toBe(true);
+
+        toggleFloatingDock(true);
+        expect(container.classList.contains('hidden-dock')).toBe(true);
+        state.isEmbed = false;
+    });
+
     it('Clones selected nodes with cloneSelection', () => {
         const { cloneSelection } = require('../dango/js/modules/actions.js');
         state.nodes = [
