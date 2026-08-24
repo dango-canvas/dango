@@ -42,6 +42,8 @@ export interface CanvasSettings {
     altAsCtrl: boolean;
     handDrawn: boolean;
     bgUrl: string;
+    hideToolbar?: boolean;
+    showToolbar?: boolean;
 }
 
 export interface CanvasView {

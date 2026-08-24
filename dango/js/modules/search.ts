@@ -42,6 +42,10 @@ export function initSearch(state: CanvasState, render: () => void): void {
     if (els.close) els.close.onclick = () => closeSearch();
 }
 
+export function isSearchOpen(): boolean {
+    return !!els.container && !els.container.classList.contains('hidden');
+}
+
 export function openSearch(): void {
     if (!els.container || !els.input) return;
     els.container.classList.remove('hidden');
@@ -58,6 +62,14 @@ export function closeSearch(): void {
     currentIndex = -1;
     results = [];
     if (els.info) els.info.innerText = '0/0';
+}
+
+export function toggleSearch(): void {
+    if (isSearchOpen()) {
+        closeSearch();
+    } else {
+        openSearch();
+    }
 }
 
 function handleSearch(query: string): void {

@@ -105,6 +105,10 @@
                     <!-- 设置弹窗 -->
                     <div id="settings-modal" class="help-modal-style">
                         <div class="settings-item">
+                            <span data-i18n="settings_hide_toolbar">隐藏悬浮栏</span>
+                            <input type="checkbox" id="check-hide-toolbar">
+                        </div>
+                        <div class="settings-item">
                             <span data-i18n="settings_hide_grid">隐藏网格点</span>
                             <input type="checkbox" id="check-hide-grid">
                         </div>
@@ -291,6 +295,10 @@
         </div>
         <div id="hints-layer"></div>
         <div id="selection-box"></div>
+        <div id="extrude-ghost" class="hidden" data-i18n="extrude_ghost_text">✨ 释放落子新想法</div>
+    </div>
+    <div id="dango-dock-container">
+        <div id="dango-dock"></div>
     </div>
     <div id="about-overlay" class="modal-overlay">
         <div id="about-card">

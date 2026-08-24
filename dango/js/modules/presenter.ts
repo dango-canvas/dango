@@ -167,7 +167,7 @@ export function enterTaggingMode(): void {
     if (isPresentingActive) exitPresentationMode();
     appState.selection.clear();
     isTaggingActive = true;
-    if (typeof document !== 'undefined') {
+    if (typeof document !== 'undefined' && document.body) {
         document.body.classList.add('mode-tagging');
     }
 
@@ -179,7 +179,7 @@ export function exitTaggingMode(): void {
     if (!isTaggingActive) return;
     isTaggingActive = false;
     appState.selection.clear();
-    if (typeof document !== 'undefined') {
+    if (typeof document !== 'undefined' && document.body) {
         document.body.classList.remove('mode-tagging');
     }
     dismissPersistentToast(TAGGING_TOAST_ID);

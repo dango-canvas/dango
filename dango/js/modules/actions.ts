@@ -212,6 +212,41 @@ export function createGroup(): void {
     render();
 }
 
+export function cloneSelection(offset = { x: 30, y: 30 }): void {
+    const selNodes = state.nodes.filter(n => state.selection.has(n.id));
+    const selGroups = state.groups.filter(g => state.selection.has(g.id));
+    if (selNodes.length === 0 && selGroups.length === 0) return;
+
+    state.selection.clear();
+    const mapping: Record<string, string> = {};
+
+    selNodes.forEach(n => {
+        const newId = uid();
+        mapping[n.id] = newId;
+        const newNode: CanvasNode = {
+            ...n,
+            id: newId,
+            x: n.x + offset.x,
+            y: n.y + offset.y
+        };
+        state.nodes.push(newNode);
+        state.selection.add(newId);
+    });
+
+    selGroups.forEach(g => {
+        const newId = uid();
+        const newGroup: CanvasGroup = {
+            ...g,
+            id: newId,
+            x: g.x + offset.x,
+            y: g.y + offset.y,
+            memberIds: (g.memberIds || []).map(mid => mapping[mid] || mid)
+        };
+        state.groups.push(newGroup);
+        state.selection.add(newId);
+    });
+}
+
 export function dissolveGroup(): void {
     const toRemove: number[] = [];
     state.selection.forEach(id => {
@@ -229,13 +264,42 @@ export function toggleGroup(): void {
     const selItems = Array.from(state.selection);
     if (selItems.length === 0) return;
     
-    // 如果选中的所有元素都是 group，则执行解组
-    const allGroups = selItems.every(id => state.groups.some(g => g.id === id));
-    if (allGroups) {
-        dissolveGroup();
-    } else {
-        createGroup();
+    // 1. 如果选区中显式包含编组，解组这些编组并将它们的成员放入选区
+    const selectedGroupIndices: number[] = [];
+    const memberNodesToSelect: string[] = [];
+    state.selection.forEach(id => {
+        const idx = state.groups.findIndex(g => g.id === id);
+        if (idx !== -1) {
+            selectedGroupIndices.push(idx);
+            memberNodesToSelect.push(...(state.groups[idx].memberIds || []));
+        }
+    });
+
+    if (selectedGroupIndices.length > 0) {
+        selectedGroupIndices.sort((a, b) => b - a).forEach(idx => state.groups.splice(idx, 1));
+        state.selection.clear();
+        memberNodesToSelect.forEach(id => state.selection.add(id));
+        render();
+        return;
     }
+
+    // 2. 如果选区中的节点覆盖了已有编组的所有成员，执行解组
+    const matchingGroupIndices: number[] = [];
+    state.groups.forEach((g, idx) => {
+        const mIds = g.memberIds || [];
+        if (mIds.length > 0 && mIds.every(id => state.selection.has(id))) {
+            matchingGroupIndices.push(idx);
+        }
+    });
+
+    if (matchingGroupIndices.length > 0) {
+        matchingGroupIndices.sort((a, b) => b - a).forEach(idx => state.groups.splice(idx, 1));
+        render();
+        return;
+    }
+
+    // 3. 否则创建新编组
+    createGroup();
 }
 
 function getNodeCenter(node: CanvasNode): {

@@ -36,6 +36,7 @@ export const state: CanvasState = {
         altAsCtrl: getStorageItem('cc-alt-as-ctrl') === 'true',
         handDrawn: getStorageItem('cc-hand-drawn') === 'true',
         bgUrl: getStorageItem('cc-bg-url') || '',
+        hideToolbar: getStorageItem('cc-hide-toolbar') === 'true',
     },
     isEmbed: isEmbed
 };

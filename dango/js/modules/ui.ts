@@ -1,8 +1,8 @@
-// modules/ui.ts
 import { getTexts, toggleLang, updateI18n } from './i18n.js';
 import { downloadBlob, getTimestamp } from './utils.js';
 import { processDangoFile } from './io.js';
 import { els, setSafeSVG } from './dom.js';
+import { updateFloatingDock } from './dock.js';
 import type { CanvasState } from './types.js';
 
 // --- 模块内部变量 ---
@@ -238,6 +238,8 @@ export function applySettings(currentState?: CanvasState): void {
     if (!s) return;
 
     if (typeof document !== 'undefined') {
+        const checkHideToolbarEl = document.getElementById('check-hide-toolbar') as HTMLInputElement | null;
+        if (checkHideToolbarEl) checkHideToolbarEl.checked = s.settings.hideToolbar === true;
         const hideGridEl = document.getElementById('check-hide-grid') as HTMLInputElement | null;
         if (hideGridEl) hideGridEl.checked = s.settings.hideGrid;
         const altAsCtrlEl = document.getElementById('check-alt-as-ctrl') as HTMLInputElement | null;
@@ -258,6 +260,11 @@ export function applySettings(currentState?: CanvasState): void {
 
         if (document.body) {
             document.body.classList.toggle('hide-grid', s.settings.hideGrid);
+        }
+
+        const dockContainer = document.getElementById('dango-dock-container');
+        if (dockContainer) {
+            dockContainer.classList.toggle('hidden-dock', s.settings.hideToolbar === true);
         }
     }
     
@@ -890,6 +897,19 @@ export function initUI(_state: CanvasState, _callbacks: any): void {
         }, { passive: false });
     }
 
+    const checkHideToolbar = document.getElementById('check-hide-toolbar') as HTMLInputElement | null;
+    if (checkHideToolbar) {
+        checkHideToolbar.onchange = (e: Event) => {
+            const checked = (e.target as HTMLInputElement).checked;
+            appState.settings.hideToolbar = checked;
+            localStorage.setItem('cc-hide-toolbar', String(checked));
+            const dockContainer = document.getElementById('dango-dock-container');
+            if (dockContainer) {
+                dockContainer.classList.toggle('hidden-dock', checked);
+            }
+        };
+    }
+
     const checkHideGrid = document.getElementById('check-hide-grid') as HTMLInputElement | null;
     if (checkHideGrid) {
         checkHideGrid.onchange = (e: Event) => {
@@ -1039,6 +1059,7 @@ export function initUI(_state: CanvasState, _callbacks: any): void {
     document.getElementById('btn-lang')?.addEventListener('click', (e) => {
         toggleLang();
         updateI18n();
+        updateFloatingDock(true);
         syncHelpPageHeight();
         applySettings();
         (e.currentTarget as HTMLElement).blur();

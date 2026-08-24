@@ -10,6 +10,7 @@ import { initHints } from './modules/hints.js';
 import { initPresenter } from './modules/presenter.js';
 import { initShortcuts } from './modules/shortcuts.js';
 import { initInteractions, handleNodeEdit } from './modules/interactions.js';
+import { initFloatingDock, updateFloatingDock } from './modules/dock.js';
 
 /**
  * Main application entry point.
@@ -23,6 +24,7 @@ initI18n();
 initRender(state, {
     saveData,
     updateOpenFullLink,
+    updateFloatingDock
 });
 initIO(render);
 initView(state, render);
@@ -55,6 +57,7 @@ const actions = {
 
 initShortcuts(actions);
 initUI(state, actions);
+initFloatingDock(actions);
 
 // 5. Initial Application State Application
 applyHandDrawnStyle();

@@ -605,4 +605,32 @@ body.mode-tagging .dango-step-badge {
     }
 }
 
+/* --- 拖拽衍生预览与幽灵节点 (Drag to Extrude) --- */
+.link.extrude-preview,
+path.link.extrude-preview,
+line.extrude-preview {
+    stroke: var(--link-color) !important;
+    stroke-width: 2 !important;
+    stroke-dasharray: 5,5 !important;
+    opacity: 0.5 !important;
+}
+
+.node.extrude-ghost-node {
+    position: absolute;
+    box-sizing: border-box;
+    width: 102px;
+    height: 44px;
+    opacity: 0.4;
+    border: 2px dashed var(--link-color);
+    background-color: transparent !important;
+    pointer-events: none;
+    z-index: 0;
+    transform: translate(-50%, -50%);
+}
+
+#extrude-ghost {
+    display: none !important;
+}
+
+
 

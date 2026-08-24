@@ -210,6 +210,10 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
         el.className = ['node', colorClass, isSelected ? 'selected' : '', isFound ? 'search-found' : '', 'editing'].filter(Boolean).join(' ');
         el.style.width = '';
         el.style.height = '';
+        if (el.offsetWidth && el.offsetHeight) {
+            node.w = el.offsetWidth;
+            node.h = el.offsetHeight;
+        }
         return;
     }
 
@@ -567,12 +571,17 @@ export function render(): void {
 
     if (appState.isEmbed && callbacks.updateOpenFullLink) callbacks.updateOpenFullLink();
     if (callbacks.saveData) callbacks.saveData();
+    if (callbacks.updateFloatingDock) callbacks.updateFloatingDock();
 }
 
 /**
  * 初始化渲染模块
  */
-export function initRender(_state: CanvasState, _callbacks: any): void {
+export function initRender(_state: CanvasState, _callbacks: {
+    saveData?: () => void;
+    updateOpenFullLink?: () => void;
+    updateFloatingDock?: () => void;
+}): void {
     appState = _state;
     callbacks = _callbacks;
 }

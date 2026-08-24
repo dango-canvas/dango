@@ -922,6 +922,15 @@ export function handleNodeEdit(nodeEl: HTMLElement): void {
         nodeEl.classList.add('editing');
         nodeEl.style.width = '';
         nodeEl.style.height = '';
+        if (nodeEl.offsetWidth && nodeEl.offsetHeight) {
+            node.w = nodeEl.offsetWidth;
+            node.h = nodeEl.offsetHeight;
+        } else {
+            node.w = 102;
+            node.h = 44;
+        }
+        render();
+
         try {
             nodeEl.focus({ preventScroll: true });
         } catch {
@@ -947,6 +956,12 @@ export function handleNodeEdit(nodeEl: HTMLElement): void {
                 nodeEl.classList.add('has-multiline');
             } else {
                 nodeEl.classList.remove('has-multiline');
+            }
+
+            if (node) {
+                node.w = nodeEl.offsetWidth;
+                node.h = nodeEl.offsetHeight;
+                render();
             }
         };
         nodeEl.addEventListener('input', handleInput);
