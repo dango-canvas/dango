@@ -195,5 +195,37 @@ describe("Vimium-Style Node Hints (f / Shift+f)", () => {
         expect(isHintModeActive()).toBe(false);
         expect(state.selection.has('n2')).toBe(true);
     });
+
+    test("handleHintKeyDown in Tagging Mode: directly assigns next step or toggles step", () => {
+        const { initPresenter, enterTaggingMode } = require("../dango/js/modules/presenter.js");
+        initPresenter(state, {
+            render: () => {},
+            animateView: () => {},
+            fitView: () => {}
+        });
+        initHints(state, { render: () => {} });
+
+        state.nodes = [
+            { id: 'n1', text: 'node 1', x: 100, y: 100, w: 100, h: 40, color: 'c-white' },
+            { id: 'n2', text: 'node 2', x: 200, y: 100, w: 100, h: 40, color: 'c-white' }
+        ];
+
+        enterTaggingMode();
+
+        // 1. Press f -> press a (matches n1) -> tags step 1
+        enterHintMode(false);
+        handleHintKeyDown({ key: 'a', code: 'KeyA' } as KeyboardEvent);
+        expect(state.nodes[0].step).toBe(1);
+
+        // 2. Press f -> press s (matches n2) -> tags step 2
+        enterHintMode(false);
+        handleHintKeyDown({ key: 's', code: 'KeyS' } as KeyboardEvent);
+        expect(state.nodes[1].step).toBe(2);
+
+        // 3. Press f -> press a (matches n1 again) -> toggles off step
+        enterHintMode(false);
+        handleHintKeyDown({ key: 'a', code: 'KeyA' } as KeyboardEvent);
+        expect(state.nodes[0].step).toBeUndefined();
+    });
 });
 

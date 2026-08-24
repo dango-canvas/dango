@@ -98,7 +98,7 @@ function updateTaggingToast(): void {
         </ul>
     `;
 
-    showPersistentToast(TAGGING_TOAST_ID, message, [
+    const actions: { text: string; onClick: () => void; className?: string; popoverHtml?: string }[] = [
         {
             text: texts.btn_tagging_present,
             onClick: () => {
@@ -117,11 +117,55 @@ function updateTaggingToast(): void {
             className: 'btn-toast-help',
             popoverHtml
         }
-    ]);
+    ];
+
+    showPersistentToast(TAGGING_TOAST_ID, message, actions);
+}
+
+export function clearAllSteps(): void {
+    if (isPresentingActive) return;
+    const uniqueSteps = getUniqueSteps(appState.nodes, appState.groups);
+    if (uniqueSteps.length === 0) return;
+    pushHistory();
+    appState.nodes.forEach(n => { delete n.step; });
+    appState.groups.forEach(g => { delete g.step; });
+    updateTaggingToast();
+    callbacks.render();
+    if (callbacks.saveData) callbacks.saveData();
+}
+
+export function clearStepsOfSelection(): void {
+    if (isPresentingActive || !isTaggingActive) return;
+
+    const selectedNodes = appState.nodes.filter(n => appState.selection.has(n.id));
+    const selectedGroups = appState.groups.filter(g => appState.selection.has(g.id));
+    const targetNodes = selectedNodes.length > 0 ? selectedNodes : (appState.selection.size === 0 ? appState.nodes : []);
+    const targetGroups = selectedGroups.length > 0 ? selectedGroups : (appState.selection.size === 0 ? appState.groups : []);
+
+    const hasAnySteps = targetNodes.some(n => typeof n.step === 'number' && n.step > 0) ||
+                        targetGroups.some(g => typeof g.step === 'number' && g.step > 0);
+    if (!hasAnySteps) return;
+
+    pushHistory();
+    targetNodes.forEach(n => { delete n.step; });
+    targetGroups.forEach(g => {
+        delete g.step;
+        if (g.memberIds) {
+            g.memberIds.forEach(mid => {
+                const m = appState.nodes.find(n => n.id === mid);
+                if (m) delete m.step;
+            });
+        }
+    });
+
+    updateTaggingToast();
+    callbacks.render();
+    if (callbacks.saveData) callbacks.saveData();
 }
 
 export function enterTaggingMode(): void {
     if (isPresentingActive) exitPresentationMode();
+    appState.selection.clear();
     isTaggingActive = true;
     if (typeof document !== 'undefined') {
         document.body.classList.add('mode-tagging');
@@ -131,67 +175,80 @@ export function enterTaggingMode(): void {
     callbacks.render();
 }
 
-export function exitTaggingMode(showExitNotice = true): void {
+export function exitTaggingMode(): void {
     if (!isTaggingActive) return;
     isTaggingActive = false;
+    appState.selection.clear();
     if (typeof document !== 'undefined') {
         document.body.classList.remove('mode-tagging');
     }
     dismissPersistentToast(TAGGING_TOAST_ID);
-
-    if (showExitNotice) {
-        showToast(getTexts().toast_tagging_exit);
-    }
     callbacks.render();
 }
 
-export function tagSelectionStep(): void {
+export function tagItemDirect(item: CanvasNode | CanvasGroup): void {
     if (isPresentingActive) return;
-
-    if (appState.selection.size === 0) {
-        if (isTaggingActive) {
-            exitTaggingMode(true);
-        } else {
-            enterTaggingMode();
-        }
-        return;
-    }
-
     if (!isTaggingActive) {
         enterTaggingMode();
     }
-
     pushHistory();
 
-    const selectedNodes = appState.nodes.filter(n => appState.selection.has(n.id));
-    const selectedGroups = appState.groups.filter(g => appState.selection.has(g.id));
+    if (typeof item.step === 'number' && item.step > 0) {
+        // Toggle 清除当前项的 step
+        const oldStep = item.step;
+        delete item.step;
+        if ('memberIds' in item && item.memberIds) {
+            item.memberIds.forEach(mid => {
+                const m = appState.nodes.find(n => n.id === mid);
+                if (m && m.step === oldStep) delete m.step;
+            });
+        }
+    } else {
+        // 赋予下一个自增序号
+        const nextStep = getMaxStep(appState.nodes, appState.groups) + 1;
+        item.step = nextStep;
+        if ('memberIds' in item && item.memberIds) {
+            item.memberIds.forEach(mid => {
+                const m = appState.nodes.find(n => n.id === mid);
+                if (m && typeof m.step !== 'number') {
+                    m.step = nextStep;
+                }
+            });
+        }
+    }
 
-    // 检查是否所有选中的项都已经带有相同的非零 step（若是，则执行 Toggle 取消步骤）
-    const allSelectedItems = [...selectedNodes, ...selectedGroups];
-    const firstStep = allSelectedItems[0]?.step;
-    const allHaveSameStep = typeof firstStep === 'number' && firstStep > 0 &&
-        allSelectedItems.every(item => item.step === firstStep);
+    updateTaggingToast();
+    callbacks.render();
+    if (callbacks.saveData) callbacks.saveData();
+}
 
-    if (allHaveSameStep) {
-        // Toggle 清除步骤
-        selectedNodes.forEach(n => { delete n.step; });
-        selectedGroups.forEach(g => {
-            delete g.step;
-            if (g.memberIds) {
-                g.memberIds.forEach(mid => {
+export function tagItemsBatch(items: (CanvasNode | CanvasGroup)[]): void {
+    if (isPresentingActive || items.length === 0) return;
+    if (!isTaggingActive) {
+        enterTaggingMode();
+    }
+    pushHistory();
+
+    const allHaveSteps = items.every(it => typeof it.step === 'number' && it.step > 0);
+
+    if (allHaveSteps) {
+        // Toggle 清除（所有项已带有步骤标号时，全部清除）
+        items.forEach(it => {
+            const oldStep = it.step;
+            delete it.step;
+            if ('memberIds' in it && it.memberIds) {
+                it.memberIds.forEach(mid => {
                     const m = appState.nodes.find(n => n.id === mid);
-                    if (m && m.step === firstStep) delete m.step;
+                    if (m && m.step === oldStep) delete m.step;
                 });
             }
         });
     } else {
-        // 赋予下一个自增序号
         const nextStep = getMaxStep(appState.nodes, appState.groups) + 1;
-        selectedNodes.forEach(n => { n.step = nextStep; });
-        selectedGroups.forEach(g => {
-            g.step = nextStep;
-            if (g.memberIds) {
-                g.memberIds.forEach(mid => {
+        items.forEach(it => {
+            it.step = nextStep;
+            if ('memberIds' in it && it.memberIds) {
+                it.memberIds.forEach(mid => {
                     const m = appState.nodes.find(n => n.id === mid);
                     if (m && typeof m.step !== 'number') {
                         m.step = nextStep;
@@ -204,6 +261,16 @@ export function tagSelectionStep(): void {
     updateTaggingToast();
     callbacks.render();
     if (callbacks.saveData) callbacks.saveData();
+}
+
+export function tagSelectionStep(): void {
+    if (isPresentingActive) return;
+
+    if (isTaggingActive) {
+        exitTaggingMode(true);
+    } else {
+        enterTaggingMode();
+    }
 }
 
 export function isItemGhostedInTagging(item: { step?: number }): boolean {
@@ -241,112 +308,6 @@ export function isLinkVisibleInPresentation(link: CanvasLink): boolean {
 }
 
 const FINALE_TOAST_ID = 'dango-finale-toast';
-
-export function handleBadgeEdit(badgeEl: HTMLElement, item: CanvasNode | CanvasGroup): void {
-    if (!isTaggingActive || !badgeEl || badgeEl.getAttribute('contenteditable') === 'true') return;
-    
-    badgeEl.contentEditable = 'true';
-    badgeEl.classList.add('editing-badge');
-    
-    if (typeof document !== 'undefined' && typeof document.createRange === 'function') {
-        const range = document.createRange();
-        range.selectNodeContents(badgeEl);
-        const sel = window.getSelection();
-        if (sel) {
-            sel.removeAllRanges();
-            sel.addRange(range);
-        }
-    }
-    try {
-        badgeEl.focus({ preventScroll: true });
-    } catch {
-        badgeEl.focus();
-    }
-
-    const handleInput = () => {
-        const rawText = badgeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
-        if (!rawText.trim()) {
-            if (badgeEl.innerText !== '\u200B') {
-                badgeEl.innerText = '\u200B';
-                if (typeof document !== 'undefined' && typeof document.createRange === 'function') {
-                    const range = document.createRange();
-                    range.selectNodeContents(badgeEl);
-                    range.collapse(false);
-                    const sel = window.getSelection();
-                    if (sel) {
-                        sel.removeAllRanges();
-                        sel.addRange(range);
-                    }
-                }
-            }
-        }
-    };
-    if (typeof badgeEl.addEventListener === 'function') {
-        badgeEl.addEventListener('input', handleInput);
-    }
-
-    let finished = false;
-    const finishEdit = (cancel = false) => {
-        if (finished) return;
-        finished = true;
-        badgeEl.contentEditable = 'false';
-        badgeEl.classList.remove('editing-badge');
-        badgeEl.onblur = null;
-        badgeEl.onkeydown = null;
-        if (typeof badgeEl.removeEventListener === 'function') {
-            badgeEl.removeEventListener('input', handleInput);
-        }
-
-        if (cancel) {
-            badgeEl.innerText = getStepBadgeText(item.step);
-            return;
-        }
-
-        const rawText = badgeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '').trim();
-        const num = parseInt(rawText, 10);
-
-        if (!isNaN(num) && num > 0) {
-            if (item.step !== num) {
-                pushHistory();
-                item.step = num;
-                updateTaggingToast();
-                callbacks.render();
-                if (callbacks.saveData) callbacks.saveData();
-            } else {
-                badgeEl.innerText = String(num);
-            }
-        } else {
-            // 输入为空或0时清除步骤
-            pushHistory();
-            delete item.step;
-            updateTaggingToast();
-            callbacks.render();
-            if (callbacks.saveData) callbacks.saveData();
-        }
-    };
-
-    badgeEl.onblur = () => finishEdit(false);
-
-    badgeEl.onkeydown = (e: KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            e.stopPropagation();
-            finishEdit(false);
-            return;
-        }
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            e.stopPropagation();
-            finishEdit(true);
-            return;
-        }
-        if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && !/\d/.test(e.key)) {
-            e.preventDefault();
-            return;
-        }
-        e.stopPropagation();
-    };
-}
 
 let savedViewBeforePresentation: { x: number; y: number; scale: number } | null = null;
 
@@ -406,7 +367,7 @@ export function exitPresentationMode(): void {
             savedViewBeforePresentation.x,
             savedViewBeforePresentation.y,
             savedViewBeforePresentation.scale,
-            400
+            500
         );
         savedViewBeforePresentation = null;
     } else {
@@ -534,7 +495,7 @@ export function checkAndSoftPanToStep(step: number): void {
     const targetX = winW / 2 - centerWorldX * scale;
     const targetY = winH / 2 - centerWorldY * scale;
 
-    callbacks.animateView(targetX, targetY, scale, 500);
+    callbacks.animateView(targetX, targetY, scale, 600);
 }
 
 export function handlePresenterKeyDown(e: KeyboardEvent): boolean {

@@ -134,7 +134,7 @@ export function animateView(targetX: number, targetY: number, targetScale: numbe
         if (!stateRef || !renderRef) return;
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        const ease = progress >= 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        const ease = progress >= 1 ? 1 : 1 - Math.pow(1 - progress, 3);
         
         stateRef.view.x = progress >= 1 ? targetX : startX + (targetX - startX) * ease;
         stateRef.view.y = progress >= 1 ? targetY : startY + (targetY - startY) * ease;

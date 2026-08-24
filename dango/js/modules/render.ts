@@ -10,8 +10,7 @@ import {
     isLinkVisibleInPresentation, 
     isPresentationModeActive,
     isItemGhostedInTagging,
-    isLinkGhostedInTagging,
-    handleBadgeEdit
+    isLinkGhostedInTagging
 } from './presenter.js';
 import type { CanvasState, CanvasNode, CanvasGroup, CanvasLink } from './types.js';
 
@@ -341,13 +340,8 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
             stepBadge.className = 'dango-step-badge';
             el.appendChild(stepBadge);
         }
-        stepBadge.onmousedown = (e) => e.stopPropagation();
-        stepBadge.onclick = (e) => {
-            e.stopPropagation();
-            handleBadgeEdit(stepBadge!, node);
-        };
         const badgeText = getStepBadgeText(node.step);
-        if (!stepBadge.classList.contains('editing-badge') && stepBadge.innerText !== badgeText) {
+        if (stepBadge.innerText !== badgeText) {
             stepBadge.innerText = badgeText;
         }
     } else if (stepBadge) {
@@ -422,13 +416,8 @@ function renderGroup(el: HTMLElement, group: any): void {
             stepBadge.className = 'dango-step-badge group-step-badge';
             el.appendChild(stepBadge);
         }
-        stepBadge.onmousedown = (e) => e.stopPropagation();
-        stepBadge.onclick = (e) => {
-            e.stopPropagation();
-            handleBadgeEdit(stepBadge!, group);
-        };
         const badgeText = getStepBadgeText(group.step);
-        if (!stepBadge.classList.contains('editing-badge') && stepBadge.innerText !== badgeText) {
+        if (stepBadge.innerText !== badgeText) {
             stepBadge.innerText = badgeText;
         }
     } else if (stepBadge) {

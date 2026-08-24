@@ -559,11 +559,13 @@ let activeToasts = 0;
 const MAX_VISIBLE_TOASTS = 3;
 
 export function showToast(message: string, safetySnapshot: any = null): void {
+    if (typeof document === 'undefined') return;
     toastQueue.push({ message, safetySnapshot });
     processToastQueue();
 }
 
 export function showPersistentToast(id: string, message: string, actions: ToastActionButton[] = []): void {
+    if (typeof document === 'undefined') return;
     const container = document.getElementById('toast-container');
     if (!container) return;
 
@@ -658,6 +660,7 @@ export function showPersistentToast(id: string, message: string, actions: ToastA
 }
 
 export function dismissPersistentToast(id: string): void {
+    if (typeof document === 'undefined') return;
     const container = document.getElementById('toast-container');
     if (!container) return;
     const toast = container.querySelector<HTMLElement>(`.toast[data-toast-id="${id}"]`);

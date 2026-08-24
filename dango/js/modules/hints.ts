@@ -1,4 +1,5 @@
 // modules/hints.ts
+import { isTaggingModeActive, tagItemDirect } from './presenter.js';
 import type { CanvasState, CanvasNode, CanvasView } from './types.js';
 
 export const HINT_ALPHABET = [
@@ -238,6 +239,9 @@ export function handleHintKeyDown(e: KeyboardEvent): boolean {
                 appState.selection.add(targetNode.id);
             }
             appState.selectionSource = 'click';
+            if (isTaggingModeActive()) {
+                tagItemDirect(targetNode);
+            }
             exitHintMode();
             callbacks.render();
             return true;

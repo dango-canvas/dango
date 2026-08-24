@@ -7,7 +7,7 @@ import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
 import { els } from './dom.js';
 import { realignDirectionalNodeAfterEdit } from './directional.js';
-import { isPresentationModeActive } from './presenter.js';
+import { isPresentationModeActive, isTaggingModeActive, tagItemDirect, tagItemsBatch } from './presenter.js';
 import type { CanvasNode, CanvasGroup, CanvasItem } from './types.js';
 
 let dragStart: any = null;
@@ -428,9 +428,16 @@ export function initInteractions(): void {
         }
 
         if (mode === 'move') {
-            if (!hasMovedDuringDrag && isModifier(e) && targetAlreadySelectedAtStart && targetIdAtMouseDown) {
-                state.selection.delete(targetIdAtMouseDown);
-                render();
+            if (!hasMovedDuringDrag) {
+                if (isTaggingModeActive() && targetIdAtMouseDown) {
+                    const item = findItem(targetIdAtMouseDown);
+                    if (item) {
+                        tagItemDirect(item);
+                    }
+                } else if (isModifier(e) && targetAlreadySelectedAtStart && targetIdAtMouseDown) {
+                    state.selection.delete(targetIdAtMouseDown);
+                    render();
+                }
             }
             if (stateBeforeDrag) {
                 const currentState = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
@@ -449,9 +456,13 @@ export function initInteractions(): void {
                 w: rect.w / state.view.scale, h: rect.h / state.view.scale
             };
             const prevSize = state.selection.size;
-            [...state.nodes, ...state.groups].forEach(item => { if (isIntersect(worldRect, item)) state.selection.add(item.id); });
+            const itemsInBox = [...state.nodes, ...state.groups].filter(item => isIntersect(worldRect, item));
+            itemsInBox.forEach(item => state.selection.add(item.id));
             if (state.selection.size > prevSize) {
                 state.selectionSource = 'box';
+            }
+            if (isTaggingModeActive() && itemsInBox.length > 0) {
+                tagItemsBatch(itemsInBox);
             }
             if (els.selectBox) els.selectBox.style.display = 'none';
             render();

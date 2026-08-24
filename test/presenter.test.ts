@@ -7,6 +7,10 @@ import {
     enterTaggingMode, 
     exitTaggingMode, 
     tagSelectionStep, 
+    tagItemDirect,
+    tagItemsBatch,
+    clearAllSteps,
+    clearStepsOfSelection,
     getMaxStep, 
     getStepBadgeText,
     isPresentationModeActive, 
@@ -21,7 +25,6 @@ import {
     isLinkVisibleInPresentation,
     isItemGhostedInTagging,
     isLinkGhostedInTagging,
-    handleBadgeEdit,
     checkAndSoftPanToStep
 } from "../dango/js/modules/presenter.js";
 
@@ -89,16 +92,29 @@ describe("Dango Presentation Engine & Step Tagging (T / P)", () => {
         expect(getStepBadgeText(undefined)).toBe('');
     });
 
-    test("Tagging Mode: toggles on/off when selection is empty", () => {
+    test("Tagging Mode: toggles on/off cleanly and clears selection without mutating steps", () => {
         expect(isTaggingModeActive()).toBe(false);
 
-        // Press T with empty selection -> enters tagging mode
+        state.nodes = [
+            { id: 'n1', text: 'Node 1', x: 0, y: 0, w: 100, h: 40, color: 'c-white' }
+        ];
+        state.selection = new Set(['n1']);
+
+        // Press T with selection -> enters tagging mode, clears selection, does NOT mutate node step
         tagSelectionStep();
         expect(isTaggingModeActive()).toBe(true);
+        expect(state.selection.size).toBe(0);
+        expect(state.nodes[0].step).toBeUndefined();
 
-        // Press T again with empty selection -> exits tagging mode
+        // Press T again -> exits tagging mode, does NOT mutate node step
         tagSelectionStep();
         expect(isTaggingModeActive()).toBe(false);
+        expect(state.nodes[0].step).toBeUndefined();
+
+        // Press T third time -> enters tagging mode again, does NOT mutate node step
+        tagSelectionStep();
+        expect(isTaggingModeActive()).toBe(true);
+        expect(state.nodes[0].step).toBeUndefined();
     });
 
     test("Tagging Mode: ghosting calculation for un-tagged nodes and links", () => {
@@ -124,48 +140,60 @@ describe("Dango Presentation Engine & Step Tagging (T / P)", () => {
         expect(isLinkGhostedInTagging(state.links[0])).toBe(true);
     });
 
-    test("tagSelectionStep: single node auto-increment step assignment", () => {
+    test("tagItemDirect: single node auto-increment step assignment on click", () => {
         state.nodes = [
             { id: 'n1', text: 'Step 1', x: 0, y: 0, w: 100, h: 40, color: 'c-white' },
             { id: 'n2', text: 'Step 2', x: 150, y: 0, w: 100, h: 40, color: 'c-white' }
         ];
 
-        // Select n1 and tag
-        state.selection = new Set(['n1']);
-        tagSelectionStep();
+        // Click n1
+        tagItemDirect(state.nodes[0]);
         expect(state.nodes[0].step).toBe(1);
         expect(state.nodes[1].step).toBeUndefined();
+        expect(isTaggingModeActive()).toBe(true);
 
-        // Select n2 and tag
-        state.selection = new Set(['n2']);
-        tagSelectionStep();
+        // Click n2
+        tagItemDirect(state.nodes[1]);
         expect(state.nodes[0].step).toBe(1);
+        expect(state.nodes[1].step).toBe(2);
+
+        // Click n1 again -> toggle off
+        tagItemDirect(state.nodes[0]);
+        expect(state.nodes[0].step).toBeUndefined();
         expect(state.nodes[1].step).toBe(2);
     });
 
-    test("tagSelectionStep: multi-select assigns the same step number", () => {
+    test("tagItemsBatch: multi-select / box-select assigns the same step number or toggles all off", () => {
         state.nodes = [
             { id: 'n1', text: 'Parallel 1', x: 0, y: 0, w: 100, h: 40, color: 'c-white' },
             { id: 'n2', text: 'Parallel 2', x: 150, y: 0, w: 100, h: 40, color: 'c-white' }
         ];
 
-        state.selection = new Set(['n1', 'n2']);
-        tagSelectionStep();
+        // Untagged items get assigned the same step
+        tagItemsBatch([state.nodes[0], state.nodes[1]]);
         expect(state.nodes[0].step).toBe(1);
         expect(state.nodes[1].step).toBe(1);
-    });
 
-    test("tagSelectionStep: toggle off step when re-tagging item with same step", () => {
-        state.nodes = [
-            { id: 'n1', text: 'Node 1', x: 0, y: 0, w: 100, h: 40, color: 'c-white', step: 1 }
-        ];
-
-        state.selection = new Set(['n1']);
-        tagSelectionStep();
+        // Re-batch when all items have step -> toggles all off
+        tagItemsBatch([state.nodes[0], state.nodes[1]]);
         expect(state.nodes[0].step).toBeUndefined();
+        expect(state.nodes[1].step).toBeUndefined();
+
+        // Items with distinct steps (1, 2, 3, 4) all get toggled off when batch selected
+        state.nodes = [
+            { id: 'n1', text: '1', x: 0, y: 0, w: 100, h: 40, color: 'c-white', step: 1 },
+            { id: 'n2', text: '2', x: 100, y: 0, w: 100, h: 40, color: 'c-white', step: 2 },
+            { id: 'n3', text: '3', x: 200, y: 0, w: 100, h: 40, color: 'c-white', step: 3 },
+            { id: 'n4', text: '4', x: 300, y: 0, w: 100, h: 40, color: 'c-white', step: 4 }
+        ];
+        tagItemsBatch(state.nodes);
+        expect(state.nodes[0].step).toBeUndefined();
+        expect(state.nodes[1].step).toBeUndefined();
+        expect(state.nodes[2].step).toBeUndefined();
+        expect(state.nodes[3].step).toBeUndefined();
     });
 
-    test("tagSelectionStep: group tagging propagates step to untagged members", () => {
+    test("tagItemDirect: group tagging propagates step to untagged members", () => {
         state.nodes = [
             { id: 'n1', text: 'Member 1', x: 10, y: 10, w: 80, h: 40, color: 'c-white' },
             { id: 'n2', text: 'Member 2', x: 100, y: 10, w: 80, h: 40, color: 'c-white', step: 1 }
@@ -174,8 +202,7 @@ describe("Dango Presentation Engine & Step Tagging (T / P)", () => {
             { id: 'g1', x: 0, y: 0, w: 200, h: 80, memberIds: ['n1', 'n2'] }
         ];
 
-        state.selection = new Set(['g1']);
-        tagSelectionStep();
+        tagItemDirect(state.groups[0]);
 
         expect(state.groups[0].step).toBe(2);
         // n1 had no step, so it inherits group step (2)
@@ -184,42 +211,40 @@ describe("Dango Presentation Engine & Step Tagging (T / P)", () => {
         expect(state.nodes[1].step).toBe(1);
     });
 
-    test("handleBadgeEdit: directly edit badge number to arbitrary value or clear", () => {
+    test("clearAllSteps: removes step property from all nodes and groups", () => {
         enterTaggingMode();
-        const node: CanvasNode = { id: 'n1', text: 'Node', x: 0, y: 0, w: 100, h: 40, color: 'c-white', step: 1 };
-        state.nodes = [node];
+        state.nodes = [
+            { id: 'n1', text: 'Node 1', x: 0, y: 0, w: 100, h: 40, color: 'c-white', step: 1 },
+            { id: 'n2', text: 'Node 2', x: 150, y: 0, w: 100, h: 40, color: 'c-white', step: 2 }
+        ];
+        state.groups = [
+            { id: 'g1', x: 0, y: 0, w: 200, h: 80, memberIds: ['n1'], step: 1 }
+        ];
 
-        let classSet = new Set<string>();
-        const mockBadge = {
-            innerText: '1',
-            getAttribute: () => 'false',
-            contentEditable: 'false',
-            classList: {
-                add: (c: string) => classSet.add(c),
-                remove: (c: string) => classSet.delete(c),
-                contains: (c: string) => classSet.has(c)
-            },
-            focus: () => {},
-            onblur: null as any,
-            onkeydown: null as any
-        } as any;
+        clearAllSteps();
+        expect(state.nodes[0].step).toBeUndefined();
+        expect(state.nodes[1].step).toBeUndefined();
+        expect(state.groups[0].step).toBeUndefined();
+    });
 
-        // Start editing badge
-        handleBadgeEdit(mockBadge, node);
-        expect(mockBadge.contentEditable).toBe('true');
-        expect(mockBadge.classList.contains('editing-badge')).toBe(true);
+    test("clearStepsOfSelection: clears steps only for selected items (or all if selection empty)", () => {
+        enterTaggingMode();
+        state.nodes = [
+            { id: 'n1', text: 'Node 1', x: 0, y: 0, w: 100, h: 40, color: 'c-white', step: 1 },
+            { id: 'n2', text: 'Node 2', x: 150, y: 0, w: 100, h: 40, color: 'c-white', step: 2 }
+        ];
 
-        // User types '8' and blurs
-        mockBadge.innerText = '8';
-        mockBadge.onblur();
-        expect(mockBadge.contentEditable).toBe('false');
-        expect(node.step).toBe(8);
+        // 1. Clear selected node
+        state.selection = new Set(['n1']);
+        clearStepsOfSelection();
+        expect(state.nodes[0].step).toBeUndefined();
+        expect(state.nodes[1].step).toBe(2);
 
-        // User edits badge and clears it (empty text)
-        handleBadgeEdit(mockBadge, node);
-        mockBadge.innerText = '';
-        mockBadge.onblur();
-        expect(node.step).toBeUndefined();
+        // 2. Clear all when selection is empty in tagging mode
+        state.selection = new Set();
+        clearStepsOfSelection();
+        expect(state.nodes[0].step).toBeUndefined();
+        expect(state.nodes[1].step).toBeUndefined();
     });
 
     test("Presentation Mode: step navigation and finale reveal", () => {
@@ -334,6 +359,6 @@ describe("Dango Presentation Engine & Step Tagging (T / P)", () => {
         animateViewCalls = [];
         checkAndSoftPanToStep(2);
         expect(animateViewCalls.length).toBe(1);
-        expect(animateViewCalls[0].duration).toBe(500);
+        expect(animateViewCalls[0].duration).toBe(600);
     });
 });

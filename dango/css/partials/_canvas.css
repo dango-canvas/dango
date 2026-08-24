@@ -580,35 +580,8 @@ line.snap-guide {
 
 body.mode-tagging .dango-step-badge {
     display: inline-flex;
-    pointer-events: auto;
-    cursor: text;
+    pointer-events: none;
     transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease;
-}
-
-body.mode-tagging .dango-step-badge:hover {
-    transform: scale(1.12);
-    box-shadow: 0 0 0 2px var(--bg-color), 0 4px 12px rgba(0, 0, 0, 0.35);
-}
-
-.dango-step-badge.editing-badge {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    line-height: 1 !important;
-    border: none !important;
-    outline: none !important;
-    box-shadow: 0 0 0 2px var(--bg-color), 0 0 0 4px #ffffff, 0 0 0 6.5px var(--select-color), 0 4px 14px rgba(0, 0, 0, 0.35) !important;
-    cursor: text !important;
-    transform: scale(1.15) !important;
-    user-select: text !important;
-    -webkit-user-select: text !important;
-}
-
-.dango-step-badge:empty::before {
-    content: '\200B';
-    display: inline-block;
-    width: 0;
-    line-height: 1;
 }
 
 .dango-step-badge.group-step-badge {

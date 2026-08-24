@@ -14,7 +14,8 @@ import { isHintModeActive, handleHintKeyDown, enterHintMode, exitHintMode } from
 import { 
     isPresentationModeActive, handlePresenterKeyDown, 
     isTaggingModeActive, exitTaggingMode, 
-    tagSelectionStep, enterPresentationMode 
+    tagSelectionStep, enterPresentationMode,
+    clearStepsOfSelection
 } from './presenter.js';
 
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
@@ -174,7 +175,12 @@ export function initShortcuts(callbacks: {
 
         // 4. 其他操作
         if (e.code === 'Delete' || e.code === 'Backspace') {
-            e.preventDefault(); pushHistory(); deleteSelection(); render(); return;
+            e.preventDefault();
+            if (isTaggingModeActive()) {
+                clearStepsOfSelection();
+                return;
+            }
+            pushHistory(); deleteSelection(); render(); return;
         }
 
         // 快捷跳转 (f: 单选跳转; Shift + F 或 Alt + F: 连选加选)
