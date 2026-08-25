@@ -455,10 +455,16 @@ button.btn-danger:hover {
 }
 
 @media (max-width: 600px) {
-#ui-bottom-right {
-    bottom: 16px;
-    right: 16px;
-}
+    #ui-bottom-right {
+        bottom: 18px;
+        bottom: calc(18px + env(safe-area-inset-bottom));
+        right: 16px;
+    }
+
+    #dango-dock-container {
+        bottom: 18px;
+        bottom: calc(18px + env(safe-area-inset-bottom));
+    }
 }
 
 /* --- Floating Action Dock (#dango-dock-container) --- */
