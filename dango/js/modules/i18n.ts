@@ -119,8 +119,8 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         dock_delete_multi: "批量删除 (Del)",
         toast_dock_show: "已显示悬浮栏 ✨",
         toast_dock_hide: "已隐藏悬浮栏 ✨",
-        toast_feedback_invite: "我们也是画布两端的节点：愿听听你的想法与建议 🍡",
-        toast_feedback_btn: "交流想法",
+        toast_feedback_invite: "帮助我们连接下一个绝佳的功能点？🍡",
+        toast_feedback_btn: "连接想法",
         extrude_ghost_text: "✨ 释放落子新想法"
     },
     en: {
@@ -237,8 +237,8 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         dock_delete_multi: "Delete Selected (Del)",
         toast_dock_show: "Floating toolbar enabled ✨",
         toast_dock_hide: "Floating toolbar hidden ✨",
-        toast_feedback_invite: "Connected like nodes on a canvas: We'd love to hear your thoughts 🍡",
-        toast_feedback_btn: "Share Thoughts",
+        toast_feedback_invite: "Help us link the next great node? 🍡",
+        toast_feedback_btn: "Link Ideas",
         extrude_ghost_text: "✨ Release to drop new idea"
     }
 };
