@@ -72,6 +72,16 @@
 .btn-toast.btn-toast-primary:hover {
     opacity: 0.9;
 }
+.btn-toast.btn-toast-danger {
+    border-color: rgba(239, 68, 68, 0.28);
+    color: rgba(239, 68, 68, 0.75);
+    background: rgba(239, 68, 68, 0.05);
+}
+.btn-toast.btn-toast-danger:hover {
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(239, 68, 68, 0.6);
+    color: #ef4444;
+}
 
 /* --- Toast Step Pill & Help Popover --- */
 .toast-title-wrap {

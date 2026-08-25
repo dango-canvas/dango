@@ -129,9 +129,10 @@ export function checkAndTriggerFeedback(): void {
         const texts = getTexts();
         showPersistentToast('feedback-invite', texts.toast_feedback_invite, [
             {
-                text: 'GitHub',
+                text: texts.toast_feedback_btn || '交流想法',
+                className: 'btn-toast-primary',
                 onClick: () => {
-                    if (typeof window !== 'undefined') window.open('https://github.com/dango-canvas/dango', '_blank');
+                    if (typeof window !== 'undefined') window.open('https://github.com/dango-canvas/dango/issues', '_blank');
                     if (typeof localStorage !== 'undefined') {
                         localStorage.setItem(FEEDBACK_DISMISSED_KEY, 'true');
                     }
@@ -140,6 +141,7 @@ export function checkAndTriggerFeedback(): void {
             },
             {
                 text: '✕',
+                className: 'btn-toast-danger',
                 onClick: () => {
                     if (typeof localStorage !== 'undefined') {
                         localStorage.setItem(FEEDBACK_DISMISSED_KEY, 'true');
@@ -158,15 +160,17 @@ if (typeof window !== 'undefined') {
             const texts = getTexts();
             showPersistentToast('feedback-invite', texts.toast_feedback_invite, [
                 {
-                    text: 'GitHub',
+                    text: texts.toast_feedback_btn || '交流想法',
+                    className: 'btn-toast-primary',
                     onClick: () => {
-                        window.open('https://github.com/dango-canvas/dango', '_blank');
+                        window.open('https://github.com/dango-canvas/dango/issues', '_blank');
                         localStorage.setItem(FEEDBACK_DISMISSED_KEY, 'true');
                         dismissPersistentToast('feedback-invite');
                     }
                 },
                 {
                     text: '✕',
+                    className: 'btn-toast-danger',
                     onClick: () => {
                         localStorage.setItem(FEEDBACK_DISMISSED_KEY, 'true');
                         dismissPersistentToast('feedback-invite');
