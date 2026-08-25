@@ -2,7 +2,7 @@
 import { state, pushHistory, packData, unpackData } from './state.js';
 import { getTexts } from './i18n.js';
 import { showToast, applySettings } from './ui.js';
-import { getTimestamp } from './utils.js';
+import { getTimestamp, downloadBlob, copyToClipboard } from './utils.js';
 import { fitView } from './view.js';
 
 declare const LZString: {
@@ -201,23 +201,23 @@ export function exportJson(): void {
 
 export function createShareLink(): void {
     const packed = packData();
-    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
-    const baseUrl = window.location.origin + window.location.pathname;
+    const compressed = (typeof LZString !== 'undefined') ? LZString.compressToEncodedURIComponent(JSON.stringify(packed)) : '';
+    const baseUrl = (typeof window !== 'undefined' && window.location) ? (window.location.origin + window.location.pathname) : '';
     const url = baseUrl + '#' + compressed;
-    navigator.clipboard.writeText(url).then(() => {
+    copyToClipboard(url).then((success) => {
         showToast(getTexts().toast_copy_link_success);
-        checkAndTriggerFeedback();
+        if (success) checkAndTriggerFeedback();
     });
 }
 
 export function createEmbedCode(): void {
     const packed = packData();
-    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
-    const baseUrl = window.location.origin + window.location.pathname;
+    const compressed = (typeof LZString !== 'undefined') ? LZString.compressToEncodedURIComponent(JSON.stringify(packed)) : '';
+    const baseUrl = (typeof window !== 'undefined' && window.location) ? (window.location.origin + window.location.pathname) : '';
     const iframe = `<iframe src="${baseUrl}?embed=true#${compressed}" style="width: 100%; height: 500px; border: none; border-radius: 12px;" allow="clipboard-write"></iframe>`;
-    navigator.clipboard.writeText(iframe).then(() => {
+    copyToClipboard(iframe).then((success) => {
         showToast(getTexts().toast_copy_embed_success);
-        checkAndTriggerFeedback();
+        if (success) checkAndTriggerFeedback();
     });
 }
 

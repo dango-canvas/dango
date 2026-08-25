@@ -95,12 +95,49 @@ export function getTimestamp(): string {
  * 触发浏览器下载 Blob 内容。
  */
 export function downloadBlob(content: BlobPart, filename: string, contentType: string): void {
-    if (typeof document === 'undefined') return;
-    const blob = new Blob([content], { type: contentType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
+    try {
+        const blob = new Blob([content], { type: contentType });
+        const url = (typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') ? URL.createObjectURL(blob) : '';
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        if (typeof a.click === 'function') {
+            a.click();
+        }
+        if (url && typeof URL.revokeObjectURL === 'function') {
+            URL.revokeObjectURL(url);
+        }
+    } catch {}
+}
+
+/**
+ * 健壮的剪贴板复制工具，支持现代 Clipboard API 与沙盒/非安全上下文 execCommand fallback。
+ */
+export async function copyToClipboard(text: string): Promise<boolean> {
+    if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch {
+            // 降级到 execCommand
+        }
+    }
+    if (typeof document !== 'undefined' && typeof document.createElement === 'function' && document.body) {
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '-9999px';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            if (successful) return true;
+        } catch {}
+    }
+    return false;
 }
