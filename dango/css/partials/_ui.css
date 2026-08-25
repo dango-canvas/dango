@@ -403,12 +403,12 @@ button.btn-danger:hover {
 
 /* --- Bottom Right UI --- */
 #ui-bottom-right {
-    position: absolute;
+    position: fixed;
     bottom: 28px;
     bottom: calc(28px + env(safe-area-inset-bottom));
     right: 28px;
     display: flex;
-    flex-direction: row; /* 改为水平排列 */
+    flex-direction: row; /* 水平排列 */
     gap: 12px;
     z-index: 1000;
 }
@@ -452,19 +452,6 @@ button.btn-danger:hover {
 
 .bottom-btn:active {
     transform: translateY(0);
-}
-
-@media (max-width: 600px) {
-    #ui-bottom-right {
-        bottom: 18px;
-        bottom: calc(18px + env(safe-area-inset-bottom));
-        right: 16px;
-    }
-
-    #dango-dock-container {
-        bottom: 18px;
-        bottom: calc(18px + env(safe-area-inset-bottom));
-    }
 }
 
 /* --- Floating Action Dock (#dango-dock-container) --- */
@@ -741,5 +728,19 @@ button.btn-danger:hover {
     transform: scale(0.92);
     background: var(--ui-selection-bg);
     color: var(--select-color);
+}
+
+/* --- 移动端底部基线与布局对齐 --- */
+@media (max-width: 600px) {
+    #ui-bottom-right {
+        bottom: 18px;
+        bottom: calc(18px + env(safe-area-inset-bottom));
+        right: 16px;
+    }
+
+    #dango-dock-container {
+        bottom: 18px;
+        bottom: calc(18px + env(safe-area-inset-bottom));
+    }
 }
 
