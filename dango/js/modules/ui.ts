@@ -565,6 +565,64 @@ const toastQueue: ToastQueueItem[] = [];
 let activeToasts = 0;
 const MAX_VISIBLE_TOASTS = 3;
 
+function renderToastActions(actionsEl: HTMLElement, actions: ToastActionButton[]): void {
+    actionsEl.innerHTML = '';
+    actions.forEach(act => {
+        const btn = document.createElement('button');
+        btn.className = act.className ? `btn-toast ${act.className}` : 'btn-toast';
+        btn.innerText = act.text;
+        if (act.title) btn.title = act.title;
+
+        if (act.popoverHtml) {
+            const wrap = document.createElement('div');
+            wrap.className = 'toast-help-wrap';
+            
+            const popover = document.createElement('div');
+            popover.className = 'toast-popover';
+            popover.innerHTML = act.popoverHtml;
+
+            let hideTimer: any = null;
+            const showPop = () => {
+                clearTimeout(hideTimer);
+                popover.classList.add('show');
+                btn.classList.add('active');
+            };
+            const hidePop = () => {
+                hideTimer = setTimeout(() => {
+                    popover.classList.remove('show');
+                    btn.classList.remove('active');
+                }, 220);
+            };
+
+            btn.onmouseenter = showPop;
+            btn.onmouseleave = hidePop;
+            popover.onmouseenter = showPop;
+            popover.onmouseleave = hidePop;
+
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                if (popover.classList.contains('show')) {
+                    popover.classList.remove('show');
+                    btn.classList.remove('active');
+                } else {
+                    showPop();
+                }
+                act.onClick();
+            };
+
+            wrap.appendChild(btn);
+            wrap.appendChild(popover);
+            actionsEl.appendChild(wrap);
+        } else {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                act.onClick();
+            };
+            actionsEl.appendChild(btn);
+        }
+    });
+}
+
 export function showToast(message: string, safetySnapshot: any = null): void {
     if (typeof document === 'undefined') return;
     toastQueue.push({ message, safetySnapshot });
@@ -590,6 +648,17 @@ export function showPersistentToast(id: string, message: string, actions: ToastA
         if (textNode) {
             textNode.innerHTML = message;
         }
+        let actionsEl = existing.querySelector<HTMLElement>('.toast-actions');
+        if (actions.length > 0) {
+            if (!actionsEl) {
+                actionsEl = document.createElement('div');
+                actionsEl.className = 'toast-actions';
+                existing.appendChild(actionsEl);
+            }
+            renderToastActions(actionsEl, actions);
+        } else if (actionsEl) {
+            actionsEl.remove();
+        }
         return;
     }
 
@@ -605,60 +674,7 @@ export function showPersistentToast(id: string, message: string, actions: ToastA
     if (actions.length > 0) {
         const actionsEl = document.createElement('div');
         actionsEl.className = 'toast-actions';
-        actions.forEach(act => {
-            const btn = document.createElement('button');
-            btn.className = act.className ? `btn-toast ${act.className}` : 'btn-toast';
-            btn.innerText = act.text;
-            if (act.title) btn.title = act.title;
-
-            if (act.popoverHtml) {
-                const wrap = document.createElement('div');
-                wrap.className = 'toast-help-wrap';
-                
-                const popover = document.createElement('div');
-                popover.className = 'toast-popover';
-                popover.innerHTML = act.popoverHtml;
-
-                let hideTimer: any = null;
-                const showPop = () => {
-                    clearTimeout(hideTimer);
-                    popover.classList.add('show');
-                    btn.classList.add('active');
-                };
-                const hidePop = () => {
-                    hideTimer = setTimeout(() => {
-                        popover.classList.remove('show');
-                        btn.classList.remove('active');
-                    }, 220);
-                };
-
-                btn.onmouseenter = showPop;
-                btn.onmouseleave = hidePop;
-                popover.onmouseenter = showPop;
-                popover.onmouseleave = hidePop;
-
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    if (popover.classList.contains('show')) {
-                        popover.classList.remove('show');
-                        btn.classList.remove('active');
-                    } else {
-                        showPop();
-                    }
-                    act.onClick();
-                };
-
-                wrap.appendChild(btn);
-                wrap.appendChild(popover);
-                actionsEl.appendChild(wrap);
-            } else {
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    act.onClick();
-                };
-                actionsEl.appendChild(btn);
-            }
-        });
+        renderToastActions(actionsEl, actions);
         toast.appendChild(actionsEl);
     }
 

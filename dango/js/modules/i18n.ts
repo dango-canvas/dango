@@ -317,4 +317,16 @@ export function updateI18n(): void {
     }
     const mainBtn = document.querySelector<HTMLElement>('#export-container [data-i18n="btn_export"]');
     if (mainBtn) mainBtn.innerText = texts.btn_export;
+
+    const feedbackToast = document.querySelector<HTMLElement>('.toast[data-toast-id="feedback-invite"]');
+    if (feedbackToast) {
+        const titleWrap = feedbackToast.querySelector<HTMLElement>('.toast-title-wrap');
+        if (titleWrap && texts.toast_feedback_invite) {
+            titleWrap.innerText = texts.toast_feedback_invite;
+        }
+        const actionBtn = feedbackToast.querySelector<HTMLElement>('.btn-toast-primary');
+        if (actionBtn && texts.toast_feedback_btn) {
+            actionBtn.innerText = texts.toast_feedback_btn;
+        }
+    }
 }
