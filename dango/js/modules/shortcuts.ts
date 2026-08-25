@@ -75,6 +75,16 @@ export function initShortcuts(callbacks: {
             }
         }
 
+        // 只读模式快捷键限制
+        if (state.isReadonly) {
+            const isZoom = isModifier(e) && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '0');
+            const isSearch = isModifier(e) && e.code === 'KeyF';
+            const allowed = ['Escape', 'Space', 'Home', 'KeyF', 'KeyT', 'KeyP', 'Backslash', 'KeyQ'].includes(e.code) || isZoom || isSearch;
+            if (!allowed) {
+                return;
+            }
+        }
+
         keys[e.code] = true;
 
         // 2. 基础快捷键 (ESC / Space / Home)

@@ -3,7 +3,7 @@ import { initUI, applySettings, applyHandDrawnStyle, waitForInitialBackground } 
 import { state, initializeData, saveData, undo, redo } from './modules/state.js';
 import { initRender, render } from './modules/render.js';
 import { createNodesFromInput, clearCanvas } from './modules/actions.js';
-import { initIO, exportJson, createShareLink, createEmbedCode, loadFromUrl, updateOpenFullLink } from './modules/io.js';
+import { initIO, exportJson, createShareLink, createEmbedCode, loadFromUrl, updateOpenFullLink, initFeedbackTracker } from './modules/io.js';
 import { initView, animateView, fitView } from './modules/view.js';
 import { initSearch } from './modules/search.js';
 import { initHints } from './modules/hints.js';
@@ -19,6 +19,7 @@ import { initFloatingDock, updateFloatingDock } from './modules/dock.js';
 
 // 1. Initialize
 initI18n();
+initFeedbackTracker();
 
 // 2. Wire Core Modules
 initRender(state, {

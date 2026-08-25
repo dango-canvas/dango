@@ -349,9 +349,13 @@ export function initInteractions(): void {
                     }
                     isPrepareToClone = false;
                 }
-                mode = 'move';
-                stateBeforeDrag = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
-                dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
+                if (state.isReadonly) {
+                    mode = null;
+                } else {
+                    mode = 'move';
+                    stateBeforeDrag = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
+                    dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
+                }
             } else {
                 if (!isModifier(e) && !e.shiftKey) state.selection.clear();
                 mode = 'box';
@@ -545,11 +549,16 @@ export function initInteractions(): void {
                 state.selection.add(id);
                 render();
             }
-            mode = 'move';
-            hasMovedDuringDrag = false;
-            stateBeforeDrag = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links, selection: Array.from(state.selection) });
-            const worldPos = screenToWorld(pos.x, pos.y, state.view);
-            dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
+            if (state.isReadonly) {
+                mode = 'pan';
+                dragStart = { x: pos.x, y: pos.y, viewX: state.view.x, viewY: state.view.y };
+            } else {
+                mode = 'move';
+                hasMovedDuringDrag = false;
+                stateBeforeDrag = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links, selection: Array.from(state.selection) });
+                const worldPos = screenToWorld(pos.x, pos.y, state.view);
+                dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
+            }
         } else {
             state.selection.clear();
             render();
@@ -627,7 +636,7 @@ export function initInteractions(): void {
     });
 
     els.container.addEventListener('dblclick', (e: MouseEvent) => {
-        if (isPresentationModeActive()) return;
+        if (isPresentationModeActive() || state.isReadonly) return;
         const target = e.target as HTMLElement;
         const editingNodeEl = target.closest('.node');
         if (editingNodeEl?.getAttribute('contenteditable') === 'true') return;
@@ -892,7 +901,7 @@ export function applyMarkdownFormat(nodeEl: HTMLElement, formatType: 'bold' | 'i
 }
 
 export function handleNodeEdit(nodeEl: HTMLElement): void {
-    if (!nodeEl || isPresentationModeActive()) return;
+    if (!nodeEl || isPresentationModeActive() || state.isReadonly) return;
     const nodeId = nodeEl.dataset.id;
     if (nodeEl.getAttribute('contenteditable') === 'true' || nodeEl.classList.contains('editing')) {
         nodeEl.focus();

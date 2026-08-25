@@ -76,6 +76,8 @@ export interface CanvasState {
     theme: 'light' | 'dark';
     settings: CanvasSettings;
     isEmbed: boolean;
+    isReadonly?: boolean;
+    explicitToolbar?: boolean;
 }
 
 export interface CanvasItem {

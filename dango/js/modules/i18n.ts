@@ -119,6 +119,7 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         dock_delete_multi: "批量删除 (Del)",
         toast_dock_show: "已显示悬浮栏 ✨",
         toast_dock_hide: "已隐藏悬浮栏 ✨",
+        toast_feedback_invite: "喜欢 Dango？在 GitHub 点个赞或留条反馈 🍡",
         extrude_ghost_text: "✨ 释放落子新想法"
     },
     en: {
@@ -235,6 +236,7 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         dock_delete_multi: "Delete Selected (Del)",
         toast_dock_show: "Floating toolbar enabled ✨",
         toast_dock_hide: "Floating toolbar hidden ✨",
+        toast_feedback_invite: "Enjoying Dango? Star or leave feedback on GitHub 🍡",
         extrude_ghost_text: "✨ Release to drop new idea"
     }
 };
