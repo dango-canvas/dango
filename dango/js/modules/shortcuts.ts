@@ -18,8 +18,6 @@ import {
     clearStepsOfSelection
 } from './presenter.js';
 import { toggleFloatingDock } from './dock.js';
-import { showToast } from './ui.js';
-import { getTexts } from './i18n.js';
 
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
 export const keys: Record<string, boolean> = {};
@@ -209,8 +207,6 @@ export function initShortcuts(callbacks: {
                 if (state.isEmbed) return;
                 e.preventDefault();
                 toggleFloatingDock();
-                const texts = getTexts();
-                showToast(!state.settings.hideToolbar ? texts.toast_dock_show : texts.toast_dock_hide);
                 return;
             }
         }
