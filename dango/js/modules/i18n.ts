@@ -242,7 +242,7 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         toast_feedback_invite: "Help us link the next great node? 🍡",
         toast_feedback_btn: "Link Ideas",
         safety_url: "https://blog.dango.ink/why-dango-is-secure-en",
-        safety_tooltip: "Why is Dango secure and private?",
+        safety_tooltip: "Why is Dango secure?",
         extrude_ghost_text: "✨ Release to drop new idea"
     }
 };

@@ -1,5 +1,5 @@
 // modules/render.ts
-import { isUrl, getEdgeIntersection } from './utils.js';
+import { isUrl, getEdgeIntersection, safeRemoveElement } from './utils.js';
 import { getTexts } from './i18n.js';
 import { els, setSafeHTML, setSafeSVG } from './dom.js';
 import { buildLinkPathData, getLinkOpacity, getLinkStrokeColor, getLinkStrokeStyle } from './links.js';
@@ -76,7 +76,7 @@ function syncDomElements<T extends { id: string }>(
         }
         renderFn(el, item);
     });
-    existing.forEach((el, id) => { if (!activeIds.has(id)) el.remove(); });
+    existing.forEach((el, id) => { if (!activeIds.has(id)) safeRemoveElement(el); });
 }
 
 function highlightCode(code: string): string {
@@ -169,8 +169,8 @@ function parseMarkdown(text: string): string {
     return htmlLines.join('<br>');
 }
 
-function parseImageMarkdown(text: string): { alt: string; url: string } | null {
-    const trimmed = text.trim();
+function parseImageMarkdown(text?: string): { alt: string; url: string } | null {
+    const trimmed = (text || '').trim();
     const match = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (!match) return null;
     return { alt: match[1], url: match[2].trim() };
@@ -301,7 +301,7 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
             textEl.className = 'node-text';
             el.appendChild(textEl);
         }
-        if (textEl.innerText !== node.text) textEl.innerText = node.text;
+        if (textEl.innerText !== (node.text || '')) textEl.innerText = node.text || '';
         let btnEl = el.querySelector<HTMLElement>('.link-btn');
         if (!btnEl) {
             btnEl = document.createElement('div');
@@ -310,7 +310,7 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
             btnEl.onmousedown = (e) => e.stopPropagation();
             btnEl.onclick = (e) => {
                 e.stopPropagation();
-                const url = normalizeHttpUrl(node.text);
+                const url = normalizeHttpUrl(node.text || '');
                 if (url) window.open(url, '_blank', 'noopener,noreferrer');
             };
             el.appendChild(btnEl);
@@ -318,17 +318,17 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
     } else {
         if (!isImage) {
             el.classList.remove('is-link');
-            const trimmedText = node.text.trim();
+            const trimmedText = (node.text || '').trim();
             const isCode = trimmedText.startsWith('```') && trimmedText.endsWith('```');
             
-            if (el.dataset.lastText !== node.text) {
+            if (el.dataset.lastText !== (node.text || '')) {
                 if (isCode) {
                     renderCodeBlock(el, trimmedText);
                 } else {
-                    const newHtml = parseMarkdown(node.text);
+                    const newHtml = parseMarkdown(node.text || '');
                     setSafeHTML(el, newHtml);
                 }
-                el.dataset.lastText = node.text;
+                el.dataset.lastText = node.text || '';
                 el.style.width = '';
                 el.style.height = '';
             }
@@ -349,7 +349,7 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
             stepBadge.innerText = badgeText;
         }
     } else if (stepBadge) {
-        stepBadge.remove();
+        safeRemoveElement(stepBadge);
     }
 
     const isSelected = appState.selection.has(node.id);
@@ -361,14 +361,15 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
     if (isLink) classes.push('is-link');
     if (isSelected) classes.push('selected');
     if (isFound) classes.push('search-found');
-    if (node.text && node.text.includes('\n')) classes.push('has-multiline');
+    const text = node.text || '';
+    if (text.includes('\n')) classes.push('has-multiline');
     
-    if (node.text.startsWith('### ')) classes.push('node-h3');
-    else if (node.text.startsWith('## ')) classes.push('node-h2');
-    else if (node.text.startsWith('# ')) classes.push('node-h1');
+    if (text.startsWith('### ')) classes.push('node-h3');
+    else if (text.startsWith('## ')) classes.push('node-h2');
+    else if (text.startsWith('# ')) classes.push('node-h1');
     
-    if (node.text.startsWith('//')) classes.push('node-comment');
-    if (node.text.startsWith('```') && node.text.endsWith('```')) classes.push('node-code');
+    if (text.startsWith('//')) classes.push('node-comment');
+    if (text.startsWith('```') && text.endsWith('```')) classes.push('node-code');
 
     if (isItemGhostedInTagging(node)) {
         classes.push('tagging-ghost');
@@ -425,7 +426,7 @@ function renderGroup(el: HTMLElement, group: any): void {
             stepBadge.innerText = badgeText;
         }
     } else if (stepBadge) {
-        stepBadge.remove();
+        safeRemoveElement(stepBadge);
     }
 
     const isVisibleInPresentation = isItemVisibleInPresentation(group);
@@ -495,7 +496,7 @@ export function render(): void {
             let pathEl = existingPaths.get(linkId);
             let isNewPath = false;
             if (!pathEl || pathEl.tagName.toLowerCase() !== 'path') {
-                if (pathEl) (pathEl as HTMLElement).remove();
+                if (pathEl) safeRemoveElement(pathEl as HTMLElement);
                 pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 pathEl.classList.add('link');
                 pathEl.dataset.id = linkId;
@@ -567,7 +568,7 @@ export function render(): void {
         }
     });
     
-    existingPaths.forEach(pathEl => pathEl.remove());
+    existingPaths.forEach(pathEl => safeRemoveElement(pathEl));
 
     if (appState.isEmbed && callbacks.updateOpenFullLink) callbacks.updateOpenFullLink();
     if (callbacks.saveData) callbacks.saveData();

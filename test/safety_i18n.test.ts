@@ -7,7 +7,7 @@ describe('Safety Shield Multi-Language Link & Tooltip Localization', () => {
         if (getCurrentLang() !== 'zh') toggleLang();
         const texts = getTexts();
         expect(texts.safety_url).toBe('https://blog.dango.ink/why-dango-is-secure');
-        expect(texts.safety_tooltip).toBe('为什么 Dango 安全可靠？');
+        expect(texts.safety_tooltip).toBe('为什么 Dango 是安全的？');
     });
 
     it('provides correct English safety blog url and tooltip upon language toggle', () => {
@@ -15,7 +15,7 @@ describe('Safety Shield Multi-Language Link & Tooltip Localization', () => {
         expect(getCurrentLang()).toBe('en');
         const texts = getTexts();
         expect(texts.safety_url).toBe('https://blog.dango.ink/why-dango-is-secure-en');
-        expect(texts.safety_tooltip).toBe('Why is Dango secure and private?');
+        expect(texts.safety_tooltip).toBe('Why is Dango secure?');
 
         // Restore back to zh
         toggleLang();

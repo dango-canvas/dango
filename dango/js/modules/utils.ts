@@ -9,7 +9,8 @@ export const uid = (): string => Date.now().toString(36) + Math.random().toStrin
 /**
  * 检查字符串是否为 URL。
  */
-export function isUrl(str: string): boolean {
+export function isUrl(str?: string): boolean {
+    if (!str) return false;
     return /^(https?:\/\/|www\.)\S+$/i.test(str.trim());
 }
 
@@ -140,4 +141,16 @@ export async function copyToClipboard(text: string): Promise<boolean> {
         } catch {}
     }
     return false;
+}
+
+/**
+ * 安全地从 DOM 树中移除元素，兼容无头测试环境与旧版 DOM 树。
+ */
+export function safeRemoveElement(el?: HTMLElement | SVGElement | Element | null): void {
+    if (!el) return;
+    if (typeof (el as any).remove === 'function') {
+        (el as any).remove();
+    } else if (el.parentNode) {
+        el.parentNode.removeChild(el);
+    }
 }

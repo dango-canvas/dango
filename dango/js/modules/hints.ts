@@ -121,7 +121,7 @@ export function initHints(
     appState = state;
     callbacks = cbs;
 
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
         window.addEventListener('pointerdown', (e) => {
             if (isHintActive) {
                 const target = e.target as HTMLElement | null;
@@ -138,8 +138,8 @@ export function enterHintMode(multi = false): void {
 
     if (isHintActive) exitHintMode();
 
-    const winW = typeof window !== 'undefined' ? window.innerWidth : 1920;
-    const winH = typeof window !== 'undefined' ? window.innerHeight : 1080;
+    const winW = (typeof window !== 'undefined' && typeof window.innerWidth === 'number' && window.innerWidth > 0) ? window.innerWidth : 1920;
+    const winH = (typeof window !== 'undefined' && typeof window.innerHeight === 'number' && window.innerHeight > 0) ? window.innerHeight : 1080;
 
     const visibleNodes = getVisibleNodes(appState.nodes, appState.view, winW, winH);
     if (visibleNodes.length === 0) return;
