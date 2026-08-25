@@ -404,8 +404,9 @@ button.btn-danger:hover {
 /* --- Bottom Right UI --- */
 #ui-bottom-right {
     position: absolute;
-    bottom: 24px;
-    right: 24px;
+    bottom: 28px;
+    bottom: calc(28px + env(safe-area-inset-bottom));
+    right: 28px;
     display: flex;
     flex-direction: row; /* 改为水平排列 */
     gap: 12px;
@@ -413,9 +414,9 @@ button.btn-danger:hover {
 }
 
 .bottom-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
     border: 1px solid var(--ui-border);
     background: var(--ui-bg);
     backdrop-filter: blur(12px);
