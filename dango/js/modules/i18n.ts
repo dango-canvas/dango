@@ -27,7 +27,7 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         settings_hide_grid: "隐藏网格点",
         settings_bg_url: "背景图片 URL",
         settings_bg_url_placeholder: "https://... ↵",
-        bg_url: "", 
+        bg_url: "",
         help_tooltip: "帮助/快捷键",
         safety_tooltip: "为什么团子画板是安全的？",
         settings_alt_as_ctrl: "Alt 兼任 Ctrl",
@@ -121,6 +121,8 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         toast_dock_hide: "已隐藏悬浮栏 ✨",
         toast_feedback_invite: "帮助我们连接下一个绝佳的功能点？🍡",
         toast_feedback_btn: "连接想法",
+        safety_url: "https://blog.dango.ink/why-dango-is-secure",
+        safety_tooltip: "为什么 Dango 是安全的？",
         extrude_ghost_text: "✨ 释放落子新想法"
     },
     en: {
@@ -145,7 +147,7 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         settings_hide_grid: "Hide Grid Dots",
         settings_bg_url: "Background URL",
         settings_bg_url_placeholder: "https://... ↵",
-        bg_url: "", 
+        bg_url: "",
         help_tooltip: "Help / Shortcut",
         safety_tooltip: "Why is Dango secure?",
         settings_alt_as_ctrl: "Alt as Ctrl modifier",
@@ -239,6 +241,8 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         toast_dock_hide: "Floating toolbar hidden ✨",
         toast_feedback_invite: "Help us link the next great node? 🍡",
         toast_feedback_btn: "Link Ideas",
+        safety_url: "https://blog.dango.ink/why-dango-is-secure-en",
+        safety_tooltip: "Why is Dango secure and private?",
         extrude_ghost_text: "✨ Release to drop new idea"
     }
 };
@@ -328,5 +332,11 @@ export function updateI18n(): void {
         if (actionBtn && texts.toast_feedback_btn) {
             actionBtn.innerText = texts.toast_feedback_btn;
         }
+    }
+
+    const btnSafety = document.getElementById('btn-safety') as HTMLAnchorElement | null;
+    if (btnSafety) {
+        if (texts.safety_url) btnSafety.href = texts.safety_url;
+        if (texts.safety_tooltip) btnSafety.title = texts.safety_tooltip;
     }
 }
