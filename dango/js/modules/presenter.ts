@@ -311,6 +311,54 @@ const FINALE_TOAST_ID = 'dango-finale-toast';
 
 let savedViewBeforePresentation: { x: number; y: number; scale: number } | null = null;
 
+function showPresentationHud(): void {
+    if (typeof document === 'undefined' || typeof document.createElement !== 'function' || typeof document.getElementById !== 'function') return;
+    let hud = document.getElementById('presenter-hud');
+    if (!hud && document.body) {
+        hud = document.createElement('div');
+        hud.id = 'presenter-hud';
+        hud.className = 'presenter-hud';
+        hud.innerHTML = `
+            <button id="btn-hud-prev" class="hud-btn" title="Previous (←)">‹</button>
+            <span id="hud-step-counter" class="hud-counter">1 / 1</span>
+            <button id="btn-hud-next" class="hud-btn" title="Next (→ / Space)">›</button>
+            <button id="btn-hud-exit" class="hud-btn hud-exit" title="Exit (Esc)">✕</button>
+        `;
+        document.body.appendChild(hud);
+
+        hud.querySelector('#btn-hud-prev')?.addEventListener('click', (e) => { e.stopPropagation(); prevStep(); });
+        hud.querySelector('#btn-hud-next')?.addEventListener('click', (e) => { e.stopPropagation(); nextStep(); });
+        hud.querySelector('#btn-hud-exit')?.addEventListener('click', (e) => { e.stopPropagation(); exitPresentationMode(); });
+    }
+    updatePresentationHud();
+}
+
+function updatePresentationHud(): void {
+    if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+    const hud = document.getElementById('presenter-hud');
+    if (!hud) return;
+    const counter = document.getElementById('hud-step-counter');
+    const steps = getUniqueSteps(appState.nodes, appState.groups);
+    const total = steps.length;
+    if (counter) {
+        if (total === 0) {
+            counter.innerText = 'All';
+        } else if (currentStepIndex >= total) {
+            counter.innerText = `${total} / ${total} ✨`;
+        } else {
+            counter.innerText = `${currentStepIndex + 1} / ${total}`;
+        }
+    }
+}
+
+function hidePresentationHud(): void {
+    if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
+    const hud = document.getElementById('presenter-hud');
+    if (hud && hud.parentNode) {
+        hud.parentNode.removeChild(hud);
+    }
+}
+
 export function enterPresentationMode(): void {
     if (isTaggingActive) exitTaggingMode(false);
     dismissPersistentToast(FINALE_TOAST_ID);
@@ -343,6 +391,7 @@ export function enterPresentationMode(): void {
         checkAndSoftPanToStep(currentStepNumber);
     }
 
+    showPresentationHud();
     callbacks.render();
 }
 
@@ -350,6 +399,7 @@ export function exitPresentationMode(): void {
     if (!isPresentingActive) return;
     dismissPersistentToast(FINALE_TOAST_ID);
     dismissPersistentToast(TAGGING_TOAST_ID);
+    hidePresentationHud();
     isPresentingActive = false;
     isTaggingActive = false;
     currentStepNumber = 0;
@@ -403,12 +453,14 @@ export function nextStep(): void {
         currentStepIndex++;
         currentStepNumber = steps[currentStepIndex];
         checkAndSoftPanToStep(currentStepNumber);
+        updatePresentationHud();
         callbacks.render();
     } else if (currentStepIndex === steps.length - 1) {
         // 终章全景（The Grand Finale）
         currentStepIndex++;
         currentStepNumber = (steps[steps.length - 1] || 0) + 1;
         callbacks.fitView(60, true, 800);
+        updatePresentationHud();
         callbacks.render();
         showFinaleToast();
     } else {
@@ -427,6 +479,7 @@ export function prevStep(): void {
         currentStepIndex--;
         currentStepNumber = steps[currentStepIndex];
         checkAndSoftPanToStep(currentStepNumber);
+        updatePresentationHud();
         callbacks.render();
     }
 }

@@ -7,7 +7,7 @@ import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
 import { els } from './dom.js';
 import { realignDirectionalNodeAfterEdit } from './directional.js';
-import { isPresentationModeActive, isTaggingModeActive, tagItemDirect, tagItemsBatch } from './presenter.js';
+import { isPresentationModeActive, isTaggingModeActive, tagItemDirect, tagItemsBatch, nextStep, prevStep, exitPresentationMode } from './presenter.js';
 import type { CanvasNode, CanvasGroup, CanvasItem } from './types.js';
 
 let dragStart: any = null;
@@ -515,6 +515,8 @@ export function initInteractions(): void {
 
     let longPressTimer: any = null;
     let lastTouchPos = { x: 0, y: 0 };
+    let presentTouchStart: { x: number; y: number; time: number } | null = null;
+    let touchTargetIdAtStart: string | null = null;
 
     els.container.addEventListener('touchstart', (e: TouchEvent) => {
         els.uiLayer!.classList.remove('mobile-expanded');
@@ -523,6 +525,16 @@ export function initInteractions(): void {
         if (longPressTimer) {
             clearTimeout(longPressTimer);
             longPressTimer = null;
+        }
+
+        const pos = getTouchPos(e);
+        lastTouchPos = { x: pos.x, y: pos.y };
+
+        // 演讲演示模式手势拦截 (Tap & Swipe)
+        if (isPresentationModeActive()) {
+            e.preventDefault();
+            presentTouchStart = { x: pos.x, y: pos.y, time: Date.now() };
+            return;
         }
 
         if (e.touches.length === 2) {
@@ -540,7 +552,7 @@ export function initInteractions(): void {
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastTapTime;
         const nodeEl = target.closest<HTMLElement>('.node');
-        if (tapLength < 300 && tapLength > 0 && nodeEl && lastTapTarget === nodeEl) {
+        if (tapLength < 300 && tapLength > 0 && nodeEl && lastTapTarget === nodeEl && !isTaggingModeActive()) {
             if (!nodeEl.isContentEditable) handleNodeEdit(nodeEl);
             lastTapTarget = null;
             lastTapTime = 0;
@@ -548,10 +560,10 @@ export function initInteractions(): void {
         }
         lastTapTarget = nodeEl;
         lastTapTime = currentTime;
-        const pos = getTouchPos(e);
-        lastTouchPos = { x: pos.x, y: pos.y };
 
         const groupEl = target.closest<HTMLElement>('.group');
+        touchTargetIdAtStart = (nodeEl || groupEl)?.dataset.id || null;
+
         if (nodeEl || groupEl) {
             const id = (nodeEl || groupEl)!.dataset.id!;
             if (!state.selection.has(id)) {
@@ -594,6 +606,14 @@ export function initInteractions(): void {
     }, { passive: false });
 
     els.container.addEventListener('touchmove', (e: TouchEvent) => {
+        const pos = getTouchPos(e);
+        lastTouchPos = { x: pos.x, y: pos.y };
+
+        if (isPresentationModeActive()) {
+            e.preventDefault();
+            return;
+        }
+
         if (!mode) return;
         e.preventDefault();
         if (mode === 'pinch' && e.touches.length === 2) {
@@ -610,8 +630,6 @@ export function initInteractions(): void {
             }
             return;
         }
-        const pos = getTouchPos(e);
-        lastTouchPos = { x: pos.x, y: pos.y };
 
         if (longPressTimer) {
             const dist = Math.hypot(pos.x - dragStart.x, pos.y - dragStart.y);
@@ -662,19 +680,51 @@ export function initInteractions(): void {
             longPressTimer = null;
         }
 
+        // 演讲演示模式轻扫与轻点翻页判定
+        if (isPresentationModeActive() && presentTouchStart) {
+            const dx = lastTouchPos.x - presentTouchStart.x;
+            const dy = lastTouchPos.y - presentTouchStart.y;
+            const dt = Date.now() - presentTouchStart.time;
+            presentTouchStart = null;
+
+            // 1. 横向轻扫手势 (Swipe Left -> Next, Swipe Right -> Prev)
+            if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+                if (dx < 0) nextStep();
+                else prevStep();
+                return;
+            }
+
+            // 2. 轻点屏幕 (Tap Right -> Next, Tap Left -> Prev)
+            if (Math.hypot(dx, dy) < 15 && dt < 450) {
+                if (lastTouchPos.x > window.innerWidth / 2) nextStep();
+                else prevStep();
+                return;
+            }
+            return;
+        }
+
         if (mode === 'pinch' || mode === 'pan') {
             saveData();
-        } else if (mode === 'move' && stateBeforeDrag) {
-            const currentState = JSON.stringify({ 
-                nodes: state.nodes, 
-                groups: state.groups, 
-                links: state.links, 
-                selection: Array.from(state.selection) 
-            });
-            if (currentState !== stateBeforeDrag) {
-                history.undo.push(stateBeforeDrag);
-                if (history.undo.length > MAX_HISTORY) history.undo.shift();
-                history.redo = [];
+        } else if (mode === 'move') {
+            if (!hasMovedDuringDrag && isTaggingModeActive() && touchTargetIdAtStart) {
+                const item = findItem(touchTargetIdAtStart);
+                if (item) {
+                    tagItemDirect(item);
+                    render();
+                }
+            }
+            if (stateBeforeDrag) {
+                const currentState = JSON.stringify({ 
+                    nodes: state.nodes, 
+                    groups: state.groups, 
+                    links: state.links, 
+                    selection: Array.from(state.selection) 
+                });
+                if (currentState !== stateBeforeDrag) {
+                    history.undo.push(stateBeforeDrag);
+                    if (history.undo.length > MAX_HISTORY) history.undo.shift();
+                    history.redo = [];
+                }
             }
         } else if (mode === 'box') {
             const rect = getStandardRect(dragStart.x, dragStart.y, lastTouchPos.x, lastTouchPos.y);
@@ -698,6 +748,7 @@ export function initInteractions(): void {
         mode = null;
         dragStart = null;
         initialPinchDist = 0;
+        touchTargetIdAtStart = null;
     });
 
     els.container.addEventListener('dblclick', (e: MouseEvent) => {

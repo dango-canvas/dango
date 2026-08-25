@@ -206,3 +206,76 @@ path.link.ink-flow {
     }
 }
 
+/* 演示模式全平台悬浮控制器（HUD） */
+#presenter-hud {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--ui-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--ui-border);
+    box-shadow: var(--ui-shadow);
+    border-radius: 16px;
+    padding: 4px 8px;
+    user-select: none;
+    -webkit-user-select: none;
+    animation: hudSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes hudSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hud-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: transparent;
+    border: none;
+    color: var(--ui-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    outline: none;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.hud-btn:active {
+    transform: scale(0.92);
+}
+
+.hud-btn.hud-exit {
+    color: var(--ui-text-dim);
+    font-size: 13px;
+    margin-left: 4px;
+    border-left: 1px solid var(--ui-border);
+    border-radius: 0 10px 10px 0;
+    padding-left: 6px;
+}
+
+.hud-btn.hud-exit:hover {
+    color: #ef4444;
+}
+
+.hud-counter {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ui-text-dim);
+    padding: 0 6px;
+    font-variant-numeric: tabular-nums;
+}
+

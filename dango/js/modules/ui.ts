@@ -1061,14 +1061,46 @@ export function initUI(_state: CanvasState, _callbacks: any): void {
     const actionStack = document.getElementById('action-stack');
     const btnExportMain = document.getElementById('btn-export-main');
     let exportResetTimer: any = null;
-    const resetActionStack = () => { actionStack?.classList.remove('is-exporting'); clearTimeout(exportResetTimer); };
+    const resetActionStack = () => {
+        actionStack?.classList.remove('is-exporting');
+        clearTimeout(exportResetTimer);
+    };
     if (btnExportMain && actionStack) {
-        btnExportMain.onclick = (e) => { e.stopPropagation(); actionStack.classList.add('is-exporting'); exportResetTimer = setTimeout(resetActionStack, 5000); };
+        const toggleExportStack = (e: Event) => {
+            e.stopPropagation();
+            if (e.type === 'touchstart') e.preventDefault();
+            actionStack.classList.toggle('is-exporting');
+            clearTimeout(exportResetTimer);
+            if (actionStack.classList.contains('is-exporting')) {
+                exportResetTimer = setTimeout(resetActionStack, 6000);
+            }
+        };
+        btnExportMain.addEventListener('click', toggleExportStack);
+        btnExportMain.addEventListener('touchstart', toggleExportStack, { passive: false });
     }
-    document.getElementById('opt-json')?.addEventListener('click', (e) => { e.stopPropagation(); callbacks.exportJson(); resetActionStack(); });
-    document.getElementById('opt-link')?.addEventListener('click', (e) => { e.stopPropagation(); callbacks.createShareLink(); resetActionStack(); });
-    document.getElementById('opt-embed')?.addEventListener('click', (e) => { e.stopPropagation(); callbacks.createEmbedCode(); resetActionStack(); });
-    window.addEventListener('click', () => { if (actionStack?.classList.contains('is-exporting')) resetActionStack(); });
+
+    const bindExportAction = (id: string, callback: () => void) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const trigger = (e: Event) => {
+            e.stopPropagation();
+            e.preventDefault();
+            callback();
+            resetActionStack();
+        };
+        btn.addEventListener('click', trigger);
+        btn.addEventListener('touchend', trigger, { passive: false });
+    };
+
+    bindExportAction('opt-json', callbacks.exportJson);
+    bindExportAction('opt-link', callbacks.createShareLink);
+    bindExportAction('opt-embed', callbacks.createEmbedCode);
+
+    document.addEventListener('click', (e) => {
+        if (actionStack?.classList.contains('is-exporting') && !actionStack.contains(e.target as Node)) {
+            resetActionStack();
+        }
+    });
     document.getElementById('btn-import-main')?.addEventListener('click', () => { document.getElementById('file-input')?.click(); });
 
     // 10. 语言切换
