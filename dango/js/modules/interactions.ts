@@ -513,10 +513,18 @@ export function initInteractions(): void {
         }
     }, { passive: true });
 
+    let longPressTimer: any = null;
+    let lastTouchPos = { x: 0, y: 0 };
+
     els.container.addEventListener('touchstart', (e: TouchEvent) => {
         els.uiLayer!.classList.remove('mobile-expanded');
         if (document.activeElement && document.activeElement !== document.body) (document.activeElement as HTMLElement).blur();
         cancelViewAnimation();
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+
         if (e.touches.length === 2) {
             e.preventDefault();
             mode = 'pinch';
@@ -541,6 +549,8 @@ export function initInteractions(): void {
         lastTapTarget = nodeEl;
         lastTapTime = currentTime;
         const pos = getTouchPos(e);
+        lastTouchPos = { x: pos.x, y: pos.y };
+
         const groupEl = target.closest<HTMLElement>('.group');
         if (nodeEl || groupEl) {
             const id = (nodeEl || groupEl)!.dataset.id!;
@@ -564,6 +574,22 @@ export function initInteractions(): void {
             render();
             mode = 'pan';
             dragStart = { x: pos.x, y: pos.y, viewX: state.view.x, viewY: state.view.y };
+
+            // 空白处长按 320ms 触发框选模式
+            longPressTimer = setTimeout(() => {
+                longPressTimer = null;
+                if (mode === 'pan') {
+                    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                        try { navigator.vibrate(20); } catch {}
+                    }
+                    mode = 'box';
+                    dragStart = { x: lastTouchPos.x, y: lastTouchPos.y };
+                    if (els.selectBox) {
+                        els.selectBox.style.display = 'block';
+                        updateSelectBox(lastTouchPos.x, lastTouchPos.y, lastTouchPos.x, lastTouchPos.y);
+                    }
+                }
+            }, 320);
         }
     }, { passive: false });
 
@@ -572,21 +598,34 @@ export function initInteractions(): void {
         e.preventDefault();
         if (mode === 'pinch' && e.touches.length === 2) {
             const currentDist = getPinchDist(e);
-            if (currentDist > 0) {
+            if (currentDist > 0 && initialPinchDist > 0) {
                 const scaleFactor = currentDist / initialPinchDist;
                 let newScale = initialPinchScale * scaleFactor;
                 newScale = Math.max(0.1, Math.min(5, newScale));
+                const currentCenter = getPinchCenter(e);
                 state.view.scale = newScale;
-                render();
+                state.view.x = currentCenter.x - pinchCenter.x * newScale;
+                state.view.y = currentCenter.y - pinchCenter.y * newScale;
+                updateViewTransform();
             }
             return;
         }
         const pos = getTouchPos(e);
+        lastTouchPos = { x: pos.x, y: pos.y };
+
+        if (longPressTimer) {
+            const dist = Math.hypot(pos.x - dragStart.x, pos.y - dragStart.y);
+            if (dist > 8) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        }
+
         if (mode === 'pan') {
             state.view.x = dragStart.viewX + (pos.x - dragStart.x);
             state.view.y = dragStart.viewY + (pos.y - dragStart.y);
             cancelViewAnimation();
-            render();
+            updateViewTransform();
         } else if (mode === 'move') {
             const worldPos = screenToWorld(pos.x, pos.y, state.view);
             const dx = worldPos.x - dragStart.x;
@@ -612,11 +651,20 @@ export function initInteractions(): void {
                 }
             });
             render();
+        } else if (mode === 'box') {
+            updateSelectBox(dragStart.x, dragStart.y, pos.x, pos.y);
         }
     }, { passive: false });
 
     els.container.addEventListener('touchend', () => {
-        if (mode === 'move' && stateBeforeDrag) {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+
+        if (mode === 'pinch' || mode === 'pan') {
+            saveData();
+        } else if (mode === 'move' && stateBeforeDrag) {
             const currentState = JSON.stringify({ 
                 nodes: state.nodes, 
                 groups: state.groups, 
@@ -628,6 +676,23 @@ export function initInteractions(): void {
                 if (history.undo.length > MAX_HISTORY) history.undo.shift();
                 history.redo = [];
             }
+        } else if (mode === 'box') {
+            const rect = getStandardRect(dragStart.x, dragStart.y, lastTouchPos.x, lastTouchPos.y);
+            const worldRect = {
+                x: (rect.x - state.view.x) / state.view.scale, y: (rect.y - state.view.y) / state.view.scale,
+                w: rect.w / state.view.scale, h: rect.h / state.view.scale
+            };
+            const prevSize = state.selection.size;
+            const itemsInBox = [...state.nodes, ...state.groups].filter(item => isIntersect(worldRect, item));
+            itemsInBox.forEach(item => state.selection.add(item.id));
+            if (state.selection.size > prevSize) {
+                state.selectionSource = 'box';
+            }
+            if (isTaggingModeActive() && itemsInBox.length > 0) {
+                tagItemsBatch(itemsInBox);
+            }
+            if (els.selectBox) els.selectBox.style.display = 'none';
+            render();
         }
         stateBeforeDrag = null;
         mode = null;

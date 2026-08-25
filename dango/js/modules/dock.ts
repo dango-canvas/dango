@@ -103,22 +103,14 @@ function bindExtrudeDragEvents(): void {
     const extrudeBtn = document.getElementById('btn-dock-extrude');
     if (!extrudeBtn) return;
 
-    extrudeBtn.addEventListener('mousedown', (e: MouseEvent) => {
-        if (e.button !== 0) return;
-        e.stopPropagation();
-
+    const startDrag = (startClientX: number, startClientY: number, isTouch = false) => {
         const selId = Array.from(state.selection)[0];
         const srcNode = state.nodes.find(n => n.id === selId);
         if (!srcNode) return;
 
         let isExtruding = false;
-        const startClientX = e.clientX;
-        const startClientY = e.clientY;
-
         const srcNodeW = srcNode.w || 100;
         const srcNodeH = srcNode.h || 40;
-        const srcCenterX = srcNode.x + srcNodeW / 2;
-        const srcCenterY = srcNode.y + srcNodeH / 2;
 
         const nodesLayer = document.getElementById('nodes-layer');
         const connectionsLayer = document.getElementById('connections-layer') || els.connectionsLayer;
@@ -142,12 +134,14 @@ function bindExtrudeDragEvents(): void {
             connectionsLayer.appendChild(previewLine);
         }
 
-        const onMouseMove = (me: MouseEvent) => {
-            const screenDist = Math.hypot(me.clientX - startClientX, me.clientY - startClientY);
-            if (screenDist > 12) {
+        const onMove = (clientX: number, clientY: number) => {
+            const screenDist = Math.hypot(clientX - startClientX, clientY - startClientY);
+            if (screenDist > 10) {
                 isExtruding = true;
-                const worldMouseX = (me.clientX - state.view.x) / state.view.scale;
-                const worldMouseY = (me.clientY - state.view.y) / state.view.scale;
+                // 触屏状态向上微偏移 42px 视口距离，防止手指遮挡预览
+                const visualOffsetY = isTouch ? (42 / state.view.scale) : 0;
+                const worldMouseX = (clientX - state.view.x) / state.view.scale;
+                const worldMouseY = ((clientY - state.view.y) / state.view.scale) - visualOffsetY;
 
                 if (ghostNodeEl) {
                     ghostNodeEl.style.display = 'block';
@@ -170,10 +164,7 @@ function bindExtrudeDragEvents(): void {
             }
         };
 
-        const onMouseUp = (ue: MouseEvent) => {
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('mouseup', onMouseUp);
-
+        const onEnd = (clientX: number, clientY: number) => {
             if (ghostNodeEl && ghostNodeEl.parentNode) {
                 ghostNodeEl.parentNode.removeChild(ghostNodeEl);
             }
@@ -183,8 +174,9 @@ function bindExtrudeDragEvents(): void {
 
             if (isExtruding) {
                 // 拖拽落子：生成空文本节点并聚焦
-                const dropWorldX = (ue.clientX - state.view.x) / state.view.scale;
-                const dropWorldY = (ue.clientY - state.view.y) / state.view.scale;
+                const visualOffsetY = isTouch ? (42 / state.view.scale) : 0;
+                const dropWorldX = (clientX - state.view.x) / state.view.scale;
+                const dropWorldY = ((clientY - state.view.y) / state.view.scale) - visualOffsetY;
 
                 pushHistory();
                 const newId = uid();
@@ -255,9 +247,53 @@ function bindExtrudeDragEvents(): void {
             }
         };
 
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
+        if (isTouch) {
+            let lastTouchX = startClientX;
+            let lastTouchY = startClientY;
+
+            const onTouchMove = (te: TouchEvent) => {
+                te.preventDefault();
+                if (te.touches.length > 0) {
+                    lastTouchX = te.touches[0].clientX;
+                    lastTouchY = te.touches[0].clientY;
+                    onMove(lastTouchX, lastTouchY);
+                }
+            };
+            const onTouchEnd = () => {
+                window.removeEventListener('touchmove', onTouchMove);
+                window.removeEventListener('touchend', onTouchEnd);
+                onEnd(lastTouchX, lastTouchY);
+            };
+
+            window.addEventListener('touchmove', onTouchMove, { passive: false });
+            window.addEventListener('touchend', onTouchEnd);
+        } else {
+            const onMouseMove = (me: MouseEvent) => {
+                onMove(me.clientX, me.clientY);
+            };
+            const onMouseUp = (ue: MouseEvent) => {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                onEnd(ue.clientX, ue.clientY);
+            };
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+    };
+
+    extrudeBtn.addEventListener('mousedown', (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        e.stopPropagation();
+        startDrag(e.clientX, e.clientY, false);
     });
+
+    extrudeBtn.addEventListener('touchstart', (e: TouchEvent) => {
+        if (e.touches.length === 1) {
+            e.stopPropagation();
+            startDrag(e.touches[0].clientX, e.touches[0].clientY, true);
+        }
+    }, { passive: false });
 }
 
 /**
