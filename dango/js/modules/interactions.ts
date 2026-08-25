@@ -937,7 +937,19 @@ export function handleNodeEdit(nodeEl: HTMLElement): void {
             nodeEl.focus();
         }
 
+        let isComposing = false;
+        const handleCompositionStart = () => {
+            isComposing = true;
+        };
+        const handleCompositionEnd = () => {
+            isComposing = false;
+            handleInput();
+        };
+        nodeEl.addEventListener('compositionstart', handleCompositionStart);
+        nodeEl.addEventListener('compositionend', handleCompositionEnd);
+
         const handleInput = () => {
+            if (isComposing) return;
             const rawText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
             if (!rawText.trim()) {
                 nodeEl.classList.remove('has-multiline');
@@ -987,6 +999,8 @@ export function handleNodeEdit(nodeEl: HTMLElement): void {
             nodeEl.onblur = null;
             nodeEl.onkeydown = null;
             nodeEl.onpaste = null;
+            nodeEl.removeEventListener('compositionstart', handleCompositionStart);
+            nodeEl.removeEventListener('compositionend', handleCompositionEnd);
             nodeEl.removeEventListener('input', handleInput);
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
