@@ -19,7 +19,7 @@ export interface DockCallbacks {
     render: () => void;
     undo: () => void;
     redo: () => void;
-    handleNodeEdit?: (el: HTMLElement) => void;
+    handleNodeEdit?: (el: HTMLElement, force?: boolean) => void;
 }
 
 let dockCallbacks: DockCallbacks;
@@ -207,7 +207,7 @@ function bindExtrudeDragEvents(): void {
                 if (typeof document !== 'undefined') {
                     const newEl = document.querySelector<HTMLElement>(`.node[data-id="${newId}"]`);
                     if (newEl && dockCallbacks.handleNodeEdit) {
-                        dockCallbacks.handleNodeEdit(newEl);
+                        dockCallbacks.handleNodeEdit(newEl, true);
                     }
                 }
             } else {
@@ -241,7 +241,7 @@ function bindExtrudeDragEvents(): void {
                 if (typeof document !== 'undefined') {
                     const newEl = document.querySelector<HTMLElement>(`.node[data-id="${newId}"]`);
                     if (newEl && dockCallbacks.handleNodeEdit) {
-                        dockCallbacks.handleNodeEdit(newEl);
+                        dockCallbacks.handleNodeEdit(newEl, true);
                     }
                 }
             }
@@ -259,14 +259,29 @@ function bindExtrudeDragEvents(): void {
                     onMove(lastTouchX, lastTouchY);
                 }
             };
-            const onTouchEnd = () => {
+            const cleanupTouch = () => {
                 window.removeEventListener('touchmove', onTouchMove);
                 window.removeEventListener('touchend', onTouchEnd);
+                window.removeEventListener('touchcancel', onTouchCancel);
+            };
+            const onTouchEnd = (te: TouchEvent) => {
+                if (te.cancelable) te.preventDefault();
+                cleanupTouch();
                 onEnd(lastTouchX, lastTouchY);
+            };
+            const onTouchCancel = () => {
+                cleanupTouch();
+                if (ghostNodeEl && ghostNodeEl.parentNode) {
+                    ghostNodeEl.parentNode.removeChild(ghostNodeEl);
+                }
+                if (previewLine && previewLine.parentNode) {
+                    previewLine.parentNode.removeChild(previewLine);
+                }
             };
 
             window.addEventListener('touchmove', onTouchMove, { passive: false });
-            window.addEventListener('touchend', onTouchEnd);
+            window.addEventListener('touchend', onTouchEnd, { passive: false });
+            window.addEventListener('touchcancel', onTouchCancel, { passive: false });
         } else {
             const onMouseMove = (me: MouseEvent) => {
                 onMove(me.clientX, me.clientY);

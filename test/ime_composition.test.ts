@@ -180,4 +180,43 @@ describe('IME Composition Guard for Node Editing', () => {
         expect(nodeEl.contentEditable).toBe('false');
         expect(nodeEl.classList.contains('editing')).toBe(false);
     });
+
+    it('does not add has-multiline for single line IME input ending with trailing newline', () => {
+        const nodeEl = new MockDOMElement('node-1', '');
+        handleNodeEdit(nodeEl as any);
+
+        // 模拟中文输入法上屏，DOM 中尾随自动生成的换行占位符 <br>
+        nodeEl.innerText = '搜狗输入法\n';
+        nodeEl.dispatchEvent({ type: 'input' });
+
+        // 不应被误判为多行而贴左
+        expect(nodeEl.classList.contains('has-multiline')).toBe(false);
+
+        // 完成编辑保存，末尾占位符换行应被剥离，防止污染数据
+        nodeEl.blur();
+        const node = state.nodes.find(n => n.id === 'node-1');
+        expect(node?.text).toBe('搜狗输入法');
+    });
+
+    it('correctly marks genuine multiline text with has-multiline', () => {
+        const nodeEl = new MockDOMElement('node-1', '');
+        handleNodeEdit(nodeEl as any);
+
+        nodeEl.innerText = '第一行\n第二行\n';
+        nodeEl.dispatchEvent({ type: 'input' });
+
+        expect(nodeEl.classList.contains('has-multiline')).toBe(true);
+
+        nodeEl.blur();
+        const node = state.nodes.find(n => n.id === 'node-1');
+        expect(node?.text).toBe('第一行\n第二行');
+    });
+
+    it('handleNodeEdit with force=true enters editing mode unconditionally', () => {
+        const nodeEl = new MockDOMElement('node-1', '');
+        handleNodeEdit(nodeEl as any, true);
+
+        expect(nodeEl.contentEditable).toBe('true');
+        expect(nodeEl.classList.contains('editing')).toBe(true);
+    });
 });

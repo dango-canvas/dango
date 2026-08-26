@@ -207,7 +207,8 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
     if (el.classList.contains('editing')) {
         const isSelected = appState.selection.has(node.id);
         const isFound = appState.searchResultId === node.id;
-        el.className = ['node', colorClass, isSelected ? 'selected' : '', isFound ? 'search-found' : '', 'editing'].filter(Boolean).join(' ');
+        const hasMultiline = el.classList.contains('has-multiline');
+        el.className = ['node', colorClass, isSelected ? 'selected' : '', isFound ? 'search-found' : '', 'editing', hasMultiline ? 'has-multiline' : ''].filter(Boolean).join(' ');
         el.style.width = '';
         el.style.height = '';
         if (el.offsetWidth && el.offsetHeight) {
@@ -362,7 +363,7 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
     if (isSelected) classes.push('selected');
     if (isFound) classes.push('search-found');
     const text = node.text || '';
-    if (text.includes('\n')) classes.push('has-multiline');
+    if (text.replace(/\r?\n$/, '').includes('\n')) classes.push('has-multiline');
     
     if (text.startsWith('### ')) classes.push('node-h3');
     else if (text.startsWith('## ')) classes.push('node-h2');

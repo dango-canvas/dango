@@ -172,7 +172,7 @@ function forceFinishActiveEdit(): void {
         const nodeId = editingNode.dataset.id;
         const node = state.nodes.find(n => n.id === nodeId);
         if (node) {
-            const newText = editingNode.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+            const newText = editingNode.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '').replace(/\r?\n$/, '');
             if (!newText.trim()) {
                 state.nodes = state.nodes.filter(n => n.id !== node.id);
                 state.selection.delete(node.id);
@@ -749,6 +749,20 @@ export function initInteractions(): void {
         dragStart = null;
         initialPinchDist = 0;
         touchTargetIdAtStart = null;
+        hasMovedDuringDrag = false;
+    });
+
+    els.container.addEventListener('touchcancel', () => {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+        stateBeforeDrag = null;
+        mode = null;
+        dragStart = null;
+        initialPinchDist = 0;
+        touchTargetIdAtStart = null;
+        hasMovedDuringDrag = false;
     });
 
     els.container.addEventListener('dblclick', (e: MouseEvent) => {
@@ -1016,7 +1030,7 @@ export function applyMarkdownFormat(nodeEl: HTMLElement, formatType: 'bold' | 'i
     setSelectionByOffsets(nodeEl, newSelectStart, newSelectEnd);
 }
 
-export function handleNodeEdit(nodeEl: HTMLElement): void {
+export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
     if (!nodeEl || isPresentationModeActive() || state.isReadonly) return;
     const nodeId = nodeEl.dataset.id;
     if (nodeEl.getAttribute('contenteditable') === 'true' || nodeEl.classList.contains('editing')) {
@@ -1025,7 +1039,7 @@ export function handleNodeEdit(nodeEl: HTMLElement): void {
     }
     const node = state.nodes.find(n => n.id === nodeId);
     if (node) {
-        if (mode === 'move' || hasMovedDuringDrag) {
+        if (!force && (mode === 'move' || hasMovedDuringDrag)) {
             return;
         }
         
@@ -1039,7 +1053,7 @@ export function handleNodeEdit(nodeEl: HTMLElement): void {
         nodeEl.innerText = isVisuallyEmpty ? '\u200B' : safeText;
         nodeEl.classList.remove('is-link', 'has-multiline');
 
-        if (originalText.includes('\n')) {
+        if (originalText.replace(/\r?\n$/, '').includes('\n')) {
             nodeEl.classList.add('has-multiline');
         }
 
@@ -1089,7 +1103,7 @@ export function handleNodeEdit(nodeEl: HTMLElement): void {
                         sel.addRange(range);
                     }
                 }
-            } else if (rawText.includes('\n')) {
+            } else if (rawText.replace(/\r?\n$/, '').includes('\n')) {
                 nodeEl.classList.add('has-multiline');
             } else {
                 nodeEl.classList.remove('has-multiline');
@@ -1129,7 +1143,7 @@ export function handleNodeEdit(nodeEl: HTMLElement): void {
             nodeEl.removeEventListener('input', handleInput);
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
-            let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+            let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '').replace(/\r?\n$/, '');
             
             if (!newText.trim()) {
                 state.nodes = state.nodes.filter(n => n.id !== node.id);
