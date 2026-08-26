@@ -11,6 +11,7 @@ import { initPresenter } from './modules/presenter.js';
 import { initShortcuts } from './modules/shortcuts.js';
 import { initInteractions, handleNodeEdit } from './modules/interactions.js';
 import { initFloatingDock, updateFloatingDock } from './modules/dock.js';
+import './modules/fps.js';
 
 /**
  * Main application entry point.
