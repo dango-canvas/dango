@@ -1,5 +1,6 @@
 import { join } from "path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { execSync } from "child_process";
 
 const PROJECT_ROOT = join(import.meta.dir, "dango");
 const DIST_DIR = join(import.meta.dir, "dist");
@@ -8,11 +9,41 @@ if (!existsSync(DIST_DIR)) {
   mkdirSync(DIST_DIR);
 }
 
+function getGitHash(): string {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+function getBuildDate(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date()).replace(/-/g, ".");
+}
+
 async function bundle() {
   console.log("🚀 Starting build...");
 
+  const manifest = JSON.parse(readFileSync(join(PROJECT_ROOT, "manifest.json"), "utf-8"));
+  const version = manifest.version || "1.1.2";
+  const buildDate = getBuildDate();
+  const buildHash = getGitHash();
+
+  console.log(`📌 Version: v${version} (${buildDate} · ${buildHash})`);
+
   // 1. Read index.html
   let html = readFileSync(join(PROJECT_ROOT, "index.html"), "utf-8");
+
+  // Sync version in about card
+  html = html.replace(
+    /<div class="about-version">.*?<\/div>/,
+    `<div class="about-version">v${version} (${buildDate})</div>`
+  );
 
   // 2. Bundle JS
   console.log("📦 Bundling JS...");
@@ -24,6 +55,11 @@ async function bundle() {
     entrypoints: [entryPoint],
     minify: true,
     target: "browser",
+    define: {
+      __APP_VERSION__: JSON.stringify(version),
+      __BUILD_DATE__: JSON.stringify(buildDate),
+      __BUILD_HASH__: JSON.stringify(buildHash),
+    },
   });
 
   if (!jsBuild.success) {

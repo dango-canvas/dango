@@ -264,37 +264,21 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
                 const currentKey = getImageSizeKey(node.w);
                 const nextKey = getNextImageSizeKey(currentKey);
                 const targetWidth = IMAGE_SIZE_WIDTHS[nextKey];
-                
-                const applySize = () => {
-                    if (applyImageSize(node, img, targetWidth)) {
-                        el.style.width = `${node.w}px`;
-                        el.style.height = `${node.h}px`;
-                        render();
-                    }
-                };
-                if (img && img.complete && img.naturalWidth) {
-                    applySize();
-                } else if (img) {
-                    img.onload = () => applySize();
+                if (applyImageSize(node, img, targetWidth)) {
+                    render();
                 }
             };
             el.appendChild(sizeBtn);
         }
+        const currentSizeKey = getImageSizeKey(node.w);
+        const iconHTML = IMAGE_SIZE_ICONS[currentSizeKey];
+        if (sizeBtn.dataset.sizeIcon !== currentSizeKey) {
+            setSafeSVG(sizeBtn, iconHTML);
+            sizeBtn.dataset.sizeIcon = currentSizeKey;
+        }
         
-        const currentKey = getImageSizeKey(node.w);
-        const nextKey = getNextImageSizeKey(currentKey);
-        const texts = getTexts();
-        setSafeSVG(sizeBtn, IMAGE_SIZE_ICONS[nextKey]);
-        sizeBtn.title = currentKey === 's' ? texts.img_zoom_in : texts.img_zoom_out;
-
-        el.style.width = `${node.w}px`;
-        if (node.h) el.style.height = `${node.h}px`;
-        else el.style.height = 'auto';
-    }
-
-    if (isLink) {
+    } else if (isLink) {
         el.classList.add('is-link');
-        el.classList.remove('has-multiline');
         let textEl = el.querySelector<HTMLElement>('.node-text');
         if (!textEl) {
             el.textContent = '';
@@ -448,6 +432,41 @@ export function updateViewTransform(): void {
 }
 
 /**
+ * 为不同颜色的箭头生成跨浏览器稳定兼容的独立 SVG Marker。
+ * 规避 Safari / WebKit 尚不支持 SVG2 context-stroke 导致的隐形 Bug。
+ */
+function getOrCreateMarker(defs: SVGDefsElement | null, color: string, fallbackColor: string): string {
+    if (!defs) return 'arrowhead';
+    const resolvedColor = (color || fallbackColor || 'var(--link-color)').trim();
+    if (!resolvedColor || resolvedColor === 'var(--link-color)' || resolvedColor === fallbackColor) {
+        return 'arrowhead';
+    }
+    const safeCol = resolvedColor.replace(/[^a-z0-9]/gi, '_');
+    const markerId = `arrowhead-${safeCol}`;
+    if (!defs.querySelector(`#${markerId}`)) {
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        marker.setAttribute('id', markerId);
+        marker.setAttribute('viewBox', '0 0 10 10');
+        marker.setAttribute('refX', '8');
+        marker.setAttribute('refY', '5');
+        marker.setAttribute('markerWidth', '12');
+        marker.setAttribute('markerHeight', '12');
+        marker.setAttribute('orient', 'auto-start-reverse');
+        marker.setAttribute('markerUnits', 'userSpaceOnUse');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 'M 0 0 L 8 5 L 0 10');
+        path.setAttribute('stroke', resolvedColor);
+        path.setAttribute('stroke-width', '1.5');
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        marker.appendChild(path);
+        defs.appendChild(marker);
+    }
+    return markerId;
+}
+
+/**
  * 主渲染函数
  */
 export function render(): void {
@@ -461,8 +480,9 @@ export function render(): void {
         const defsContent = `
             <defs>
                 <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="12" markerHeight="12" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-                    <path d="M 0 0 L 8 5 L 0 10" stroke="context-stroke" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+                    <path d="M 0 0 L 8 5 L 0 10" stroke="var(--link-color)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
                 </marker>
+                <!-- 使用 userSpaceOnUse 防止水平/垂直线因 bounding box 为 0 导致滤镜失效或裁切 -->
                 <filter id="hand-drawn-filter" filterUnits="userSpaceOnUse" x="-50000" y="-50000" width="100000" height="100000">
                     <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" result="noise" />
                     <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" />
@@ -473,6 +493,7 @@ export function render(): void {
                 </filter>
             </defs>`;
         els.connectionsLayer.innerHTML = defsContent;
+        defs = els.connectionsLayer.querySelector('defs');
     }
 
     syncDomElements(appState.nodes, els.nodesLayer, 'node', renderNode);
@@ -480,6 +501,7 @@ export function render(): void {
 
     // Sync Links
     const rootStyle = getComputedStyle(document.documentElement);
+    const rootBaseColor = rootStyle.getPropertyValue('--link-color').trim();
     const existingPaths = new Map<string, SVGPathElement>();
     Array.from(els.connectionsLayer.querySelectorAll<SVGPathElement>('path.link')).forEach(pathEl => {
         if (pathEl.dataset.id) existingPaths.set(pathEl.dataset.id, pathEl);
@@ -522,11 +544,13 @@ export function render(): void {
             if (pathEl.style.stroke !== linkStrokeColor) pathEl.style.stroke = linkStrokeColor;
             if (pathEl.style.opacity !== linkOpacity) pathEl.style.opacity = linkOpacity;
             
+            const markerId = getOrCreateMarker(defs, linkStrokeColor, rootBaseColor);
+
             if (l.direction === 'target') {
-                setAttr(pathEl, 'marker-end', 'url(#arrowhead)');
+                setAttr(pathEl, 'marker-end', `url(#${markerId})`);
                 pathEl.removeAttribute('marker-start');
             } else if (l.direction === 'source') {
-                setAttr(pathEl, 'marker-start', 'url(#arrowhead)');
+                setAttr(pathEl, 'marker-start', `url(#${markerId})`);
                 pathEl.removeAttribute('marker-end');
             } else {
                 pathEl.removeAttribute('marker-end');

@@ -264,7 +264,7 @@ export function toggleGroup(): void {
     const selItems = Array.from(state.selection);
     if (selItems.length === 0) return;
     
-    // 1. 如果选区中显式包含编组，解组这些编组并将它们的成员放入选区
+    // 1. 如果选区中显式包含分组，解组这些分组并将它们的所有成员放入选区
     const selectedGroupIndices: number[] = [];
     const memberNodesToSelect: string[] = [];
     state.selection.forEach(id => {
@@ -283,7 +283,7 @@ export function toggleGroup(): void {
         return;
     }
 
-    // 2. 如果选区中的节点覆盖了已有编组的所有成员，执行解组
+    // 2. 如果选区中的节点覆盖了已有分组的所有成员，执行解组
     const matchingGroupIndices: number[] = [];
     state.groups.forEach((g, idx) => {
         const mIds = g.memberIds || [];
@@ -298,7 +298,7 @@ export function toggleGroup(): void {
         return;
     }
 
-    // 3. 否则创建新编组
+    // 3. 否则创建新分组
     createGroup();
 }
 
@@ -645,6 +645,7 @@ export function nudgeSelection(key: string): void {
 }
 
 export function colorSelection(colorClass: string): void {
+    pushHistory();
     state.nodes.forEach(n => {
         if (state.selection.has(n.id)) n.color = colorClass;
     });
@@ -654,6 +655,7 @@ export function colorSelection(colorClass: string): void {
 export function alignSelection(type: 'left' | 'right' | 'centerX' | 'top' | 'bottom' | 'centerY'): void {
     const items = [...state.selection].map(id => findItem(id)).filter((i): i is CanvasNode | CanvasGroup => Boolean(i));
     if (items.length < 2) return;
+    pushHistory();
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     items.forEach(i => {
         minX = Math.min(minX, i.x);
@@ -681,6 +683,7 @@ export function alignSelection(type: 'left' | 'right' | 'centerX' | 'top' | 'bot
 export function distributeSelection(axis: 'h' | 'v'): void {
     const items = [...state.selection].map(id => findItem(id)).filter((i): i is CanvasNode | CanvasGroup => Boolean(i));
     if (items.length < 3) return;
+    pushHistory();
     if (axis === 'h') {
         items.sort((a, b) => a.x - b.x);
         const start = items[0].x;

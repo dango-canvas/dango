@@ -37,11 +37,58 @@ export function changeZoom(
     renderRef();
 }
 
+/**
+ * 回归中心视图
+ * 1. 选中项优先：若有选中节点/分组，平移至选中项包围盒的几何中心（兼顾“寻回/聚焦”作用）
+ * 2. 画布内容兜底：若未选中任何项，平移至全画布所有节点/分组包围盒的几何中心（四周皆可顾及）
+ * 3. 空白画布：平移至世界坐标原点 (0, 0)
+ */
 export function resetViewToCenter(animated = true): void {
     if (!stateRef || !renderRef) return;
-    const targetX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500;
-    const targetY = typeof window !== 'undefined' ? window.innerHeight / 2 : 500;
     const targetScale = 1.2;
+    const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
+    const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+    let targetWorldCenterX = 0;
+    let targetWorldCenterY = 0;
+
+    if (stateRef.selection.size > 0) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let count = 0;
+        stateRef.selection.forEach(id => {
+            const item = stateRef!.nodes.find(n => n.id === id) || stateRef!.groups.find(g => g.id === id);
+            if (item) {
+                minX = Math.min(minX, item.x);
+                minY = Math.min(minY, item.y);
+                maxX = Math.max(maxX, item.x + (item.w || 0));
+                maxY = Math.max(maxY, item.y + (item.h || 0));
+                count++;
+            }
+        });
+        if (count > 0) {
+            targetWorldCenterX = minX + (maxX - minX) / 2;
+            targetWorldCenterY = minY + (maxY - minY) / 2;
+        }
+    } else if (stateRef.nodes.length > 0 || stateRef.groups.length > 0) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        stateRef.nodes.forEach(n => {
+            minX = Math.min(minX, n.x);
+            minY = Math.min(minY, n.y);
+            maxX = Math.max(maxX, n.x + (n.w || 0));
+            maxY = Math.max(maxY, n.y + (n.h || 0));
+        });
+        stateRef.groups.forEach(g => {
+            minX = Math.min(minX, g.x);
+            minY = Math.min(minY, g.y);
+            maxX = Math.max(maxX, g.x + (g.w || 0));
+            maxY = Math.max(maxY, g.y + (g.h || 0));
+        });
+        targetWorldCenterX = minX + (maxX - minX) / 2;
+        targetWorldCenterY = minY + (maxY - minY) / 2;
+    }
+
+    const targetX = winW / 2 - targetWorldCenterX * targetScale;
+    const targetY = winH / 2 - targetWorldCenterY * targetScale;
 
     if (animated) {
         animateView(targetX, targetY, targetScale);

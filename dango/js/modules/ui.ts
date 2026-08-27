@@ -232,6 +232,12 @@ export function isBgUnlocked(currentState?: CanvasState): boolean {
     return localStorage.getItem('cc-bg-unlocked') === 'true' || Boolean(s?.settings?.bgUrl);
 }
 
+export function isToolbarUnlocked(currentState?: CanvasState): boolean {
+    if (typeof localStorage === 'undefined') return false;
+    const s = currentState || appState;
+    return localStorage.getItem('cc-bg-unlocked') === 'true' || Boolean(s?.settings?.hideToolbar);
+}
+
 // --- 设置 ---
 export function applySettings(currentState?: CanvasState): void {
     const s = currentState || appState; 
@@ -251,6 +257,12 @@ export function applySettings(currentState?: CanvasState): void {
         const settingsBgItem = document.getElementById('settings-bg-item');
         if (settingsBgItem) {
             settingsBgItem.classList.toggle('hidden', !isUnlocked);
+        }
+
+        const toolbarUnlocked = isToolbarUnlocked(s);
+        const settingsHideToolbarItem = document.getElementById('settings-hide-toolbar-item');
+        if (settingsHideToolbarItem) {
+            settingsHideToolbarItem.classList.toggle('hidden', !toolbarUnlocked);
         }
         
         const bgUrlInput = document.getElementById('input-bg-url') as HTMLInputElement | null;
@@ -462,6 +474,8 @@ function initEasterEggs(): void {
             }
             const settingsBgItem = document.getElementById('settings-bg-item');
             if (settingsBgItem) settingsBgItem.classList.remove('hidden');
+            const settingsHideToolbarItem = document.getElementById('settings-hide-toolbar-item');
+            if (settingsHideToolbarItem) settingsHideToolbarItem.classList.remove('hidden');
 
             const span = btn.querySelector('span');
             if (span) {

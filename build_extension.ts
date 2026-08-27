@@ -1,5 +1,6 @@
 import { join, dirname } from "path";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
+import { execSync } from "child_process";
 import zlib from "node:zlib";
 
 const ROOT_DIR = import.meta.dir;
@@ -10,7 +11,24 @@ if (!existsSync(DIST_DIR)) {
   mkdirSync(DIST_DIR, { recursive: true });
 }
 
-// 递归收集目录下的所有文件
+function getGitHash(): string {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+function getBuildDate(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date()).replace(/-/g, ".");
+}
+
+// 递归收集目录下所有文件
 function collectDirFiles(dirPath: string, relativePrefix: string = ""): Array<{ name: string; data: Buffer }> {
   const result: Array<{ name: string; data: Buffer }> = [];
   if (!existsSync(dirPath)) return result;
@@ -102,6 +120,14 @@ function createZip(files: Array<{ name: string; data: Buffer | string }>): Buffe
 async function buildExtension() {
   console.log("📦 Building Dango browser extensions (CSP-compliant)...");
 
+  // 读取基础资源与版本号
+  const baseManifest = JSON.parse(readFileSync(join(PROJECT_ROOT, "manifest.json"), "utf-8"));
+  const version = baseManifest.version || "1.1.2";
+  const buildDate = getBuildDate();
+  const buildHash = getGitHash();
+
+  console.log(`📌 Extension Version: v${version} (${buildDate} · ${buildHash})`);
+
   // 1. 编译 JS (打包 main.ts 并合并 lz-string)
   const entryPoint = existsSync(join(PROJECT_ROOT, "js/main.ts"))
     ? join(PROJECT_ROOT, "js/main.ts")
@@ -111,6 +137,11 @@ async function buildExtension() {
     entrypoints: [entryPoint],
     minify: true,
     target: "browser",
+    define: {
+      __APP_VERSION__: JSON.stringify(version),
+      __BUILD_DATE__: JSON.stringify(buildDate),
+      __BUILD_HASH__: JSON.stringify(buildHash),
+    },
   });
 
   if (!jsBuild.success) {
@@ -143,15 +174,16 @@ async function buildExtension() {
     /<script\s+type="module"\s+src="js\/main\.(?:ts|js)"><\/script>/,
     '<script type="module" src="bundle.js"></script>'
   );
+  // 同步关于卡片的版本号
+  rawHtml = rawHtml.replace(
+    /<div class="about-version">.*?<\/div>/,
+    `<div class="about-version">v${version} (${buildDate})</div>`
+  );
 
   // 4. 读取基础资源
-  const baseManifest = JSON.parse(readFileSync(join(PROJECT_ROOT, "manifest.json"), "utf-8"));
   const backgroundJs = readFileSync(join(PROJECT_ROOT, "background.js"), "utf-8");
   const iconFiles = collectDirFiles(join(PROJECT_ROOT, "icons"), "icons");
   const localeFiles = collectDirFiles(join(PROJECT_ROOT, "_locales"), "_locales");
-
-  // 统一版本号
-  const version = baseManifest.version || "1.1.0";
 
   // ==========================================
   // A. Firefox Extension (Manifest V2)

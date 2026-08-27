@@ -244,4 +244,20 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         toggleGroup();
         expect(state.groups.length).toBe(0);
     });
+
+    it('Hides hideToolbar setting until unlocked via Star or existing setting', () => {
+        const { isToolbarUnlocked } = require('../dango/js/modules/ui.js');
+        delete mockStorage['cc-bg-unlocked'];
+        state.settings.hideToolbar = false;
+        expect(isToolbarUnlocked(state)).toBe(false);
+
+        // When user has clicked star
+        mockStorage['cc-bg-unlocked'] = 'true';
+        expect(isToolbarUnlocked(state)).toBe(true);
+
+        // When user already has hideToolbar enabled in canvas file / settings
+        delete mockStorage['cc-bg-unlocked'];
+        state.settings.hideToolbar = true;
+        expect(isToolbarUnlocked(state)).toBe(true);
+    });
 });

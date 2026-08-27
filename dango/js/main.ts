@@ -1,3 +1,4 @@
+import { initVersionBadge } from './modules/version.js';
 import { initI18n, updateI18n } from './modules/i18n.js';
 import { initUI, applySettings, applyHandDrawnStyle, waitForInitialBackground } from './modules/ui.js';
 import { state, initializeData, saveData, undo, redo } from './modules/state.js';
@@ -19,6 +20,7 @@ import './modules/fps.js';
  */
 
 // 1. Initialize
+initVersionBadge();
 initI18n();
 initFeedbackTracker();
 
