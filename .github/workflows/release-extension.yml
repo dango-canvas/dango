@@ -1,20 +1,26 @@
-name: Release Extension & Publish to AMO
+name: Release Extensions & Publish
 
 on:
   push:
     branches: [ master, main ]
-    paths:
-      - 'dango/manifest.json'
   workflow_dispatch:
+    inputs:
+      force_release:
+        description: 'Force release even if manifest version did not change'
+        required: false
+        default: false
+        type: boolean
 
-permissions:
-  contents: write
+concurrency:
+  group: release-extensions-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release-extension:
     name: Release Extension & Publish
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,21 +32,21 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup Node.js (for web-ext)
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
 
-      - name: Check version change
+      - name: Version Bump & Release Check
         id: version_check
         shell: bash
         run: |
           set -euo pipefail
-          
+
           CURRENT_VERSION=$(jq -r .version dango/manifest.json)
           echo "Current manifest version: $CURRENT_VERSION"
           echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-          
+
           # If manual dispatch, always proceed
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "Triggered via workflow_dispatch. Proceeding with release."
@@ -69,15 +75,15 @@ jobs:
 
           echo "should_release=true" >> "$GITHUB_OUTPUT"
 
-      - name: Run automated test suite
-        if: steps.version_check.outputs.should_release == 'true'
-        run: bun test
-
       - name: Build Web app & Browser Extensions
         if: steps.version_check.outputs.should_release == 'true'
         run: |
           bun run build.ts
           bun run build_extension.ts
+
+      - name: Run automated test suite
+        if: steps.version_check.outputs.should_release == 'true'
+        run: bun test
 
       - name: Submit to Mozilla Add-ons (Firefox AMO)
         if: steps.version_check.outputs.should_release == 'true'
