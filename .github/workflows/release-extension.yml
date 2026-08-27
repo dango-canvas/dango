@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       force_release:
-        description: 'Force release even if manifest version did not change'
+        description: 'Force release even if tag already exists'
         required: false
         default: false
         type: boolean
@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: 20
 
-      - name: Version Bump & Release Check
+      - name: Version Release Check
         id: version_check
         shell: bash
         run: |
@@ -47,32 +47,22 @@ jobs:
           echo "Current manifest version: $CURRENT_VERSION"
           echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
 
-          # If manual dispatch, always proceed
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Triggered via workflow_dispatch. Proceeding with release."
+          # 1. Manual dispatch with force_release=true -> always release
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_release }}" = "true" ]; then
+            echo "Triggered via manual dispatch with force_release=true. Proceeding with release."
             echo "should_release=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Tag condition: check if git tag already exists
+          # 2. Check if git tag v${CURRENT_VERSION} already exists
           if git rev-parse "v${CURRENT_VERSION}" >/dev/null 2>&1; then
-            echo "Tag v${CURRENT_VERSION} already exists. Skipping release."
+            echo "Version v${CURRENT_VERSION} is already released (tag v${CURRENT_VERSION} exists). Skipping release."
             echo "should_release=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Check before commit if available
-          BEFORE_SHA="${{ github.event.before }}"
-          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
-            PREV_VERSION=$(git show "${BEFORE_SHA}:dango/manifest.json" 2>/dev/null | jq -r .version || echo "")
-            echo "Previous manifest version: $PREV_VERSION"
-            if [ "$PREV_VERSION" = "$CURRENT_VERSION" ]; then
-              echo "Manifest version hasn't changed. Skipping release."
-              echo "should_release=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          fi
-
+          # 3. Tag does not exist yet -> version is unreleased (new version or retry after failure)
+          echo "Tag v${CURRENT_VERSION} does not exist yet. Version ${CURRENT_VERSION} will be released."
           echo "should_release=true" >> "$GITHUB_OUTPUT"
 
       - name: Build Web app & Browser Extensions
