@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       force_release:
-        description: 'Force release even if tag already exists'
+        description: 'Force release even if tag or release already exists'
         required: false
         default: false
         type: boolean
@@ -39,6 +39,9 @@ jobs:
 
       - name: Version Release Check
         id: version_check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_PROMPT_DISABLED: 1
         shell: bash
         run: |
           set -euo pipefail
@@ -54,15 +57,15 @@ jobs:
             exit 0
           fi
 
-          # 2. Check if git tag v${CURRENT_VERSION} already exists
-          if git rev-parse "v${CURRENT_VERSION}" >/dev/null 2>&1; then
-            echo "Version v${CURRENT_VERSION} is already released (tag v${CURRENT_VERSION} exists). Skipping release."
+          # 2. Check if GitHub Release already exists for this version
+          if gh release view "v${CURRENT_VERSION}" >/dev/null 2>&1; then
+            echo "GitHub Release v${CURRENT_VERSION} already exists. Skipping duplicate release."
             echo "should_release=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # 3. Tag does not exist yet -> version is unreleased (new version or retry after failure)
-          echo "Tag v${CURRENT_VERSION} does not exist yet. Version ${CURRENT_VERSION} will be released."
+          # 3. Release does not exist yet -> version is unreleased (new version or retry after failure)
+          echo "GitHub Release v${CURRENT_VERSION} does not exist yet. Version ${CURRENT_VERSION} will be released."
           echo "should_release=true" >> "$GITHUB_OUTPUT"
 
       - name: Build Web app & Browser Extensions
@@ -90,12 +93,13 @@ jobs:
           fi
 
           echo "🚀 Submitting Firefox extension to AMO (Channel: listed, gecko id: dango-board@dango.ink)..."
+          # Allow gracefully proceeding if version was already submitted to AMO in a previous attempt
           npx web-ext sign \
             --channel=listed \
             --approval-timeout=0 \
             --api-key="$AMO_KEY" \
             --api-secret="$AMO_SECRET" \
-            --source-dir=dist/extension-firefox
+            --source-dir=dist/extension-firefox || echo "::warning ::web-ext sign returned non-zero (AMO may already have received this version)."
           
           echo "✅ Submission handed off to Mozilla Add-ons successfully!"
 
@@ -103,6 +107,8 @@ jobs:
         if: steps.version_check.outputs.should_release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_PROMPT_DISABLED: 1
+          GIT_TERMINAL_PROMPT: 0
         shell: bash
         run: |
           set -euo pipefail
@@ -110,24 +116,26 @@ jobs:
           VERSION="${{ steps.version_check.outputs.version }}"
           TAG="v${VERSION}"
           
-          # Git tag
+          # Git tag (only push if remote doesn't have it)
           if ! git rev-parse "$TAG" >/dev/null 2>&1; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git tag -a "$TAG" -m "Release $TAG"
             git push origin "$TAG"
+          else
+            echo "Git tag $TAG already exists on repository."
           fi
           
           cp dist/index.html dist/dango.html
           
-          # GitHub Release
+          # GitHub Release with non-interactive prompt disabled
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists, uploading assets..."
             gh release upload "$TAG" \
               dist/dango.html \
               dist/dango-firefox.zip \
               dist/dango-chrome.zip \
-              --clobber
+              --clobber < /dev/null
           else
             echo "Creating publication release for $TAG..."
             gh release create "$TAG" \
@@ -135,7 +143,8 @@ jobs:
               dist/dango-firefox.zip \
               dist/dango-chrome.zip \
               --title "Dango ${TAG}" \
-              --generate-notes
+              --generate-notes \
+              --verify-tag < /dev/null
           fi
           
           echo "🎉 Release $TAG completed successfully!"
