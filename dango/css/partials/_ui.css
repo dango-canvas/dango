@@ -411,6 +411,7 @@ button.btn-danger:hover {
     flex-direction: row; /* 水平排列 */
     gap: 12px;
     z-index: 1000;
+    transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1), transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bottom-btn {
@@ -736,6 +737,13 @@ button.btn-danger:hover {
         bottom: 18px;
         bottom: calc(18px + env(safe-area-inset-bottom));
         right: 16px;
+    }
+
+    /* 移动端选中有节点（Dock 展开操作栏）时，右下角安全盾牌平滑淡出避让，防止视觉遮挡与误触 */
+    body.has-selection #ui-bottom-right {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(8px);
     }
 
     #dango-dock-container {

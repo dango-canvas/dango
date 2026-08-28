@@ -353,6 +353,14 @@ export function updateFloatingDock(force: boolean = false): void {
     const targetMode: 'global' | 'single' | 'multi' = count === 0 ? 'global' : count === 1 ? 'single' : 'multi';
     const texts = getTexts();
 
+    if (typeof document !== 'undefined' && document.body) {
+        if (targetMode !== 'global') {
+            document.body.classList.add('has-selection');
+        } else {
+            document.body.classList.remove('has-selection');
+        }
+    }
+
     if (!force && currentRenderedMode === targetMode) {
         // 同一模式下若为单选态，动态更新色盘原点颜色
         if (targetMode === 'single') {
