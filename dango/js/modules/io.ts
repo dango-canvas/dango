@@ -1,7 +1,7 @@
 // modules/io.ts
 import { state, pushHistory, packData, unpackData } from './state.js';
 import { getTexts } from './i18n.js';
-import { showToast, applySettings } from './ui.js';
+import { showToast, applySettings, showPersistentToast, dismissPersistentToast } from './ui.js';
 import { getTimestamp, downloadBlob, copyToClipboard } from './utils.js';
 import { fitView } from './view.js';
 
@@ -23,13 +23,8 @@ export function exportJson(): void {
         links: state.links,
         settings: state.settings
     }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `dango-canvas_${getTimestamp()}.dango`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(data, `dango-canvas_${getTimestamp()}.dango`, 'application/json');
+    checkAndTriggerFeedback();
 }
 
 function persistSettings(settings: Partial<typeof state.settings>): void {
@@ -96,8 +91,6 @@ export function processDangoFile(file: File): void {
     };
     reader.readAsText(file);
 }
-
-import { showPersistentToast, dismissPersistentToast } from './ui.js';
 
 const FIRST_USED_KEY = 'dango_first_used';
 const FEEDBACK_DISMISSED_KEY = 'dango_feedback_dismissed';
@@ -191,12 +184,6 @@ if (typeof window !== 'undefined') {
             nodesCount: state.nodes.length
         })
     };
-}
-
-export function exportJson(): void {
-    const data = JSON.stringify(packData(), null, 2);
-    downloadBlob(data, `dango-canvas_${getTimestamp()}.dango`, 'application/json');
-    checkAndTriggerFeedback();
 }
 
 export function createShareLink(): void {
