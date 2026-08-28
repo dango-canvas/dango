@@ -1,7 +1,7 @@
 // modules/interactions.ts
 import { state, history, pushHistory, MAX_HISTORY, saveData, CONFIG } from './state.js';
 import { render, updateViewTransform } from './render.js';
-import { uid, screenToWorld, getStandardRect, isIntersect } from './utils.js';
+import { uid, screenToWorld, getStandardRect, isIntersect, morphChineseSymbols, normalizeChineseMarkdownPrefix } from './utils.js';
 import { changeZoom, cancelViewAnimation, fitView, animateView } from './view.js';
 import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
@@ -1089,7 +1089,8 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
 
         const handleInput = () => {
             if (isComposing) return;
-            const rawText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+            const currentInnerText = nodeEl.innerText;
+            const rawText = currentInnerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
             if (!rawText.trim()) {
                 nodeEl.classList.remove('has-multiline');
                 if (nodeEl.innerText !== '\u200B') {
@@ -1103,10 +1104,32 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
                         sel.addRange(range);
                     }
                 }
-            } else if (rawText.replace(/\r?\n$/, '').includes('\n')) {
-                nodeEl.classList.add('has-multiline');
             } else {
-                nodeEl.classList.remove('has-multiline');
+                // 中文输入法符号即时安全变形（、、+空格 -> // ，【 】 -> [ ] ）
+                const { text: morphedText, morphed } = morphChineseSymbols(currentInnerText);
+                if (morphed) {
+                    const sel = window.getSelection();
+                    const oldOffset = sel?.focusOffset ?? currentInnerText.length;
+                    const diff = morphedText.length - currentInnerText.length;
+                    const newOffset = Math.max(0, Math.min(morphedText.length, oldOffset + diff));
+                    
+                    nodeEl.innerText = morphedText;
+                    const range = document.createRange();
+                    const textNode = nodeEl.firstChild || nodeEl;
+                    try {
+                        range.setStart(textNode, newOffset);
+                        range.collapse(true);
+                        sel?.removeAllRanges();
+                        sel?.addRange(range);
+                    } catch {}
+                }
+
+                const finalRaw = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+                if (finalRaw.replace(/\r?\n$/, '').includes('\n')) {
+                    nodeEl.classList.add('has-multiline');
+                } else {
+                    nodeEl.classList.remove('has-multiline');
+                }
             }
 
             if (node) {
@@ -1144,6 +1167,7 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
             let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '').replace(/\r?\n$/, '');
+            newText = normalizeChineseMarkdownPrefix(newText);
             
             if (!newText.trim()) {
                 state.nodes = state.nodes.filter(n => n.id !== node.id);

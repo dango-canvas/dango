@@ -1,7 +1,7 @@
 // modules/actions.ts
 import { state, history, pushHistory, MAX_HISTORY, CONFIG } from './state.js';
 import { render } from './render.js';
-import { uid, isUrl } from './utils.js';
+import { uid, isUrl, normalizeChineseMarkdownPrefix } from './utils.js';
 import { showToast } from './ui.js';
 import { getTexts } from './i18n.js';
 import { els } from './dom.js';
@@ -102,7 +102,7 @@ export function createNodesFromInput(text?: string): void {
         row.forEach((str, colIndex) => {
             state.nodes.push({
                 id: uid(),
-                text: str,
+                text: normalizeChineseMarkdownPrefix(str),
                 x: startX + colIndex * spacingX,
                 y: startY + rowIndex * spacingY,
                 w: 0,

@@ -144,7 +144,7 @@ function parseMarkdown(text: string): string {
     const lines = processedText.split('\n');
     const htmlLines = lines.map(line => {
         let processedLine = line.replace(
-            /^\[([ xX])\] (.*)/,
+            /^\[([ xX])\]\s*(.*)/,
             (_match, checked, content) => {
                 const isChecked = checked.toLowerCase() === 'x';
                 return `<span class="todo-item ${isChecked ? 'checked' : ''}" data-checked="${isChecked}">

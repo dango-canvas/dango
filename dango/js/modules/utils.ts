@@ -154,3 +154,54 @@ export function safeRemoveElement(el?: HTMLElement | SVGElement | Element | null
         el.parentNode.removeChild(el);
     }
 }
+
+/**
+ * 针对行首中文输入法符号执行即时安全变形（如 '、、 ' -> '// '，'【 】' -> '[ ] '）
+ */
+export function morphChineseSymbols(rawText: string): { text: string; morphed: boolean } {
+    let text = rawText.replace(/[\u200B\uFEFF]/g, '');
+    let morphed = false;
+
+    // 1. 行首连续顿号 + 空白（半角、全角 \u3000、不间断空格 \u00A0） -> 注释 '// '
+    const commentMatch = text.match(/^、、[\s\u00A0\u3000]+/);
+    if (commentMatch) {
+        text = '// ' + text.slice(commentMatch[0].length);
+        morphed = true;
+    } else {
+        // 2. 黑括号待办严格模式判定
+        const todoInnerSpaceMatch = text.match(/^【[\s\u00A0\u3000]+】[\s\u00A0\u3000]*/);
+        const todoOuterSpaceMatch = text.match(/^【】[\s\u00A0\u3000]+/);
+        const todoCheckedMatch = text.match(/^【([xXvV✓])】[\s\u00A0\u3000]*/);
+
+        if (todoInnerSpaceMatch) {
+            text = '[ ] ' + text.slice(todoInnerSpaceMatch[0].length);
+            morphed = true;
+        } else if (todoOuterSpaceMatch) {
+            text = '[ ] ' + text.slice(todoOuterSpaceMatch[0].length);
+            morphed = true;
+        } else if (todoCheckedMatch) {
+            text = '[x] ' + text.slice(todoCheckedMatch[0].length);
+            morphed = true;
+        }
+    }
+
+    return { text, morphed };
+}
+
+/**
+ * 规范化中文 Markdown 前缀（用于失焦兜底与批量创建节点）
+ */
+export function normalizeChineseMarkdownPrefix(rawText: string): string {
+    let text = rawText.replace(/[\u200B\uFEFF]/g, '');
+    if (text.startsWith('、、')) {
+        text = '// ' + text.slice(2).replace(/^[\s\u00A0\u3000]+/, '');
+    } else if (text.match(/^【[\s\u00A0\u3000]*】/)) {
+        text = '[ ] ' + text.replace(/^【[\s\u00A0\u3000]*】[\s\u00A0\u3000]*/, '');
+    } else if (text.match(/^【([xXvV✓])】/)) {
+        text = '[x] ' + text.replace(/^【([xXvV✓])】[\s\u00A0\u3000]*/, '');
+    } else if (text.match(/^\[([ xX])\](?!\s)/)) {
+        text = text.replace(/^\[([ xX])\]/, '[$1] ');
+    }
+    return text;
+}
+
