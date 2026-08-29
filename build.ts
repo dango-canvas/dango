@@ -30,7 +30,7 @@ async function bundle() {
   console.log("🚀 Starting build...");
 
   const manifest = JSON.parse(readFileSync(join(PROJECT_ROOT, "manifest.json"), "utf-8"));
-  const version = manifest.version || "1.1.2";
+  const version = manifest.version || "0.0.0";
   const buildDate = getBuildDate();
   const buildHash = getGitHash();
 

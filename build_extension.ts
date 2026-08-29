@@ -122,7 +122,7 @@ async function buildExtension() {
 
   // 读取基础资源与版本号
   const baseManifest = JSON.parse(readFileSync(join(PROJECT_ROOT, "manifest.json"), "utf-8"));
-  const version = baseManifest.version || "1.1.2";
+  const version = baseManifest.version || "0.0.0";
   const buildDate = getBuildDate();
   const buildHash = getGitHash();
 

@@ -1,243 +1,237 @@
 // test/format.test.ts
-import { expect, test, describe } from "bun:test";
+import { expect, test, describe, beforeEach, afterEach } from "bun:test";
+import { applyMarkdownFormat } from "../dango/js/modules/interactions.js";
 
-function applyMarkdownFormatLogic(text: string, selectionStart: number, selectionEnd: number, formatType: 'bold' | 'italic') {
-    const before = text.slice(0, selectionStart);
-    const selected = text.slice(selectionStart, selectionEnd);
-    const after = text.slice(selectionEnd);
-
-    const startOffset = before.length;
-    const endOffset = startOffset + selected.length;
-
-    let replaceStartOffset = startOffset;
-    let replaceEndOffset = endOffset;
-    let replacement = '';
-    let newSelectStart = startOffset;
-    let newSelectEnd = endOffset;
-
-    if (formatType === 'bold') {
-        // 1. 检查选区自身是否已被粗体标记包裹
-        if ((selected.startsWith('***') && selected.endsWith('***') && selected.length >= 6) ||
-            (selected.startsWith('___') && selected.endsWith('___') && selected.length >= 6)) {
-            replacement = selected.slice(2, -2);
-            newSelectStart = startOffset;
-            newSelectEnd = startOffset + replacement.length;
-        } else if ((selected.startsWith('**') && selected.endsWith('**') && selected.length >= 4) ||
-                   (selected.startsWith('__') && selected.endsWith('__') && selected.length >= 4)) {
-            replacement = selected.slice(2, -2);
-            newSelectStart = startOffset;
-            newSelectEnd = startOffset + replacement.length;
-        }
-        // 2. 检查选区两端上下文是否已被粗体标记包裹
-        else if ((before.endsWith('***') && after.startsWith('***')) ||
-                 (before.endsWith('___') && after.startsWith('___'))) {
-            replaceStartOffset = startOffset - 2;
-            replaceEndOffset = endOffset + 2;
-            replacement = selected;
-            newSelectStart = startOffset - 2;
-            newSelectEnd = startOffset - 2 + selected.length;
-        } else if ((before.endsWith('**') && after.startsWith('**')) ||
-                   (before.endsWith('__') && after.startsWith('__'))) {
-            replaceStartOffset = startOffset - 2;
-            replaceEndOffset = endOffset + 2;
-            replacement = selected;
-            newSelectStart = startOffset - 2;
-            newSelectEnd = startOffset - 2 + selected.length;
-        }
-        // 3. 执行粗体包裹
-        else {
-            if (!selected) {
-                if (before.endsWith('**') && after.startsWith('**')) {
-                    replaceStartOffset = startOffset - 2;
-                    replaceEndOffset = endOffset + 2;
-                    replacement = '';
-                    newSelectStart = startOffset - 2;
-                    newSelectEnd = startOffset - 2;
-                } else {
-                    replacement = '****';
-                    newSelectStart = startOffset + 2;
-                    newSelectEnd = startOffset + 2;
-                }
-            } else {
-                const match = selected.match(/^(\s*)([\s\S]*?)(\s*)$/);
-                const leadSpace = match ? match[1] : '';
-                const coreText = match ? match[2] : selected;
-                const trailSpace = match ? match[3] : '';
-
-                if (!coreText) {
-                    replacement = leadSpace + '****' + trailSpace;
-                    newSelectStart = startOffset + leadSpace.length + 2;
-                    newSelectEnd = startOffset + leadSpace.length + 2;
-                } else {
-                    replacement = leadSpace + '**' + coreText + '**' + trailSpace;
-                    newSelectStart = startOffset + leadSpace.length + 2;
-                    newSelectEnd = startOffset + leadSpace.length + 2 + coreText.length;
-                }
-            }
-        }
-    } else if (formatType === 'italic') {
-        // 1. 检查选区自身是否已被斜体标记包裹
-        if ((selected.startsWith('***') && selected.endsWith('***') && selected.length >= 6) ||
-            (selected.startsWith('___') && selected.endsWith('___') && selected.length >= 6)) {
-            replacement = selected.slice(1, -1);
-            newSelectStart = startOffset;
-            newSelectEnd = startOffset + replacement.length;
-        } else if ((selected.startsWith('*') && selected.endsWith('*') && selected.length >= 2 && !(selected.startsWith('**') && selected.endsWith('**'))) ||
-                   (selected.startsWith('_') && selected.endsWith('_') && selected.length >= 2 && !(selected.startsWith('__') && selected.endsWith('__')))) {
-            replacement = selected.slice(1, -1);
-            newSelectStart = startOffset;
-            newSelectEnd = startOffset + replacement.length;
-        }
-        // 2. 检查选区两端上下文是否已被斜体标记包裹
-        else if ((before.endsWith('***') && after.startsWith('***')) ||
-                 (before.endsWith('___') && after.startsWith('___'))) {
-            replaceStartOffset = startOffset - 1;
-            replaceEndOffset = endOffset + 1;
-            replacement = selected;
-            newSelectStart = startOffset - 1;
-            newSelectEnd = startOffset - 1 + selected.length;
-        } else if ((before.endsWith('*') && !before.endsWith('**') && after.startsWith('*') && !after.startsWith('**')) ||
-                   (before.endsWith('_') && !before.endsWith('__') && after.startsWith('_') && !after.startsWith('__'))) {
-            replaceStartOffset = startOffset - 1;
-            replaceEndOffset = endOffset + 1;
-            replacement = selected;
-            newSelectStart = startOffset - 1;
-            newSelectEnd = startOffset - 1 + selected.length;
-        }
-        // 3. 执行斜体包裹
-        else {
-            if (!selected) {
-                if (before.endsWith('*') && !before.endsWith('**') && after.startsWith('*') && !after.startsWith('**')) {
-                    replaceStartOffset = startOffset - 1;
-                    replaceEndOffset = endOffset + 1;
-                    replacement = '';
-                    newSelectStart = startOffset - 1;
-                    newSelectEnd = startOffset - 1;
-                } else {
-                    replacement = '**';
-                    newSelectStart = startOffset + 1;
-                    newSelectEnd = startOffset + 1;
-                }
-            } else {
-                const match = selected.match(/^(\s*)([\s\S]*?)(\s*)$/);
-                const leadSpace = match ? match[1] : '';
-                const coreText = match ? match[2] : selected;
-                const trailSpace = match ? match[3] : '';
-
-                if (!coreText) {
-                    replacement = leadSpace + '**' + trailSpace;
-                    newSelectStart = startOffset + leadSpace.length + 1;
-                    newSelectEnd = startOffset + leadSpace.length + 1;
-                } else {
-                    replacement = leadSpace + '*' + coreText + '*' + trailSpace;
-                    newSelectStart = startOffset + leadSpace.length + 1;
-                    newSelectEnd = startOffset + leadSpace.length + 1 + coreText.length;
-                }
-            }
-        }
+class MockTextNode {
+    nodeType = 3;
+    nodeValue: string;
+    parentNode: any = null;
+    constructor(val: string) {
+        this.nodeValue = val;
     }
-
-    const newText = text.slice(0, replaceStartOffset) + replacement + text.slice(replaceEndOffset);
-    return {
-        text: newText,
-        selectStart: newSelectStart,
-        selectEnd: newSelectEnd,
-        selectedText: newText.slice(newSelectStart, newSelectEnd)
-    };
+    get length() {
+        return this.nodeValue.length;
+    }
 }
 
-describe("Markdown Selection Shortcuts", () => {
+class MockDOMElement {
+    nodeType = 1;
+    tagName = 'DIV';
+    innerText: string;
+    attributes: Record<string, string> = {};
+    childNodes: MockTextNode[] = [];
+
+    constructor(text: string) {
+        this.innerText = text;
+        this.attributes['contenteditable'] = 'true';
+        this.updateChildNodes();
+    }
+
+    updateChildNodes() {
+        const t = new MockTextNode(this.innerText);
+        t.parentNode = this;
+        this.childNodes = [t];
+    }
+
+    getAttribute(name: string) {
+        return this.attributes[name] || null;
+    }
+
+    setAttribute(name: string, val: string) {
+        this.attributes[name] = val;
+    }
+
+    contains(container: any) {
+        return container === this || this.childNodes.includes(container);
+    }
+
+    dispatchEvent(ev: any) {}
+}
+
+describe("Markdown Selection Shortcuts (Real applyMarkdownFormat)", () => {
+    let currentSelection: any = null;
+    let nodeEl: MockDOMElement;
+    const origDocument = (globalThis as any).document;
+    const origWindow = (globalThis as any).window;
+    const origNodeFilter = (globalThis as any).NodeFilter;
+
+    beforeEach(() => {
+        (globalThis as any).NodeFilter = { SHOW_TEXT: 4 };
+
+        (globalThis as any).document = {
+            createTreeWalker: (root: any) => {
+                let index = -1;
+                return {
+                    nextNode: () => {
+                        index++;
+                        return root.childNodes[index] || null;
+                    }
+                };
+            },
+            createRange: () => {
+                let startNode: any = null;
+                let startOffset = 0;
+                let endNode: any = null;
+                let endOffset = 0;
+                let contentsNode: any = null;
+
+                return {
+                    selectNodeContents: (n: any) => { contentsNode = n; },
+                    setStart: (n: any, off: number) => { startNode = n; startOffset = off; },
+                    setEnd: (n: any, off: number) => { endNode = n; endOffset = off; },
+                    collapse: () => {},
+                    toString: function() {
+                        const full = (contentsNode ? contentsNode.innerText : '') || (startNode ? startNode.nodeValue : '');
+                        if (contentsNode && endNode) {
+                            return full.slice(0, endOffset);
+                        }
+                        if (contentsNode && startNode) {
+                            return full.slice(startOffset);
+                        }
+                        if (startNode && endNode && startNode === endNode) {
+                            return startNode.nodeValue.slice(startOffset, endOffset);
+                        }
+                        return '';
+                    }
+                };
+            },
+            execCommand: () => false // fallback to direct innerText replacement
+        };
+
+        (globalThis as any).window = {
+            getSelection: () => currentSelection
+        };
+    });
+
+    afterEach(() => {
+        (globalThis as any).document = origDocument;
+        (globalThis as any).window = origWindow;
+        (globalThis as any).NodeFilter = origNodeFilter;
+    });
+
+    function setSelection(el: MockDOMElement, start: number, end: number) {
+        el.updateChildNodes();
+        const textNode = el.childNodes[0];
+        const range = {
+            commonAncestorContainer: el,
+            startContainer: textNode,
+            startOffset: start,
+            endContainer: textNode,
+            endOffset: end,
+            toString: () => textNode.nodeValue.slice(start, end)
+        };
+        currentSelection = {
+            rangeCount: 1,
+            getRangeAt: (i: number) => range,
+            removeAllRanges: () => {},
+            addRange: (r: any) => {}
+        };
+    }
+
     test("Wrap plain text in bold", () => {
-        const res = applyMarkdownFormatLogic("hello world", 6, 11, 'bold');
-        expect(res.text).toBe("hello **world**");
-        expect(res.selectedText).toBe("world");
+        nodeEl = new MockDOMElement("hello world");
+        setSelection(nodeEl, 6, 11);
+        applyMarkdownFormat(nodeEl as any, 'bold');
+        expect(nodeEl.innerText).toBe("hello **world**");
     });
 
     test("Strip bold when selection contains **world**", () => {
-        const res = applyMarkdownFormatLogic("hello **world**", 6, 15, 'bold');
-        expect(res.text).toBe("hello world");
-        expect(res.selectedText).toBe("world");
+        nodeEl = new MockDOMElement("hello **world**");
+        setSelection(nodeEl, 6, 15);
+        applyMarkdownFormat(nodeEl as any, 'bold');
+        expect(nodeEl.innerText).toBe("hello world");
     });
 
     test("Strip bold when selection is inside **world**", () => {
-        const res = applyMarkdownFormatLogic("hello **world**", 8, 13, 'bold');
-        expect(res.text).toBe("hello world");
-        expect(res.selectedText).toBe("world");
+        nodeEl = new MockDOMElement("hello **world**");
+        setSelection(nodeEl, 8, 13);
+        applyMarkdownFormat(nodeEl as any, 'bold');
+        expect(nodeEl.innerText).toBe("hello world");
     });
 
     test("Wrap plain text in italic", () => {
-        const res = applyMarkdownFormatLogic("hello world", 6, 11, 'italic');
-        expect(res.text).toBe("hello *world*");
-        expect(res.selectedText).toBe("world");
+        nodeEl = new MockDOMElement("hello world");
+        setSelection(nodeEl, 6, 11);
+        applyMarkdownFormat(nodeEl as any, 'italic');
+        expect(nodeEl.innerText).toBe("hello *world*");
     });
 
     test("Strip italic when selection contains *world*", () => {
-        const res = applyMarkdownFormatLogic("hello *world*", 6, 13, 'italic');
-        expect(res.text).toBe("hello world");
-        expect(res.selectedText).toBe("world");
+        nodeEl = new MockDOMElement("hello *world*");
+        setSelection(nodeEl, 6, 13);
+        applyMarkdownFormat(nodeEl as any, 'italic');
+        expect(nodeEl.innerText).toBe("hello world");
     });
 
     test("Strip italic when selection is inside *world*", () => {
-        const res = applyMarkdownFormatLogic("hello *world*", 7, 12, 'italic');
-        expect(res.text).toBe("hello world");
-        expect(res.selectedText).toBe("world");
+        nodeEl = new MockDOMElement("hello *world*");
+        setSelection(nodeEl, 7, 12);
+        applyMarkdownFormat(nodeEl as any, 'italic');
+        expect(nodeEl.innerText).toBe("hello world");
     });
 
     test("Combined bold and italic: bold first then italic", () => {
-        const res1 = applyMarkdownFormatLogic("hello world", 6, 11, 'bold');
-        expect(res1.text).toBe("hello **world**");
-        expect(res1.selectStart).toBe(8);
-        expect(res1.selectEnd).toBe(13);
+        nodeEl = new MockDOMElement("hello world");
+        setSelection(nodeEl, 6, 11);
+        applyMarkdownFormat(nodeEl as any, 'bold');
+        expect(nodeEl.innerText).toBe("hello **world**");
 
-        const res2 = applyMarkdownFormatLogic(res1.text, res1.selectStart, res1.selectEnd, 'italic');
-        expect(res2.text).toBe("hello ***world***");
-        expect(res2.selectedText).toBe("world");
+        setSelection(nodeEl, 8, 13);
+        applyMarkdownFormat(nodeEl as any, 'italic');
+        expect(nodeEl.innerText).toBe("hello ***world***");
     });
 
     test("Combined bold and italic: strip bold from ***world***", () => {
-        const res = applyMarkdownFormatLogic("hello ***world***", 9, 14, 'bold');
-        expect(res.text).toBe("hello *world*");
-        expect(res.selectedText).toBe("world");
+        nodeEl = new MockDOMElement("hello ***world***");
+        setSelection(nodeEl, 9, 14);
+        applyMarkdownFormat(nodeEl as any, 'bold');
+        expect(nodeEl.innerText).toBe("hello *world*");
     });
 
     test("Combined bold and italic: strip italic from ***world***", () => {
-        const res = applyMarkdownFormatLogic("hello ***world***", 9, 14, 'italic');
-        expect(res.text).toBe("hello **world**");
-        expect(res.selectedText).toBe("world");
+        nodeEl = new MockDOMElement("hello ***world***");
+        setSelection(nodeEl, 9, 14);
+        applyMarkdownFormat(nodeEl as any, 'italic');
+        expect(nodeEl.innerText).toBe("hello **world**");
     });
 
     test("Whitespace trimming on selection", () => {
-        const res = applyMarkdownFormatLogic("hello   world  !", 6, 15, 'bold');
-        expect(res.text).toBe("hello   **world**  !");
-        expect(res.selectedText).toBe("world");
+        nodeEl = new MockDOMElement("hello   world  !");
+        setSelection(nodeEl, 6, 15);
+        applyMarkdownFormat(nodeEl as any, 'bold');
+        expect(nodeEl.innerText).toBe("hello   **world**  !");
     });
 
     test("Collapsed cursor in empty space", () => {
-        const res = applyMarkdownFormatLogic("hello world", 6, 6, 'bold');
-        expect(res.text).toBe("hello ****world");
-        expect(res.selectStart).toBe(8);
-        expect(res.selectEnd).toBe(8);
+        nodeEl = new MockDOMElement("hello world");
+        setSelection(nodeEl, 6, 6);
+        applyMarkdownFormat(nodeEl as any, 'bold');
+        expect(nodeEl.innerText).toBe("hello ****world");
     });
 
     test("Collapsed cursor inside **|** toggles back", () => {
-        const res = applyMarkdownFormatLogic("hello ****world", 8, 8, 'bold');
-        expect(res.text).toBe("hello world");
-        expect(res.selectStart).toBe(6);
-        expect(res.selectEnd).toBe(6);
+        nodeEl = new MockDOMElement("hello ****world");
+        setSelection(nodeEl, 8, 8);
+        applyMarkdownFormat(nodeEl as any, 'bold');
+        expect(nodeEl.innerText).toBe("hello world");
     });
 
     test("Collapsed cursor inside *|* toggles back", () => {
-        const res = applyMarkdownFormatLogic("hello **world", 7, 7, 'italic');
-        expect(res.text).toBe("hello world");
-        expect(res.selectStart).toBe(6);
-        expect(res.selectEnd).toBe(6);
+        nodeEl = new MockDOMElement("hello **world");
+        setSelection(nodeEl, 7, 7);
+        applyMarkdownFormat(nodeEl as any, 'italic');
+        expect(nodeEl.innerText).toBe("hello world");
     });
 
     test("Underscore bold/italic strip support", () => {
-        const res1 = applyMarkdownFormatLogic("hello __world__", 8, 13, 'bold');
-        expect(res1.text).toBe("hello world");
+        nodeEl = new MockDOMElement("hello __world__");
+        setSelection(nodeEl, 8, 13);
+        applyMarkdownFormat(nodeEl as any, 'bold');
+        expect(nodeEl.innerText).toBe("hello world");
 
-        const res2 = applyMarkdownFormatLogic("hello _world_", 7, 12, 'italic');
-        expect(res2.text).toBe("hello world");
+        nodeEl = new MockDOMElement("hello _world_");
+        setSelection(nodeEl, 7, 12);
+        applyMarkdownFormat(nodeEl as any, 'italic');
+        expect(nodeEl.innerText).toBe("hello world");
     });
 });

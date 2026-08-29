@@ -1,5 +1,4 @@
-// test/io_export.test.ts
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { state, packData } from '../dango/js/modules/state.js';
 import { exportJson, createShareLink, createEmbedCode, processDangoFile, initIO } from '../dango/js/modules/io.js';
 
@@ -69,6 +68,11 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
     let mockBody: MockElement;
     let mockHead: MockElement;
     let mockHtml: MockElement;
+    const origDocument = (globalThis as any).document;
+    const origWindow = (globalThis as any).window;
+    const origNavigator = (globalThis as any).navigator;
+    const origUrl = (globalThis as any).URL;
+    const origLzString = (globalThis as any).LZString;
 
     beforeEach(() => {
         mockBody = new MockElement('body', 'body');
@@ -88,6 +92,15 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
             getElementById: (id: string) => mockElements[id] || null,
             createElement: (tag: string) => new MockElement('', tag),
             execCommand: () => true
+        };
+
+        (globalThis as any).window = {
+            location: { origin: 'https://dango.ink', pathname: '/' }
+        };
+
+        (globalThis as any).LZString = {
+            compressToEncodedURIComponent: (str: string) => `encoded_${str.length}`,
+            decompressFromEncodedURIComponent: (str: string) => ''
         };
 
         (globalThis as any).URL = {
@@ -117,6 +130,14 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
             altAsCtrl: true,
             bgUrl: 'https://example.com/bg.png'
         };
+    });
+
+    afterEach(() => {
+        (globalThis as any).document = origDocument;
+        (globalThis as any).window = origWindow;
+        (globalThis as any).navigator = origNavigator;
+        (globalThis as any).URL = origUrl;
+        (globalThis as any).LZString = origLzString;
     });
 
     it('exportJson generates a readable JSON object format with complete nodes, groups, links, and settings', () => {
@@ -160,16 +181,47 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
         expect(parsed.settings.altAsCtrl).toBe(true);
     });
 
-    it('createShareLink executes without ReferenceError', () => {
-        expect(() => {
-            createShareLink();
-        }).not.toThrow();
+    it('createShareLink generates valid share URL with hash payload and writes to clipboard', async () => {
+        let copiedText = '';
+        (globalThis as any).window = {
+            location: { origin: 'https://dango.ink', pathname: '/' }
+        };
+        (globalThis as any).navigator = {
+            clipboard: {
+                writeText: async (t: string) => {
+                    copiedText = t;
+                    return true;
+                }
+            }
+        };
+
+        createShareLink();
+        await new Promise(r => setTimeout(r, 10));
+
+        expect(copiedText.startsWith('https://dango.ink/#')).toBe(true);
+        expect(copiedText.length).toBeGreaterThan(20);
     });
 
-    it('createEmbedCode executes without ReferenceError', () => {
-        expect(() => {
-            createEmbedCode();
-        }).not.toThrow();
+    it('createEmbedCode generates valid iframe snippet and writes to clipboard', async () => {
+        let copiedText = '';
+        (globalThis as any).window = {
+            location: { origin: 'https://dango.ink', pathname: '/' }
+        };
+        (globalThis as any).navigator = {
+            clipboard: {
+                writeText: async (t: string) => {
+                    copiedText = t;
+                    return true;
+                }
+            }
+        };
+
+        createEmbedCode();
+        await new Promise(r => setTimeout(r, 10));
+
+        expect(copiedText.startsWith('<iframe src="https://dango.ink/?embed=true#')).toBe(true);
+        expect(copiedText).toContain('allow="clipboard-write"');
+        expect(copiedText.endsWith('</iframe>')).toBe(true);
     });
 
     it('processDangoFile successfully imports standard JSON object format .dango file', (done) => {

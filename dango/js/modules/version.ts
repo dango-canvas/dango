@@ -8,7 +8,7 @@ declare const __BUILD_DATE__: string | undefined;
 declare const __BUILD_HASH__: string | undefined;
 
 export function getAppVersion(): string {
-    return typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.1.2';
+    return typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
 }
 
 export function getBuildDate(): string {
