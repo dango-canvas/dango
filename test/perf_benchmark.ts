@@ -219,12 +219,18 @@ async function findEdgePath(): Promise<string> {
     "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
     "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
   ];
   for (const path of candidates) {
     if (existsSync(path)) return path;
   }
-  throw new Error("No Chromium/Edge executable found!");
+  throw new Error("No Chromium/Edge/Chrome executable found on system!");
 }
 
 export async function runPerfBenchmark(): Promise<BenchmarkResult> {

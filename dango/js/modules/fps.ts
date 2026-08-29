@@ -37,16 +37,18 @@ export function FPS(): boolean {
         let frameCount = 0;
         let slowFrames = 0;
         let lastUpdate = lastTime;
+        const UPDATE_INTERVAL_MS = 100; // 100ms 高频精细采样（原 400ms），秒级捕捉运镜瞬时掉帧
 
         function updateLoop(now: number) {
             if (!isFpsActive) return;
             const delta = now - lastTime;
             lastTime = now;
             frameCount++;
-            if (delta > 14) slowFrames++; // 对于 120Hz，超过 14ms 视为掉帧
+            if (delta > 12.0) slowFrames++; // 对于 120Hz (8.33ms 预算)，超过 12ms 计入掉帧统计
 
-            if (now - lastUpdate >= 400) {
-                const fps = Math.round((frameCount * 1000) / (now - lastUpdate));
+            const elapsedSinceUpdate = now - lastUpdate;
+            if (elapsedSinceUpdate >= UPDATE_INTERVAL_MS) {
+                const fps = Math.round((frameCount * 1000) / elapsedSinceUpdate);
                 if (fpsPanel) {
                     fpsPanel.innerHTML = `FPS: <b>${fps}</b> | 瞬时: ${delta.toFixed(1)}ms | 掉帧: ${slowFrames}`;
                     fpsPanel.style.color = fps < 90 ? '#ef4444' : fps < 115 ? '#f59e0b' : '#4ade80';
