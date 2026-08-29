@@ -126,22 +126,20 @@ jobs:
             echo "Git tag $TAG already exists on repository."
           fi
           
+          # Prepare standalone release assets
           cp dist/index.html dist/dango.html
+          (cd dist && zip -9 dango.zip dango.html)
           
           # GitHub Release with non-interactive prompt disabled
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists, uploading assets..."
             gh release upload "$TAG" \
-              dist/dango.html \
-              dist/dango-firefox.zip \
-              dist/dango-chrome.zip \
+              dist/dango.zip \
               --clobber < /dev/null
           else
             echo "Creating publication release for $TAG..."
             gh release create "$TAG" \
-              dist/dango.html \
-              dist/dango-firefox.zip \
-              dist/dango-chrome.zip \
+              dist/dango.zip \
               --title "Dango ${TAG}" \
               --generate-notes \
               --verify-tag < /dev/null
