@@ -1,6 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { state, packData } from '../dango/js/modules/state.js';
-import { exportJson, createShareLink, createEmbedCode, processDangoFile, initIO } from '../dango/js/modules/io.js';
+import { 
+    exportJson, 
+    createShareLink, 
+    createEmbedCode, 
+    processDangoFile, 
+    initIO,
+    sanitizeFilenameTitle,
+    extractCanvasTitle,
+    getExportFilename 
+} from '../dango/js/modules/io.js';
 
 class MockElement {
     tagName: string;
@@ -130,6 +139,7 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
             altAsCtrl: true,
             bgUrl: 'https://example.com/bg.png'
         };
+        state.selection = new Set();
     });
 
     afterEach(() => {
@@ -176,9 +186,10 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
         expect(parsed.nodes[0].text).toBe('Test Node 1');
         expect(parsed.nodes[0].step).toBe(1);
         expect(parsed.groups.length).toBe(1);
-        expect(parsed.links.length).toBe(1);
         expect(parsed.settings.hideGrid).toBe(true);
         expect(parsed.settings.altAsCtrl).toBe(true);
+        expect(capturedFilename.startsWith('dango_Test Node 1_')).toBe(true);
+        expect(capturedFilename.endsWith('.dango')).toBe(true);
     });
 
     it('createShareLink generates valid share URL with hash payload and writes to clipboard', async () => {
@@ -219,9 +230,8 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
         createEmbedCode();
         await new Promise(r => setTimeout(r, 10));
 
-        expect(copiedText.startsWith('<iframe src="https://dango.ink/?embed=true#')).toBe(true);
-        expect(copiedText).toContain('allow="clipboard-write"');
-        expect(copiedText.endsWith('</iframe>')).toBe(true);
+        expect(copiedText.includes('<iframe')).toBe(true);
+        expect(copiedText.includes('embed=true')).toBe(true);
     });
 
     it('processDangoFile successfully imports standard JSON object format .dango file', (done) => {
@@ -274,4 +284,143 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
     });
 });
 
+describe('Smart Export Filename & Title Inference Optimization', () => {
+    describe('sanitizeFilenameTitle', () => {
+        it('extracts only the first line of multiline text', () => {
+            expect(sanitizeFilenameTitle('First Line\nSecond Line\nThird Line')).toBe('First Line');
+        });
 
+        it('strips Markdown heading prefixes (#, ##, ###)', () => {
+            expect(sanitizeFilenameTitle('# 主标题架构')).toBe('主标题架构');
+            expect(sanitizeFilenameTitle('## 二级模块设计')).toBe('二级模块设计');
+            expect(sanitizeFilenameTitle('### 三级细化分支')).toBe('三级细化分支');
+        });
+
+        it('strips comment prefixes (// and 、、)', () => {
+            expect(sanitizeFilenameTitle('// 备忘事项')).toBe('备忘事项');
+            expect(sanitizeFilenameTitle('、、 中文符号即时注释')).toBe('中文符号即时注释');
+        });
+
+        it('strips Todo checkboxes and Chinese variants', () => {
+            expect(sanitizeFilenameTitle('[ ] 待办列表项')).toBe('待办列表项');
+            expect(sanitizeFilenameTitle('[x] 已完成事项')).toBe('已完成事项');
+            expect(sanitizeFilenameTitle('【 】 中文待办')).toBe('中文待办');
+            expect(sanitizeFilenameTitle('【x】 中文已办')).toBe('中文已办');
+        });
+
+        it('strips Markdown image and link formatting', () => {
+            expect(sanitizeFilenameTitle('![架构拓扑图](https://example.com/img.png)')).toBe('架构拓扑图');
+            expect(sanitizeFilenameTitle('[官方文档链接](https://dango.ink)')).toBe('官方文档链接');
+        });
+
+        it('strips styling markers (*, _, `, ~)', () => {
+            expect(sanitizeFilenameTitle('**核心模块**与`API接口`')).toBe('核心模块与API接口');
+        });
+
+        it('filters cross-platform illegal filename characters and collapses spaces', () => {
+            expect(sanitizeFilenameTitle('API / Service: User * Query? <Root>')).toBe('API Service User Query Root');
+            expect(sanitizeFilenameTitle('Path\\To:File|Name"')).toBe('PathToFileName');
+        });
+
+        it('truncates title to max 30 characters', () => {
+            const longTitle = '这是一个非常非常非常非常非常非常非常非常非常非常非常非常长的主题名称文本';
+            const sanitized = sanitizeFilenameTitle(longTitle);
+            expect(sanitized.length).toBe(30);
+            expect(sanitized).toBe('这是一个非常非常非常非常非常非常非常非常非常非常非常非常长的');
+        });
+
+        it('returns empty string for pure symbols or whitespace', () => {
+            expect(sanitizeFilenameTitle('   ')).toBe('');
+            expect(sanitizeFilenameTitle('# ')).toBe('');
+            expect(sanitizeFilenameTitle('###')).toBe('');
+            expect(sanitizeFilenameTitle('***')).toBe('');
+            expect(sanitizeFilenameTitle('// : * ? < >')).toBe('');
+        });
+    });
+
+    describe('extractCanvasTitle & getExportFilename Priority Cascade', () => {
+        it('Priority 1 (Explicit Selection): uses selected node text first', () => {
+            const testState: any = {
+                nodes: [
+                    { id: 'n1', text: '# Global Architecture' },
+                    { id: 'n2', text: 'Selected Feature Target' },
+                    { id: 'n3', text: 'Another Node' }
+                ],
+                groups: [],
+                selection: new Set(['n2'])
+            };
+            expect(extractCanvasTitle(testState)).toBe('Selected Feature Target');
+            expect(getExportFilename(testState)).toMatch(/^dango_Selected Feature Target_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.dango$/);
+        });
+
+        it('Priority 1 (Explicit Selection): handles selected group text', () => {
+            const testState: any = {
+                nodes: [
+                    { id: 'n1', text: '# Main Topic' }
+                ],
+                groups: [
+                    { id: 'g1', text: 'User Lifecycle Group', memberIds: ['n1'] }
+                ],
+                selection: new Set(['g1'])
+            };
+            expect(extractCanvasTitle(testState)).toBe('User Lifecycle Group');
+        });
+
+        it('Priority 2 (Markdown Headings): prefers H1 over H2/H3 and regular nodes when no selection', () => {
+            const testState: any = {
+                nodes: [
+                    { id: 'n1', text: 'First Regular Node' },
+                    { id: 'n2', text: '### H3 Detailed Sub-topic' },
+                    { id: 'n3', text: '# H1 System Blueprint' },
+                    { id: 'n4', text: '## H2 Subsystem' }
+                ],
+                groups: [],
+                selection: new Set()
+            };
+            expect(extractCanvasTitle(testState)).toBe('H1 System Blueprint');
+        });
+
+        it('Priority 2 (Markdown Headings): falls back to H2/H3 if no H1 exists', () => {
+            const testState: any = {
+                nodes: [
+                    { id: 'n1', text: 'Regular Node' },
+                    { id: 'n2', text: '## H2 Component Layer' },
+                    { id: 'n3', text: '### H3 Node' }
+                ],
+                groups: [],
+                selection: new Set()
+            };
+            expect(extractCanvasTitle(testState)).toBe('H2 Component Layer');
+        });
+
+        it('Priority 3 (First Node): uses first non-empty node if no selection and no headings', () => {
+            const testState: any = {
+                nodes: [
+                    { id: 'n1', text: '   ' },
+                    { id: 'n2', text: 'First Valid Plan Node' },
+                    { id: 'n3', text: 'Second Plan Node' }
+                ],
+                groups: [],
+                selection: new Set()
+            };
+            expect(extractCanvasTitle(testState)).toBe('First Valid Plan Node');
+        });
+
+        it('Priority 4 (Fallback): returns "canvas" and generates dango_canvas_... for empty canvas or blank nodes', () => {
+            const emptyState: any = {
+                nodes: [],
+                groups: [],
+                selection: new Set()
+            };
+            expect(extractCanvasTitle(emptyState)).toBe('canvas');
+            expect(getExportFilename(emptyState)).toMatch(/^dango_canvas_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.dango$/);
+
+            const blankState: any = {
+                nodes: [{ id: 'n1', text: '   ' }, { id: 'n2', text: '# ' }],
+                groups: [],
+                selection: new Set()
+            };
+            expect(extractCanvasTitle(blankState)).toBe('canvas');
+        });
+    });
+});

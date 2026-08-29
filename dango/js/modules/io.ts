@@ -5,6 +5,8 @@ import { showToast, applySettings, showPersistentToast, dismissPersistentToast }
 import { getTimestamp, downloadBlob, copyToClipboard } from './utils.js';
 import { fitView } from './view.js';
 
+import type { CanvasState } from './types.js';
+
 declare const LZString: {
     compressToEncodedURIComponent: (str: string) => string;
     decompressFromEncodedURIComponent: (str: string) => string;
@@ -16,6 +18,99 @@ export function initIO(render: () => void): void {
     renderRef = render;
 }
 
+/**
+ * 清洗节点文本，生成适用于全平台文件系统的安全文件名片段。
+ */
+export function sanitizeFilenameTitle(text: string): string {
+    if (!text) return '';
+    // 1. 取首行
+    const firstLine = text.split(/\r?\n/)[0];
+    if (!firstLine) return '';
+
+    // 2. 剥离 Markdown 语法和前缀
+    let clean = firstLine
+        .replace(/^#{1,6}(\s+|$)/, '') // 剥离 Markdown 标题前缀 (#, ##, ### 等)
+        .replace(/^(\/\/|、、)(\s+|$)/, '') // 剥离注释前缀 (//, 、、)
+        .replace(/^[\[【][\sxX✓]?[\]】](\s+|$)/, '') // 剥离 Todo 复选框 ([ ], [x], 【 】, 【x】)
+        .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // 剥离图片保留 alt
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // 剥离超链接保留文本
+        .replace(/[*_`~#]/g, ''); // 剥离加粗/斜体/行内代码符号及残余 #
+
+    // 3. 剥离跨平台文件系统非法字符 (\ / : * ? " < > | \0-\x1f)
+    clean = clean.replace(/[\\/:*?"<>|\x00-\x1f]/g, '');
+
+    // 4. 收敛连续空格并去除首尾空白
+    clean = clean.replace(/\s+/g, ' ').trim();
+
+    // 5. 最大长度截断为 30 字符
+    if (clean.length > 30) {
+        clean = clean.slice(0, 30).trim();
+    }
+
+    return clean;
+}
+
+/**
+ * 按照语义优先级推断画布核心标题：
+ * 1. 用户当前选中的节点/组文本 (Explicit Selection)
+ * 2. 显式 Markdown 标题节点 (H1 > H2 > H3)
+ * 3. 画布首个非空普通节点 (First Node)
+ * 4. 保底回退: 'canvas'
+ */
+export function extractCanvasTitle(canvasState: CanvasState = state): string {
+    // 梯队 1: 显式手选（Selection）
+    if (canvasState.selection && canvasState.selection.size > 0) {
+        for (const id of canvasState.selection) {
+            const node = canvasState.nodes.find(n => n.id === id);
+            if (node && node.text) {
+                const title = sanitizeFilenameTitle(node.text);
+                if (title) return title;
+            }
+            const group = canvasState.groups.find(g => g.id === id);
+            if (group && group.text) {
+                const title = sanitizeFilenameTitle(group.text);
+                if (title) return title;
+            }
+        }
+    }
+
+    // 梯队 2: 显式 Markdown 标题节点（H1 > H2 > H3）
+    const h1Node = canvasState.nodes.find(n => n.text && n.text.startsWith('# '));
+    if (h1Node) {
+        const title = sanitizeFilenameTitle(h1Node.text);
+        if (title) return title;
+    }
+    const h2Node = canvasState.nodes.find(n => n.text && n.text.startsWith('## '));
+    if (h2Node) {
+        const title = sanitizeFilenameTitle(h2Node.text);
+        if (title) return title;
+    }
+    const h3Node = canvasState.nodes.find(n => n.text && n.text.startsWith('### '));
+    if (h3Node) {
+        const title = sanitizeFilenameTitle(h3Node.text);
+        if (title) return title;
+    }
+
+    // 梯队 3: 首个非空有效节点
+    for (const node of canvasState.nodes) {
+        if (node.text) {
+            const title = sanitizeFilenameTitle(node.text);
+            if (title) return title;
+        }
+    }
+
+    // 梯队 4: 回退默认
+    return 'canvas';
+}
+
+/**
+ * 获取符合规范的导出文件名：dango_<Title>_<Timestamp>.dango
+ */
+export function getExportFilename(canvasState: CanvasState = state): string {
+    const title = extractCanvasTitle(canvasState);
+    return `dango_${title}_${getTimestamp()}.dango`;
+}
+
 export function exportJson(): void {
     const data = JSON.stringify({ 
         nodes: state.nodes, 
@@ -23,7 +118,8 @@ export function exportJson(): void {
         links: state.links,
         settings: state.settings
     }, null, 2);
-    downloadBlob(data, `dango-canvas_${getTimestamp()}.dango`, 'application/json');
+    const filename = getExportFilename(state);
+    downloadBlob(data, filename, 'application/json');
     checkAndTriggerFeedback();
 }
 
