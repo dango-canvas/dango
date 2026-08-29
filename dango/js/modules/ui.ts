@@ -702,6 +702,11 @@ export function dismissPersistentToast(id: string): void {
     if (!container) return;
     const toast = container.querySelector<HTMLElement>(`.toast[data-toast-id="${id}"]`);
     if (toast) {
+        if (document.body.classList.contains('mode-presenting') || document.body.classList.contains('view-animating')) {
+            if ((toast as any)._dismissTimer) clearTimeout((toast as any)._dismissTimer);
+            toast.remove();
+            return;
+        }
         toast.classList.remove('show');
         toast.dataset.dismissing = 'true';
         if ((toast as any)._dismissTimer) {

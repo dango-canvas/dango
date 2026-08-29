@@ -37,6 +37,15 @@
     filter: url(#hand-drawn-filter-marker);
 }
 
+/* 视口缩放与平移期间：抑制重型 SVG 滤镜，防止显存频繁重新栅格化与上传 */
+body.view-animating line.link,
+body.view-animating path.link,
+body.view-animating line.ghost-link,
+body.view-animating #arrowhead path,
+body.view-animating marker[id^="arrowhead"] path {
+    filter: none !important;
+}
+
 /* --- 空状态 --- */
 .empty-state {
     position: absolute;
@@ -146,6 +155,13 @@ path.link.tagging-ghost {
     transition: opacity 0.25s ease !important;
 }
 
+body.mode-presenting .tagging-ghost,
+body.view-animating .tagging-ghost,
+body.mode-presenting path.link.tagging-ghost,
+body.view-animating path.link.tagging-ghost {
+    transition: none !important;
+}
+
 /* --- 演示演讲模式（Presentation Engine） --- */
 body.mode-presenting #ui-layer,
 body.mode-presenting #search-container,
@@ -170,7 +186,6 @@ body.mode-presenting .group.selected {
     opacity: 0 !important;
     pointer-events: none !important;
     visibility: hidden !important;
-    transition: opacity 0.2s ease, visibility 0.2s ease !important;
 }
 
 path.link.presentation-hidden {
@@ -217,26 +232,12 @@ path.link.ink-flow {
     align-items: center;
     gap: 4px;
     background: var(--ui-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--ui-border);
     box-shadow: var(--ui-shadow);
     border-radius: 16px;
     padding: 4px 8px;
     user-select: none;
     -webkit-user-select: none;
-    animation: hudSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes hudSlideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .hud-btn {

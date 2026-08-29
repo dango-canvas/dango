@@ -6,9 +6,12 @@ import { buildLinkPathData, getLinkOpacity, getLinkStrokeColor, getLinkStrokeSty
 import { CONFIG } from './state.js';
 import { 
     getStepBadgeText, 
+    getCurrentStep,
     isItemVisibleInPresentation, 
     isLinkVisibleInPresentation, 
     isPresentationModeActive,
+    isPresentationNavigatingForward,
+    isGrandFinale,
     isItemGhostedInTagging,
     isLinkGhostedInTagging
 } from './presenter.js';
@@ -60,12 +63,15 @@ function syncDomElements<T extends { id: string }>(
 ): void {
     if (!parent) return;
     const existing = new Map<string, HTMLElement>();
-    Array.from(parent.children).forEach(el => {
-        const id = (el as HTMLElement).dataset.id;
-        if (id) existing.set(id, el as HTMLElement);
-    });
+    const children = parent.children;
+    for (let i = 0; i < children.length; i++) {
+        const el = children[i] as HTMLElement;
+        const id = el.dataset.id;
+        if (id) existing.set(id, el);
+    }
     const activeIds = new Set<string>();
-    dataArray.forEach(item => {
+    for (let i = 0; i < dataArray.length; i++) {
+        const item = dataArray[i];
         activeIds.add(item.id);
         let el = existing.get(item.id);
         if (!el) {
@@ -75,7 +81,7 @@ function syncDomElements<T extends { id: string }>(
             parent.appendChild(el);
         }
         renderFn(el, item);
-    });
+    }
     existing.forEach((el, id) => { if (!activeIds.has(id)) safeRemoveElement(el); });
 }
 
@@ -177,8 +183,7 @@ function parseImageMarkdown(text?: string): { alt: string; url: string } | null 
 }
 
 function getImageSizeKey(width?: number): 's' | 'l' {
-    if (!width) return 's';
-    return width >= 200 ? 'l' : 's';
+    return width === IMAGE_SIZE_WIDTHS.l ? 'l' : 's';
 }
 
 function getNextImageSizeKey(currentKey: 's' | 'l'): 's' | 'l' {
@@ -234,15 +239,20 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
         if (img.getAttribute('src') !== imageData.url) img.setAttribute('src', imageData.url);
         if (img.getAttribute('alt') !== imageData.alt) img.setAttribute('alt', imageData.alt);
 
-        if (!node.w || node.w < 100) {
-            node.w = IMAGE_SIZE_WIDTHS.s;
+        const currentSizeKey = getImageSizeKey(node.w);
+        const targetWidth = IMAGE_SIZE_WIDTHS[currentSizeKey];
+        if (node.w !== targetWidth) {
+            node.w = targetWidth;
         }
         el.style.width = `${node.w}px`;
+        if (node.h) {
+            el.style.height = `${node.h}px`;
+        }
 
         const updateH = () => {
             if (img && img.naturalWidth) {
                 const newH = Math.round(node.w * (img.naturalHeight / img.naturalWidth));
-                if (node.h !== newH) {
+                if (node.h !== newH || el.style.height !== `${newH}px`) {
                     node.h = newH;
                     el.style.height = `${node.h}px`;
                     render();
@@ -250,7 +260,7 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
             }
         };
         
-        if (img.complete) updateH();
+        if (img.complete && img.naturalWidth) updateH();
         else img.onload = updateH;
 
         let sizeBtn = el.querySelector<HTMLButtonElement>('.image-size-btn');
@@ -261,16 +271,15 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
             sizeBtn.onmousedown = (e) => e.stopPropagation();
             sizeBtn.onclick = (e) => {
                 e.stopPropagation();
-                const currentKey = getImageSizeKey(node.w);
-                const nextKey = getNextImageSizeKey(currentKey);
-                const targetWidth = IMAGE_SIZE_WIDTHS[nextKey];
-                if (applyImageSize(node, img, targetWidth)) {
+                const curKey = getImageSizeKey(node.w);
+                const nextKey = getNextImageSizeKey(curKey);
+                const width = IMAGE_SIZE_WIDTHS[nextKey];
+                if (applyImageSize(node, img, width)) {
                     render();
                 }
             };
             el.appendChild(sizeBtn);
         }
-        const currentSizeKey = getImageSizeKey(node.w);
         const iconHTML = IMAGE_SIZE_ICONS[currentSizeKey];
         if (sizeBtn.dataset.sizeIcon !== currentSizeKey) {
             setSafeSVG(sizeBtn, iconHTML);
@@ -316,6 +325,8 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
                 el.dataset.lastText = node.text || '';
                 el.style.width = '';
                 el.style.height = '';
+                node.w = 0;
+                node.h = 0;
             }
         }
     }
@@ -362,13 +373,13 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
 
     if (!isVisibleInPresentation) {
         classes.push('presentation-hidden');
-    } else if (isPresentationModeActive()) {
+    } else if (isPresentationModeActive() && !isGrandFinale() && isPresentationNavigatingForward() && (node.step === getCurrentStep())) {
         classes.push('step-bounce-in');
     }
 
     el.className = classes.join(' ');
     
-    if (!isImage && (!node.w || !node.h || el.offsetWidth !== node.w || el.offsetHeight !== node.h)) {
+    if (!isImage && (!node.w || !node.h)) {
         node.w = el.offsetWidth;
         node.h = el.offsetHeight;
     }
@@ -378,8 +389,9 @@ function renderGroup(el: HTMLElement, group: any): void {
     if (group.memberIds && group.memberIds.length > 0) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         let hasVisibleMembers = false;
+        const nodeMap = currentRenderNodeMap;
         group.memberIds.forEach((mid: string) => {
-            const m = appState.nodes.find(n => n.id === mid);
+            const m = nodeMap ? nodeMap.get(mid) : appState.nodes.find(n => n.id === mid);
             if (m) {
                 hasVisibleMembers = true;
                 minX = Math.min(minX, m.x);
@@ -420,10 +432,14 @@ function renderGroup(el: HTMLElement, group: any): void {
     if (isItemGhostedInTagging(group)) groupClasses.push('tagging-ghost');
     if (!isVisibleInPresentation) groupClasses.push('presentation-hidden');
 
-    el.style.transform = `translate(${group.x}px, ${group.y}px)`;
-    el.style.width = `${group.w}px`;
-    el.style.height = `${group.h}px`;
-    el.className = groupClasses.join(' ');
+    const targetTransform = `translate(${group.x}px, ${group.y}px)`;
+    if (el.style.transform !== targetTransform) el.style.transform = targetTransform;
+    const targetW = `${group.w}px`;
+    if (el.style.width !== targetW) el.style.width = targetW;
+    const targetH = `${group.h}px`;
+    if (el.style.height !== targetH) el.style.height = targetH;
+    const newClassName = groupClasses.join(' ');
+    if (el.className !== newClassName) el.className = newClassName;
 }
 
 export function updateViewTransform(): void {
@@ -435,6 +451,8 @@ export function updateViewTransform(): void {
  * 为不同颜色的箭头生成跨浏览器稳定兼容的独立 SVG Marker。
  * 规避 Safari / WebKit 尚不支持 SVG2 context-stroke 导致的隐形 Bug。
  */
+const createdMarkerIds = new Set<string>();
+
 function getOrCreateMarker(defs: SVGDefsElement | null, color: string, fallbackColor: string): string {
     if (!defs) return 'arrowhead';
     const resolvedColor = (color || fallbackColor || 'var(--link-color)').trim();
@@ -443,7 +461,7 @@ function getOrCreateMarker(defs: SVGDefsElement | null, color: string, fallbackC
     }
     const safeCol = resolvedColor.replace(/[^a-z0-9]/gi, '_');
     const markerId = `arrowhead-${safeCol}`;
-    if (!defs.querySelector(`#${markerId}`)) {
+    if (!createdMarkerIds.has(markerId) && !defs.querySelector(`#${markerId}`)) {
         const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
         marker.setAttribute('id', markerId);
         marker.setAttribute('viewBox', '0 0 10 10');
@@ -462,9 +480,12 @@ function getOrCreateMarker(defs: SVGDefsElement | null, color: string, fallbackC
         path.setAttribute('stroke-linejoin', 'round');
         marker.appendChild(path);
         defs.appendChild(marker);
+        createdMarkerIds.add(markerId);
     }
     return markerId;
 }
+
+let currentRenderNodeMap: Map<string, CanvasNode> | null = null;
 
 /**
  * 主渲染函数
@@ -477,18 +498,19 @@ export function render(): void {
     // Ensure defs exists
     let defs = els.connectionsLayer.querySelector('defs');
     if (!defs) {
+        createdMarkerIds.clear();
         const defsContent = `
             <defs>
                 <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="12" markerHeight="12" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
                     <path d="M 0 0 L 8 5 L 0 10" stroke="var(--link-color)" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
                 </marker>
                 <!-- 使用 userSpaceOnUse 防止水平/垂直线因 bounding box 为 0 导致滤镜失效或裁切 -->
-                <filter id="hand-drawn-filter" filterUnits="userSpaceOnUse" x="-50000" y="-50000" width="100000" height="100000">
-                    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" result="noise" />
+                <filter id="hand-drawn-filter" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="10000" height="10000">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" result="noise" />
                     <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G" />
                 </filter>
-                <filter id="hand-drawn-filter-marker" filterUnits="userSpaceOnUse" x="-50000" y="-50000" width="100000" height="100000">
-                    <feTurbulence type="fractalNoise" baseFrequency="0.15" numOctaves="2" result="noise" />
+                <filter id="hand-drawn-filter-marker" filterUnits="userSpaceOnUse" x="-500" y="-500" width="1000" height="1000">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.15" numOctaves="1" result="noise" />
                     <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.2" xChannelSelector="R" yChannelSelector="G" />
                 </filter>
             </defs>`;
@@ -496,16 +518,25 @@ export function render(): void {
         defs = els.connectionsLayer.querySelector('defs');
     }
 
+    const nodeMap = new Map<string, CanvasNode>();
+    for (let i = 0; i < appState.nodes.length; i++) {
+        nodeMap.set(appState.nodes[i].id, appState.nodes[i]);
+    }
+    currentRenderNodeMap = nodeMap;
+
     syncDomElements(appState.nodes, els.nodesLayer, 'node', renderNode);
     syncDomElements(appState.groups, els.groupsLayer, 'group', renderGroup);
 
     // Sync Links
-    const rootStyle = getComputedStyle(document.documentElement);
-    const rootBaseColor = rootStyle.getPropertyValue('--link-color').trim();
+    const rootBaseColor = 'var(--link-color)';
     const existingPaths = new Map<string, SVGPathElement>();
-    Array.from(els.connectionsLayer.querySelectorAll<SVGPathElement>('path.link')).forEach(pathEl => {
-        if (pathEl.dataset.id) existingPaths.set(pathEl.dataset.id, pathEl);
-    });
+    const connChildren = els.connectionsLayer.children;
+    for (let i = 0; i < connChildren.length; i++) {
+        const p = connChildren[i] as SVGPathElement;
+        if (p.tagName && p.tagName.toLowerCase() === 'path' && p.dataset.id) {
+            existingPaths.set(p.dataset.id, p);
+        }
+    }
 
     const isPresenting = isPresentationModeActive();
 
@@ -513,8 +544,8 @@ export function render(): void {
         const sourceId = l.source || l.sourceId;
         const targetId = l.target || l.targetId;
         const linkId = l.id || `${sourceId}-${targetId}`;
-        const n1 = appState.nodes.find(n => n.id === sourceId);
-        const n2 = appState.nodes.find(n => n.id === targetId);
+        const n1 = nodeMap.get(sourceId);
+        const n2 = nodeMap.get(targetId);
         if (n1 && n2 && n1.w && n1.h && n2.w && n2.h) {
             let pathEl = existingPaths.get(linkId);
             let isNewPath = false;
@@ -531,7 +562,7 @@ export function render(): void {
             const startPoint = getEdgeIntersection(n2, n1);
             const endPoint = getEdgeIntersection(n1, n2);
             const pathData = buildLinkPathData(l, startPoint, endPoint);
-            const linkStrokeColor = getLinkStrokeColor(l, n1, n2, rootStyle);
+            const linkStrokeColor = getLinkStrokeColor(l, n1, n2);
             const linkOpacity = String(getLinkOpacity(l));
             
             const setAttr = (elem: Element, name: string, val: string) => {
@@ -565,27 +596,23 @@ export function render(): void {
             }
 
             // Presentation Mode: visibility & ink flow
-            const isLinkVisible = isLinkVisibleInPresentation(l);
+            const isLinkVisible = isLinkVisibleInPresentation(l, n1, n2);
             if (!isLinkVisible) {
                 pathEl.classList.add('presentation-hidden');
                 pathEl.classList.remove('ink-flow');
                 delete pathEl.dataset.inkAnimated;
             } else {
                 pathEl.classList.remove('presentation-hidden');
-                if (isPresenting && (!pathEl.dataset.inkAnimated || isNewPath)) {
+                if (isPresenting && !isGrandFinale() && isPresentationNavigatingForward() && (!pathEl.dataset.inkAnimated || isNewPath)) {
                     pathEl.dataset.inkAnimated = 'true';
-                    try {
-                        const len = Math.ceil(pathEl.getTotalLength ? pathEl.getTotalLength() : 100);
-                        pathEl.style.setProperty('--link-length', `${len}px`);
+                    const len = Math.ceil(Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y) * 1.15);
+                    pathEl.style.setProperty('--link-length', `${len}px`);
+                    pathEl.classList.add('ink-flow');
+                    pathEl.onanimationend = () => {
                         pathEl.classList.remove('ink-flow');
-                        void pathEl.offsetWidth; // trigger reflow for smooth animation
-                        pathEl.classList.add('ink-flow');
-                        pathEl.onanimationend = () => {
-                            pathEl.classList.remove('ink-flow');
-                            pathEl.style.removeProperty('--link-length');
-                            pathEl.onanimationend = null;
-                        };
-                    } catch (e) {}
+                        pathEl.style.removeProperty('--link-length');
+                        pathEl.onanimationend = null;
+                    };
                 }
             }
             
@@ -594,9 +621,9 @@ export function render(): void {
     });
     
     existingPaths.forEach(pathEl => safeRemoveElement(pathEl));
+    currentRenderNodeMap = null;
 
     if (appState.isEmbed && callbacks.updateOpenFullLink) callbacks.updateOpenFullLink();
-    if (callbacks.saveData) callbacks.saveData();
     if (callbacks.updateFloatingDock) callbacks.updateFloatingDock();
 }
 

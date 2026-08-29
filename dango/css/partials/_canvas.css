@@ -19,6 +19,16 @@
     top: 0;
     left: 0;
     transform-origin: 0 0;
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+#nodes-layer,
+#connections-layer,
+#groups-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 /* 1. 基础节点样式：保持稳定 */

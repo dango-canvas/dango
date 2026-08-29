@@ -21,6 +21,7 @@ let callbacks: {
 
 let isTaggingActive = false;
 let isPresentingActive = false;
+let isNavigatingForward = true;
 let currentStepIndex = 0;
 let currentStepNumber = 0;
 
@@ -43,6 +44,15 @@ export function isTaggingModeActive(): boolean {
 
 export function isPresentationModeActive(): boolean {
     return isPresentingActive;
+}
+
+export function isPresentationNavigatingForward(): boolean {
+    return isNavigatingForward;
+}
+
+export function isGrandFinale(): boolean {
+    if (!isPresentingActive) return false;
+    return currentStepNumber > getMaxStep(appState.nodes, appState.groups);
 }
 
 export function getCurrentStep(): number {
@@ -175,7 +185,7 @@ export function enterTaggingMode(): void {
     callbacks.render();
 }
 
-export function exitTaggingMode(): void {
+export function exitTaggingMode(shouldRender = true): void {
     if (!isTaggingActive) return;
     isTaggingActive = false;
     appState.selection.clear();
@@ -183,7 +193,9 @@ export function exitTaggingMode(): void {
         document.body.classList.remove('mode-tagging');
     }
     dismissPersistentToast(TAGGING_TOAST_ID);
-    callbacks.render();
+    if (shouldRender) {
+        callbacks.render();
+    }
 }
 
 export function tagItemDirect(item: CanvasNode | CanvasGroup): void {
@@ -286,11 +298,14 @@ export function isLinkGhostedInTagging(link: CanvasLink): boolean {
     return isItemGhostedInTagging(n1) || isItemGhostedInTagging(n2);
 }
 
-export function isItemVisibleInPresentation(item: { step?: number }): boolean {
+export function isItemVisibleInPresentation(item: { id?: string; step?: number }): boolean {
     if (!isPresentingActive) return true;
     const maxStep = getMaxStep(appState.nodes, appState.groups);
 
-    // 未标记节点：在 Grand Finale 阶段全部绽放
+    // 画布无任何打标步骤时，作为全景展示
+    if (maxStep === 0) return true;
+
+    // 未标记节点：仅在 Grand Finale 阶段全部绽放
     if (typeof item.step !== 'number' || item.step <= 0) {
         return currentStepNumber > maxStep;
     }
@@ -298,10 +313,10 @@ export function isItemVisibleInPresentation(item: { step?: number }): boolean {
     return item.step <= currentStepNumber;
 }
 
-export function isLinkVisibleInPresentation(link: CanvasLink): boolean {
+export function isLinkVisibleInPresentation(link: CanvasLink, n1Node?: CanvasNode, n2Node?: CanvasNode): boolean {
     if (!isPresentingActive) return true;
-    const n1 = appState.nodes.find(n => n.id === link.sourceId);
-    const n2 = appState.nodes.find(n => n.id === link.targetId);
+    const n1 = n1Node || appState.nodes.find(n => n.id === link.sourceId);
+    const n2 = n2Node || appState.nodes.find(n => n.id === link.targetId);
     if (!n1 || !n2) return false;
 
     return isItemVisibleInPresentation(n1) && isItemVisibleInPresentation(n2);
@@ -360,6 +375,8 @@ function hidePresentationHud(): void {
 }
 
 export function enterPresentationMode(): void {
+    const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+    isNavigatingForward = true;
     if (isTaggingActive) exitTaggingMode(false);
     dismissPersistentToast(FINALE_TOAST_ID);
 
@@ -380,19 +397,24 @@ export function enterPresentationMode(): void {
     }
 
     const steps = getUniqueSteps(appState.nodes, appState.groups);
+    showPresentationHud();
+
     if (steps.length === 0) {
         // 画布无打标节点时，作为全景预览沉浸展示
         currentStepIndex = 0;
         currentStepNumber = 1;
+        callbacks.render();
         callbacks.fitView(60, true, 600);
     } else {
         currentStepIndex = 0;
         currentStepNumber = steps[0];
+        callbacks.render();
         checkAndSoftPanToStep(currentStepNumber);
     }
 
-    showPresentationHud();
-    callbacks.render();
+    if (typeof window !== 'undefined' && (window as any).__DANGO_PERF__) {
+        (window as any).__DANGO_PERF__.phaseASetupTime = performance.now() - t0;
+    }
 }
 
 export function exitPresentationMode(): void {
@@ -402,6 +424,7 @@ export function exitPresentationMode(): void {
     hidePresentationHud();
     isPresentingActive = false;
     isTaggingActive = false;
+    isNavigatingForward = true;
     currentStepNumber = 0;
     currentStepIndex = 0;
 
@@ -417,7 +440,7 @@ export function exitPresentationMode(): void {
             savedViewBeforePresentation.x,
             savedViewBeforePresentation.y,
             savedViewBeforePresentation.scale,
-            500
+            400
         );
         savedViewBeforePresentation = null;
     } else {
@@ -441,6 +464,7 @@ function showFinaleToast(): void {
 
 export function nextStep(): void {
     if (!isPresentingActive) return;
+    isNavigatingForward = true;
     const steps = getUniqueSteps(appState.nodes, appState.groups);
 
     if (steps.length === 0) {
@@ -457,12 +481,23 @@ export function nextStep(): void {
         callbacks.render();
     } else if (currentStepIndex === steps.length - 1) {
         // 终章全景（The Grand Finale）
+        const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
         currentStepIndex++;
         currentStepNumber = (steps[steps.length - 1] || 0) + 1;
-        callbacks.fitView(60, true, 800);
         updatePresentationHud();
+        if (typeof document !== 'undefined' && document.body) {
+            document.body.classList.add('view-animating');
+        }
         callbacks.render();
-        showFinaleToast();
+        callbacks.fitView(60, true, 800);
+        if (typeof window !== 'undefined' && (window as any).__DANGO_PERF__) {
+            (window as any).__DANGO_PERF__.phaseBSetupTime = performance.now() - t0;
+        }
+        setTimeout(() => {
+            if (isPresentingActive && currentStepNumber > getMaxStep(appState.nodes, appState.groups)) {
+                showFinaleToast();
+            }
+        }, 800);
     } else {
         // 全景下再次按键：收官退出演示，回到标记模式
         dismissPersistentToast(FINALE_TOAST_ID);
@@ -472,6 +507,7 @@ export function nextStep(): void {
 
 export function prevStep(): void {
     if (!isPresentingActive) return;
+    isNavigatingForward = false;
     dismissPersistentToast(FINALE_TOAST_ID);
     const steps = getUniqueSteps(appState.nodes, appState.groups);
 
@@ -486,12 +522,21 @@ export function prevStep(): void {
 
 export function revealAll(): void {
     if (!isPresentingActive) return;
+    isNavigatingForward = true;
     const steps = getUniqueSteps(appState.nodes, appState.groups);
     currentStepIndex = steps.length;
     currentStepNumber = (steps[steps.length - 1] || 0) + 1;
-    callbacks.fitView(60, true, 800);
+    updatePresentationHud();
+    if (typeof document !== 'undefined' && document.body) {
+        document.body.classList.add('view-animating');
+    }
     callbacks.render();
-    showFinaleToast();
+    callbacks.fitView(60, true, 800);
+    setTimeout(() => {
+        if (isPresentingActive && currentStepNumber > getMaxStep(appState.nodes, appState.groups)) {
+            showFinaleToast();
+        }
+    }, 800);
 }
 
 export function checkAndSoftPanToStep(step: number): void {

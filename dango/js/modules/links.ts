@@ -193,20 +193,34 @@ function getDirectionalSourceNode(link: CanvasLink, sourceNode?: CanvasNode | nu
     return null;
 }
 
+const LINK_COLOR_CACHE = new Map<string, string>();
+
+export function clearLinkColorCache(): void {
+    LINK_COLOR_CACHE.clear();
+}
+
 export function getLinkStrokeColor(
     link: CanvasLink,
     sourceNode?: CanvasNode | null,
     targetNode?: CanvasNode | null,
     rootStyle?: CSSStyleDeclaration
 ): string {
+    const tintNode = getDirectionalSourceNode(link, sourceNode, targetNode);
+    const colorKey = tintNode ? (tintNode.color || 'c-white') : 'none';
+    const cached = LINK_COLOR_CACHE.get(colorKey);
+    if (cached) return cached;
+
     const style = rootStyle || (typeof document !== 'undefined' ? getComputedStyle(document.documentElement) : null);
     const baseColor = style?.getPropertyValue('--link-color').trim() || '#94a3b8';
-    const tintNode = getDirectionalSourceNode(link, sourceNode, targetNode);
-    if (!tintNode) return baseColor;
+    if (!tintNode) {
+        LINK_COLOR_CACHE.set('none', baseColor);
+        return baseColor;
+    }
 
-    const colorKey = tintNode.color || 'c-white';
     const accentColor = style?.getPropertyValue(`--${colorKey}-border`).trim() || baseColor;
-    return mixCssColors(baseColor, accentColor);
+    const mixed = mixCssColors(baseColor, accentColor);
+    LINK_COLOR_CACHE.set(colorKey, mixed);
+    return mixed;
 }
 
 export function getLinkOpacity(link?: CanvasLink | null): number {
