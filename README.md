@@ -23,6 +23,7 @@ It doesn't try to be a complex drawing software or a heavy note-taking app. Inst
 Dango supports:
 
 * 🔍 Infinite canvas with fluid panning, zooming & view centering
+* ⚡ Blazing fast
 * 🌓 Dark / Light
 * 📥 Import / Export
 * 🔙 Undo / Redo
@@ -34,7 +35,7 @@ Dango supports:
 * 🎬 Presentation mode
 * ✍️ Organic hand-drawn style
 * 🌐 Localization (i18n) support
-* 🔒 Local-first & privacy
+* 🔒 Local-first, zero backend & privacy-friendly
 * 📦 Multiple distributions: Web / Standalone HTML / Container / Extension
 * 💯 Free & open-source
 * ❤️ Crafted with care
