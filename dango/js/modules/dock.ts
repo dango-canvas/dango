@@ -354,7 +354,7 @@ export function updateFloatingDock(force: boolean = false): void {
     const texts = getTexts();
 
     if (typeof document !== 'undefined' && document.body) {
-        if (targetMode !== 'global') {
+        if (targetMode === 'multi') {
             document.body.classList.add('has-selection');
         } else {
             document.body.classList.remove('has-selection');

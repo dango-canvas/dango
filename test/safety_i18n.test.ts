@@ -49,15 +49,27 @@ describe('Safety Shield Multi-Language Link & Tooltip Localization', () => {
         state.isEmbed = false;
         state.settings.hideToolbar = false;
 
+        // 0 nodes: no avoidance
         state.selection.clear();
         updateFloatingDock(true);
         expect(mockBody.classList.contains('has-selection')).toBe(false);
 
+        // 1 node: compact single dock, no shield avoidance needed
         state.selection.add('node-1');
+        updateFloatingDock(true);
+        expect(mockBody.classList.contains('has-selection')).toBe(false);
+
+        // 2+ nodes: wide multi-node dock, trigger shield avoidance
         state.selection.add('node-2');
         updateFloatingDock(true);
         expect(mockBody.classList.contains('has-selection')).toBe(true);
 
+        // Back to 1 node: restore shield
+        state.selection.delete('node-2');
+        updateFloatingDock(true);
+        expect(mockBody.classList.contains('has-selection')).toBe(false);
+
+        // Back to 0 nodes: restore shield
         state.selection.clear();
         updateFloatingDock(true);
         expect(mockBody.classList.contains('has-selection')).toBe(false);

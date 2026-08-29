@@ -739,7 +739,7 @@ button.btn-danger:hover {
         right: 16px;
     }
 
-    /* 移动端选中有节点（Dock 展开操作栏）时，右下角安全盾牌平滑淡出避让，防止视觉遮挡与误触 */
+    /* 移动端选中多节点（Dock 展开宽幅操作栏）时，右下角安全盾牌平滑淡出避让，防止视觉遮挡与误触 */
     body.has-selection #ui-bottom-right {
         opacity: 0;
         pointer-events: none;
