@@ -118,20 +118,6 @@ jobs:
           fi
 
           cp /tmp/release-body.md /tmp/release-assets-note.md
-          cat >> /tmp/release-assets-note.md <<EOF
-
----
-
-## Release Assets
-
-- \`dango.zip\` (Standalone HTML bundle: \`dango.html\`)
-- Docker image: \`${IMAGE}\`
-
-## Self-Host
-
-\`\`\`bash
-docker run --rm -p 8080:80 ${IMAGE}
-\`\`\`
-EOF
+          printf "\n---\n\n## Release Assets\n\n- \`dango.zip\` (Standalone HTML bundle: \`dango.html\`)\n- Docker image: \`%s\`\n\n## Self-Host\n\n\`\`\`bash\ndocker run --rm -p 8080:80 %s\n\`\`\`\n" "$IMAGE" "$IMAGE" >> /tmp/release-assets-note.md
 
           gh release edit "$TAG" --repo "$REPO" --notes-file /tmp/release-assets-note.md
