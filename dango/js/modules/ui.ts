@@ -2,7 +2,7 @@ import { getTexts, toggleLang, updateI18n } from './i18n.js';
 import { downloadBlob, getTimestamp } from './utils.js';
 import { processDangoFile } from './io.js';
 import { els, setSafeSVG } from './dom.js';
-import { updateFloatingDock } from './dock.js';
+import { updateFloatingDock, toggleFloatingDock } from './dock.js';
 import type { CanvasState } from './types.js';
 
 // --- 模块内部变量 ---
@@ -936,12 +936,7 @@ export function initUI(_state: CanvasState, _callbacks: any): void {
     if (checkHideToolbar) {
         checkHideToolbar.onchange = (e: Event) => {
             const checked = (e.target as HTMLInputElement).checked;
-            appState.settings.hideToolbar = checked;
-            localStorage.setItem('cc-hide-toolbar', String(checked));
-            const dockContainer = document.getElementById('dango-dock-container');
-            if (dockContainer) {
-                dockContainer.classList.toggle('hidden-dock', checked);
-            }
+            toggleFloatingDock(!checked);
         };
     }
 

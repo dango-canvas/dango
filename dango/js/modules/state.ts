@@ -63,6 +63,7 @@ export function pushHistory(): void {
     history.undo.push(snapshot);
     if (history.undo.length > MAX_HISTORY) history.undo.shift();
     history.redo = [];
+    saveData();
 }
 
 export function undo(renderCallback: () => void): void {
@@ -80,6 +81,7 @@ export function undo(renderCallback: () => void): void {
     state.links = prev.links;
     state.selection = new Set(prev.selection || []);
     renderCallback();
+    saveData();
 }
 
 export function redo(renderCallback: () => void): void {
@@ -97,6 +99,7 @@ export function redo(renderCallback: () => void): void {
     state.links = next.links;
     state.selection = new Set(next.selection || []);
     renderCallback();
+    saveData();
 }
 
 // --- Data Persistence ---

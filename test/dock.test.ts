@@ -190,6 +190,26 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         expect(container.classList.contains('hidden-dock')).toBe(false);
     });
 
+    it('Restores floating dock from hidden state and populates buttons immediately without white bubble', () => {
+        state.settings.hideToolbar = true;
+        const container = mockElements['dango-dock-container'];
+        const dock = mockElements['dango-dock'];
+        dock.innerHTML = '';
+
+        initFloatingDock({
+            render: () => {},
+            undo: () => {},
+            redo: () => {}
+        });
+        expect(container.classList.contains('hidden-dock')).toBe(true);
+        expect(dock.innerHTML).toBe('');
+
+        // 快捷键恢复显示
+        toggleFloatingDock(true);
+        expect(container.classList.contains('hidden-dock')).toBe(false);
+        expect(dock.innerHTML.length).toBeGreaterThan(0);
+    });
+
     it('Hides floating dock in Embed mode and ignores toggle', () => {
         state.isEmbed = true;
         const container = mockElements['dango-dock-container'];

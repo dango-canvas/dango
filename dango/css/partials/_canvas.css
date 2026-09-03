@@ -53,7 +53,7 @@
     /* will-change: transform; Removed to fix blur on zoom in Chrome */
     text-align: center;
     white-space: nowrap;
-    line-height: 1.2;
+    line-height: 1.44;
 }
 
 /* 2. 这里的 ::after 是专门的“高亮光圈”层 */
@@ -115,7 +115,7 @@
 
 .node.editing.has-multiline {
     text-align: left !important;
-    white-space: pre-wrap;
+    white-space: pre;
 }
 
 /* 既然用了 ::after 做高亮，编辑时我们可以隐藏那个动画光圈，或者让它保持常亮 */
@@ -256,6 +256,7 @@ line.snap-guide {
 }
 
 .node.image-node {
+    box-sizing: border-box;
     padding: 6px;
     white-space: normal;
 }
@@ -312,7 +313,7 @@ line.snap-guide {
     display: inline-flex;
     align-items: center;
     vertical-align: top;
-    line-height: 1.2;
+    line-height: 1.44;
     transition: all 0.2s;
 }
 .node .todo-item label {

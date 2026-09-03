@@ -328,6 +328,7 @@ export function toggleFloatingDock(forceVisible?: boolean): void {
 
     if (!shouldHide && !isPresentationModeActive()) {
         container.classList.remove('hidden-dock');
+        updateFloatingDock(true);
     } else {
         container.classList.add('hidden-dock');
     }

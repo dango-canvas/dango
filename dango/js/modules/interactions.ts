@@ -162,6 +162,7 @@ function forceFinishActiveEdit(): void {
     }
     const editingNode = document.querySelector<HTMLElement>('.node.editing');
     if (editingNode?.isContentEditable) {
+        const rawInnerText = editingNode.innerText;
         editingNode.onblur = null;
         editingNode.onkeydown = null;
         editingNode.onpaste = null;
@@ -172,7 +173,8 @@ function forceFinishActiveEdit(): void {
         const nodeId = editingNode.dataset.id;
         const node = state.nodes.find(n => n.id === nodeId);
         if (node) {
-            const newText = editingNode.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '').replace(/\r?\n$/, '');
+            let newText = rawInnerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+            newText = normalizeChineseMarkdownPrefix(newText);
             if (!newText.trim()) {
                 state.nodes = state.nodes.filter(n => n.id !== node.id);
                 state.selection.delete(node.id);
@@ -182,10 +184,12 @@ function forceFinishActiveEdit(): void {
 
             if (newText.trim()) {
                 commitNodeDisplayGeometry(node, editingNode);
+                pushHistory();
                 return;
             }
         }
         render();
+        pushHistory();
     }
 }
 
@@ -201,6 +205,17 @@ function commitNodeDisplayGeometry(node: CanvasNode, nodeEl: HTMLElement): void 
 
 export function initInteractions(): void {
     if (!els.nodesLayer || !els.container || !els.uiLayer) return;
+
+    if (typeof window !== 'undefined') {
+        window.addEventListener('beforeunload', () => {
+            forceFinishActiveEdit();
+            saveData();
+        });
+        window.addEventListener('pagehide', () => {
+            forceFinishActiveEdit();
+            saveData();
+        });
+    }
 
     els.nodesLayer.addEventListener('click', (e: MouseEvent) => {
         if (isPresentationModeActive()) return;
@@ -1151,11 +1166,13 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
             sel.addRange(range);
         });
 
+        let hadExplicitShiftEnter = false;
         let finished = false;
         const finishEdit = () => {
             if (finished) return;
             finished = true;
             if (activeEditFinish === finishEdit) activeEditFinish = null;
+            const rawInnerText = nodeEl.innerText;
             nodeEl.contentEditable = 'false';
             nodeEl.classList.remove('editing');
             nodeEl.onblur = null;
@@ -1166,7 +1183,10 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
             nodeEl.removeEventListener('input', handleInput);
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
-            let newText = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '').replace(/\r?\n$/, '');
+            let newText = rawInnerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+            if (!hadExplicitShiftEnter) {
+                newText = newText.replace(/\r?\n$/, '');
+            }
             newText = normalizeChineseMarkdownPrefix(newText);
             
             if (!newText.trim()) {
@@ -1180,6 +1200,7 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
             } else {
                 render();
             }
+            pushHistory();
         };
         activeEditFinish = finishEdit;
         nodeEl.onblur = finishEdit;
@@ -1210,6 +1231,9 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
         nodeEl.onkeydown = (ev: KeyboardEvent) => {
             if (ev.isComposing || ev.keyCode === 229) {
                 return;
+            }
+            if (ev.key === 'Enter' && ev.shiftKey) {
+                hadExplicitShiftEnter = true;
             }
             if (ev.key === 'Enter' && !ev.shiftKey) {
                 ev.preventDefault();

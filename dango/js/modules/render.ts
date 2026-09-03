@@ -135,7 +135,7 @@ function renderCodeBlock(el: HTMLElement, text: string): void {
     setSafeHTML(el, html);
 }
 
-function parseMarkdown(text: string): string {
+export function parseMarkdown(text: string): string {
     let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     escapedText = escapedText.replace(/ {2}/g, ' &nbsp;');
 
@@ -148,7 +148,10 @@ function parseMarkdown(text: string): string {
     else if (escapedText.startsWith('//')) processedText = escapedText.substring(2);
 
     const lines = processedText.split('\n');
-    const htmlLines = lines.map(line => {
+    const htmlLines = lines.map((line, idx) => {
+        if (!line && idx === lines.length - 1 && lines.length > 1) {
+            return '<br>';
+        }
         let processedLine = line.replace(
             /^\[([ xX])\]\s*(.*)/,
             (_match, checked, content) => {
@@ -245,6 +248,12 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
             node.w = targetWidth;
         }
         el.style.width = `${node.w}px`;
+        if (el.dataset.lastText !== (node.text || '')) {
+            el.dataset.lastText = node.text || '';
+            if (!img.complete || !img.naturalWidth) {
+                node.h = targetWidth;
+            }
+        }
         if (node.h) {
             el.style.height = `${node.h}px`;
         }
@@ -308,6 +317,13 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
                 if (url) window.open(url, '_blank', 'noopener,noreferrer');
             };
             el.appendChild(btnEl);
+        }
+        if (el.dataset.lastText !== (node.text || '')) {
+            el.dataset.lastText = node.text || '';
+            el.style.width = '';
+            el.style.height = '';
+            node.w = 0;
+            node.h = 0;
         }
     } else {
         if (!isImage) {
@@ -379,7 +395,10 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
 
     el.className = classes.join(' ');
     
-    if (!isImage && (!node.w || !node.h)) {
+    if (isLink && el.offsetWidth && el.offsetHeight) {
+        node.w = el.offsetWidth;
+        node.h = el.offsetHeight;
+    } else if (!isImage && (!node.w || !node.h)) {
         node.w = el.offsetWidth;
         node.h = el.offsetHeight;
     }
