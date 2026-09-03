@@ -3,6 +3,12 @@ name: Release Build
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag to build Docker image for (e.g. v1.1.6)'
+        required: true
+        default: 'v1.1.6'
 
 jobs:
   build-release:
@@ -14,6 +20,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Determine Release Tag
+        id: tag_info
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag_name || github.event.release.tag_name || '' }}"
+          if [ -z "$TAG" ]; then
+            VERSION=$(jq -r .version dango/manifest.json)
+            TAG="v${VERSION}"
+          fi
+          echo "Resolved target tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -39,7 +58,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=${{ github.event.release.tag_name }}
+            type=raw,value=${{ steps.tag_info.outputs.tag }}
             type=raw,value=latest
 
       - name: Build single-file release
@@ -79,7 +98,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: gh release upload "${{ github.event.release.tag_name }}" release/* --clobber
+        run: gh release upload "${{ steps.tag_info.outputs.tag }}" release/* --clobber
 
       - name: Append release asset notes
         env:
@@ -88,7 +107,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="${{ steps.tag_info.outputs.tag }}"
           REPO="${{ github.repository }}"
           REPO_LC=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
           IMAGE="ghcr.io/${REPO_LC}:${TAG}"
