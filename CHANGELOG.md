@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7] - 2026-09-05
+
+### Added
+- **Image Export (`exportImage`)**: Built-in 3x Retina WYSIWYG screenshot engine exporting the active canvas to PNG. Supports custom wallpaper rendering with cover-fit geometry, theme-adaptive dot-grid overlays, vector Todo checkbox reconstruction, and graceful CORS fallback.
+- **Image Export Test Suite**: Added comprehensive test suite (`test/export_image.test.ts`) covering bounding box calculations, wallpaper rendering fallbacks, and export options.
+
+### Changed
+- **Hand-drawn Typography Stack**: Replaced external Latin font downloads (`Architects Daughter`) with native system handwriting fonts (`'Segoe Print'` on Windows, `'Chalkboard SE'` on macOS), while pairing on-demand Google Fonts WenKai loading with local WenKai and system KaiTi fallbacks across both the web app and image exports.
+
+### Fixed
+- **Wallpaper Dot-Grid Mask**: Restored dot-grid visibility over custom background wallpapers by rendering the radial dot gradient directly onto the `#bg-wallpaper-mask` layer, matching the 1:1 appearance of exported images.
+- **Hand-drawn UI Layout Jitter**: Constrained settings item line-heights and eliminated distorted button borders under `.hand-drawn-style`, preventing excessive height jumping in `#settings-modal` and floating UI elements while preserving hand-drawn typography across the document body.
+
 ## [1.1.6] - 2026-09-03
 
 ### Changed

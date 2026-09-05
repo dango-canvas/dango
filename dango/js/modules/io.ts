@@ -476,9 +476,9 @@ export async function exportImage(options: ExportImageOptions = {}): Promise<Blo
         foreignDiv.classList.add('hand-drawn-style');
     }
 
-    // 手写风格：保持与当时界面字体一致
+    // 手写风格：英文优先 Segoe Print (Win) / Chalkboard SE (Mac)，中文采用文楷与系统楷体
     const baseFontFamily = isHandDrawn
-        ? `'Architects Daughter', 'LXGW WenKai Mono TC', cursive`
+        ? `'Segoe Print', 'Chalkboard SE', 'LXGW WenKai', 'LXGW WenKai Screen', 'LXGW WenKai Mono TC', 'KaiTi', 'STKaiti', 'Kaiti SC', 'Comic Neue', 'Comic Sans MS', cursive, sans-serif`
         : `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
 
     foreignDiv.style.cssText = `position: relative; width: ${exportW}px; height: ${exportH}px; overflow: hidden; font-family: ${baseFontFamily}; -webkit-font-smoothing: antialiased;`;

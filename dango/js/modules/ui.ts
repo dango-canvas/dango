@@ -294,7 +294,7 @@ function loadHandDrawnFonts(): void {
     const link = document.createElement('link');
     link.id = 'hand-drawn-fonts';
     link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Architects+Daughter&family=LXGW+WenKai+Mono+TC&display=block';
+    link.href = 'https://fonts.googleapis.com/css2?family=LXGW+WenKai+Mono+TC&display=swap';
     document.head.appendChild(link);
 }
 
