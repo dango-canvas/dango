@@ -725,11 +725,11 @@ function processToastQueue(): void {
     const item = toastQueue.shift();
     if (!item) return;
     const { message, safetySnapshot } = item;
-    activeToasts++;
 
     const texts = getTexts();
     const container = document.getElementById('toast-container');
     if (!container) return;
+    activeToasts++;
 
     const toast = document.createElement('div');
     toast.className = 'toast';

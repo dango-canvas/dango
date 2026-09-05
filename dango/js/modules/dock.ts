@@ -362,7 +362,7 @@ export function updateFloatingDock(force: boolean = false): void {
         }
     }
 
-    if (!force && currentRenderedMode === targetMode) {
+    if (!force && currentRenderedMode === targetMode && dockEl.innerHTML.trim() !== '') {
         // 同一模式下若为单选态，动态更新色盘原点颜色
         if (targetMode === 'single') {
             const selId = Array.from(state.selection)[0];
@@ -553,5 +553,5 @@ export function updateFloatingDock(force: boolean = false): void {
  */
 export function initFloatingDock(callbacks: DockCallbacks): void {
     dockCallbacks = callbacks;
-    updateFloatingDock();
+    updateFloatingDock(true);
 }

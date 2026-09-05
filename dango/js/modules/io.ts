@@ -338,8 +338,8 @@ export async function exportImage(options: ExportImageOptions = {}): Promise<Blo
     if (typeof window === 'undefined' || typeof document === 'undefined') return null;
 
     // 1. 若当前有正在编辑的输入或节点，先触发失焦以提交持久化并完成视图派生
-    if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
+    if (document.activeElement && typeof (document.activeElement as HTMLElement).blur === 'function') {
+        (document.activeElement as HTMLElement).blur();
         await new Promise(resolve => setTimeout(resolve, 20));
     }
 
