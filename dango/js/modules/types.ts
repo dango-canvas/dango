@@ -57,6 +57,16 @@ export interface CanvasMouse {
     y: number;
 }
 
+export interface ExportImageOptions {
+    dpr?: number;
+    scope?: 'all' | 'selection';
+    background?: 'auto' | 'grid' | 'clean' | 'transparent';
+    theme?: 'light' | 'dark';
+    handDrawn?: boolean;
+    padding?: number;
+    download?: boolean;
+}
+
 export interface CanvasClipboard {
     nodes: CanvasNode[];
     groups: CanvasGroup[];

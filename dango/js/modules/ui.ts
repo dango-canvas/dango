@@ -221,6 +221,7 @@ export function applyBackgroundImage(bgUrl: string): void {
         return;
     }
 
+    image.crossOrigin = 'anonymous';
     image.dataset.bgUrl = normalizedBgUrl;
     setWallpaperVisible(false);
     image.src = normalizedBgUrl;

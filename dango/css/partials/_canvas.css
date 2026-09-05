@@ -68,9 +68,10 @@
     /* 定义选中时的边框样式 */
     box-shadow: 0 0 0 2px var(--select-color), 0 0 0 4px rgba(99, 102, 241, 0.2);
 
-    /* 动画初始状态： */
-    /* 1. 透明 */
+    /* 优化过渡：仅透明度过渡，保持轻量无抖动 */
     opacity: 0;
+    transition: opacity 0.15s ease-out;
+    
     /* 2. 稍微缩小一点点 (0.95)，这样动画开始时，它像是从节点“里面”长出来的 */
     transform: scale(0.95);
     
@@ -305,6 +306,7 @@ line.snap-guide {
 }
 
 /* Todo List Styles */
+.node.has-todo,
 .node:has(.todo-item) {
     text-align: left;
     padding-left: 12px;
@@ -340,8 +342,9 @@ line.snap-guide {
     background-color: var(--ui-hover-bg);
 }
 .node .todo-item input[type="checkbox"] {
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
+    margin: 0;
     flex-shrink: 0;
     accent-color: var(--select-color);
     pointer-events: none;

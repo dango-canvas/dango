@@ -337,6 +337,13 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
                 } else {
                     const newHtml = parseMarkdown(node.text || '');
                     setSafeHTML(el, newHtml);
+                    const hasTodo = Boolean(el.querySelector?.('.todo-item'));
+                    if (typeof el.classList?.toggle === 'function') {
+                        el.classList.toggle('has-todo', hasTodo);
+                    } else if (el.classList) {
+                        if (hasTodo) el.classList.add('has-todo');
+                        else el.classList.remove('has-todo');
+                    }
                 }
                 el.dataset.lastText = node.text || '';
                 el.style.width = '';
