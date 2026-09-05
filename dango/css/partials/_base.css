@@ -90,7 +90,11 @@ body {
 #bg-wallpaper-mask {
     position: absolute;
     inset: 0;
-    background: transparent;
+    background-color: transparent;
+    background-image: radial-gradient(var(--dot-color) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+    background-position: 0 0;
+    transition: background-color 0.3s ease;
 }
 
 body.mode-space {
@@ -106,6 +110,7 @@ body.mode-pan * {
     cursor: grabbing !important;
 }
 
-body.hide-grid {
+body.hide-grid,
+body.hide-grid #bg-wallpaper-mask {
     background-image: none !important;
 }

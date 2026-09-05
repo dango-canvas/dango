@@ -96,9 +96,9 @@ function updateBackgroundMask(hasWallpaper: boolean): void {
 
     if (hasWallpaper) {
         const isDark = appState?.theme === 'dark';
-        mask.style.background = isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(127, 127, 127, 0.2)';
+        mask.style.backgroundColor = isDark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(127, 127, 127, 0.2)';
     } else {
-        mask.style.background = '';
+        mask.style.backgroundColor = '';
     }
 }
 
