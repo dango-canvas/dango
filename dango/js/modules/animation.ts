@@ -1,6 +1,7 @@
 // modules/animation.ts
 import { state, pushHistory, saveData } from './state.js';
 import { render } from './render.js';
+import { syncLiveDimensions } from './actions.js';
 import type { CanvasNode } from './types.js';
 
 let nodeAnimationId: number | null = null;
@@ -61,6 +62,7 @@ export function smartAlignSelection(): void {
     if (selectedNodes.length < 2) return;
 
     pushHistory();
+    syncLiveDimensions(selectedNodes);
 
     // 1. 获取基础信息与中心点
     const nodes = selectedNodes.map(n => ({

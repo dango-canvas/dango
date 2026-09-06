@@ -29,6 +29,18 @@ function setItemPos(item: any, newX: number, newY: number): void {
     }
 }
 
+export function syncLiveDimensions(items: (CanvasNode | CanvasGroup)[]): void {
+    if (typeof document === 'undefined') return;
+    for (const item of items) {
+        const selector = ('memberIds' in item) ? `.group[data-id="${item.id}"]` : `.node[data-id="${item.id}"]`;
+        const el = document.querySelector<HTMLElement>(selector);
+        if (el?.offsetWidth && el?.offsetHeight) {
+            item.w = el.offsetWidth;
+            item.h = el.offsetHeight;
+        }
+    }
+}
+
 // --- Exported Actions ---
 
 export function createNodesFromInput(text?: string): void {
@@ -656,6 +668,7 @@ export function alignSelection(type: 'left' | 'right' | 'centerX' | 'top' | 'bot
     const items = [...state.selection].map(id => findItem(id)).filter((i): i is CanvasNode | CanvasGroup => Boolean(i));
     if (items.length < 2) return;
     pushHistory();
+    syncLiveDimensions(items);
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     items.forEach(i => {
         minX = Math.min(minX, i.x);
@@ -684,6 +697,7 @@ export function distributeSelection(axis: 'h' | 'v'): void {
     const items = [...state.selection].map(id => findItem(id)).filter((i): i is CanvasNode | CanvasGroup => Boolean(i));
     if (items.length < 3) return;
     pushHistory();
+    syncLiveDimensions(items);
     if (axis === 'h') {
         items.sort((a, b) => a.x - b.x);
         const start = items[0].x;

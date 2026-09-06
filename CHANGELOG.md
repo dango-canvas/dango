@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Inline Markdown in Todo Items**: Extended `parseMarkdown` to parse bold (`**`), italic (`*`), and links (`[text](url)`) within task item labels.
 - **Todo Unit Test Suite**: Added `test/todo.test.ts` covering Todo list rendering, checked/unchecked vector SVG states, inline Markdown parsing, multiline preservation, and CSS layout geometry.
 
+### Fixed
+- **Handwritten Mode Alignment Desync**: Fixed an issue where `alignSelection` (e.g. `Alt + ArrowRight`), `distributeSelection`, and `smartAlignSelection` used stale in-memory node dimensions across font family switches (`Segoe UI` vs `Segoe Print`/`WenKai`). Alignment calculations now synchronize live DOM dimensions before calculating bounds, and toggling hand-drawn mode invalidates cached node widths/heights to guarantee WYSIWYG alignment.
+
 ## [1.1.7] - 2026-09-05
 
 ### Added

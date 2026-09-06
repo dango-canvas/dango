@@ -296,16 +296,43 @@ function loadHandDrawnFonts(): void {
     link.rel = 'stylesheet';
     link.href = 'https://fonts.googleapis.com/css2?family=LXGW+WenKai+Mono+TC&display=swap';
     document.head.appendChild(link);
+    if ('fonts' in document) {
+        document.fonts.ready.then(() => {
+            if (appState?.settings?.handDrawn && appState?.nodes) {
+                appState.nodes.forEach(n => {
+                    const isImage = n.text && /^\s*!\[(.*?)\]\((.*?)\)\s*$/.test(n.text);
+                    if (!isImage) {
+                        n.w = 0;
+                        n.h = 0;
+                    }
+                });
+                if (callbacks?.render) {
+                    callbacks.render();
+                }
+            }
+        }).catch(() => {});
+    }
 }
 
 export function applyHandDrawnStyle(currentState?: CanvasState): void {
     const s = currentState || appState;
     if (!s || typeof document === 'undefined' || !document.body) return;
+    const wasHandDrawn = document.body.classList.contains('hand-drawn-style');
+    const willBeHandDrawn = Boolean(s.settings.handDrawn);
     if (s.settings.handDrawn) {
         loadHandDrawnFonts();
         document.body.classList.add('hand-drawn-style');
     } else {
         document.body.classList.remove('hand-drawn-style');
+    }
+    if (wasHandDrawn !== willBeHandDrawn && s.nodes) {
+        s.nodes.forEach(n => {
+            const isImage = n.text && /^\s*!\[(.*?)\]\((.*?)\)\s*$/.test(n.text);
+            if (!isImage) {
+                n.w = 0;
+                n.h = 0;
+            }
+        });
     }
 }
 
@@ -986,6 +1013,7 @@ export function initUI(_state: CanvasState, _callbacks: any): void {
             appState.settings.handDrawn = checked;
             localStorage.setItem('cc-hand-drawn', String(checked));
             callbacks.applyHandDrawnStyle(); 
+            if (callbacks.render) callbacks.render();
         };
     }
 
