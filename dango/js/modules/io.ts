@@ -424,7 +424,7 @@ export async function exportImage(options: ExportImageOptions = {}): Promise<Blo
             if (clone.querySelector('.todo-item')) {
                 clone.classList.add('has-todo');
                 clone.style.textAlign = 'left';
-                clone.style.paddingLeft = '12px';
+                clone.style.padding = '12px 16px';
             }
 
             nodesContainer.appendChild(clone);

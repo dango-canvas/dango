@@ -309,17 +309,26 @@ line.snap-guide {
 .node.has-todo,
 .node:has(.todo-item) {
     text-align: left;
-    padding-left: 12px;
+    padding: 12px 16px;
 }
 .node .todo-item {
-    display: inline-flex;
-    align-items: center;
+    display: inline-grid;
+    grid-template-columns: 16px 1fr;
+    column-gap: 8px;
+    align-items: start;
     vertical-align: top;
     line-height: 1.44;
     transition: all 0.2s;
 }
+.node.has-multiline .todo-item {
+    margin-bottom: 3px;
+}
+.node.has-multiline .todo-item:last-child {
+    margin-bottom: 0;
+}
 .node .todo-item label {
     transition: all 0.2s;
+    word-break: break-word;
 }
 .node .todo-item.checked label {
     text-decoration: line-through;
@@ -330,24 +339,71 @@ line.snap-guide {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    margin-left: -8px;
-    margin-right: 6px;
-    padding: 0 2px;
-    height: 16px;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-    transform: translateY(1px); /* 微调复选框位置，使其下沉以对齐文字 */
-}
-.node .todo-checkbox-wrapper:hover {
-    background-color: var(--ui-hover-bg);
-}
-.node .todo-item input[type="checkbox"] {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 20px; /* 与首行 1.44 行高严格同高，锁定视觉中线 */
     margin: 0;
+    padding: 0;
     flex-shrink: 0;
-    accent-color: var(--select-color);
-    pointer-events: none;
+    user-select: none;
+}
+.node .todo-custom-checkbox {
+    width: 15px;
+    height: 15px;
+    border-radius: 3.5px;
+    border: 1.5px solid var(--link-color, #94a3b8);
+    background: var(--c-white-bg, #ffffff);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.18s ease;
+    flex-shrink: 0;
+}
+.node .todo-checkbox-wrapper:hover .todo-custom-checkbox {
+    border-color: var(--select-color);
+    box-shadow: 0 0 0 2px var(--ui-selection-bg, rgba(37, 130, 146, 0.15));
+}
+.node .todo-item.checked .todo-custom-checkbox {
+    background: var(--select-color);
+    border-color: var(--select-color);
+}
+.node .todo-custom-checkbox svg {
+    display: block;
+    width: 9px;
+    height: 9px;
+    stroke: #ffffff;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.15s ease, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.node .todo-item.checked .todo-custom-checkbox svg {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* 彩色节点下的复选框色彩自适应 */
+.node:not(.c-white) .todo-custom-checkbox {
+    border-color: currentColor;
+    background: rgba(255, 255, 255, 0.7);
+    opacity: 0.85;
+}
+.node:not(.c-white) .todo-checkbox-wrapper:hover .todo-custom-checkbox {
+    border-color: currentColor;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
+}
+.node:not(.c-white) .todo-item.checked .todo-custom-checkbox {
+    background: currentColor;
+    border-color: currentColor;
+    opacity: 0.95;
+}
+.node:not(.c-white) .todo-item.checked .todo-custom-checkbox svg {
+    stroke: var(--c-white-bg, #ffffff);
 }
 
 /* Inline Markdown Link Styles */

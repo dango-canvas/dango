@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.8] - 2026-09-06
+
+### Changed
+- **Todo Node Geometry & Padding**: Standardized Todo card padding to `12px 16px` to exactly match normal nodes (`44px` height for single-line cards), eliminating height discrepancies and edge-clumping while providing balanced left/right breathing room.
+- **Hanging Indent & Visual Centerline Alignment**:
+  - Transitioned `.todo-item` to a two-column grid (`inline-grid; grid-template-columns: 16px 1fr; column-gap: 8px; align-items: start`), allowing multi-line wrapped text to neatly hang beneath the first line.
+  - Locked `.todo-checkbox-wrapper` height to `20px` (matching the `1.44` line-height), perfectly aligning the checkbox center to the font Cap-Height visual centerline (`y = 10px`) across all typography engines.
+- **High-Fidelity Vector Checkbox**: Replaced raw browser `<input type="checkbox">` controls with crisp `15px × 15px` vector checkboxes (`border-radius: 3.5px`). Checkmark SVG remains in the DOM with smooth opacity and scale transitions, completely eliminating toggle-induced vertical layout jumping while adapting cleanly to colored nodes.
+
+### Added
+- **Inline Markdown in Todo Items**: Extended `parseMarkdown` to parse bold (`**`), italic (`*`), and links (`[text](url)`) within task item labels.
+- **Todo Unit Test Suite**: Added `test/todo.test.ts` covering Todo list rendering, checked/unchecked vector SVG states, inline Markdown parsing, multiline preservation, and CSS layout geometry.
+
 ## [1.1.7] - 2026-09-05
 
 ### Added

@@ -48,7 +48,8 @@ function normalizeHttpUrl(rawUrl: string): string | null {
 
     const candidate = /^https?:\/\//i.test(value) ? value : `https://${value}`;
     try {
-        const url = new URL(candidate, typeof window !== 'undefined' ? window.location.href : 'http://localhost');
+        const base = (typeof window !== 'undefined' && window.location && window.location.href) ? window.location.href : 'http://localhost';
+        const url = new URL(candidate, base);
         return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
     } catch {
         return null;
@@ -135,6 +136,17 @@ function renderCodeBlock(el: HTMLElement, text: string): void {
     setSafeHTML(el, html);
 }
 
+function formatInlineMarkdown(text: string): string {
+    let res = text.replace(/\*\*(.*?)\*\*|__(.*?)__/g, '<strong>$1$2</strong>');
+    res = res.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)|(?<=^|[^\w_])_(.+?)_(?=[^\w_]|$)/g, '<em>$1$2</em>');
+    res = res.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
+        const validUrl = normalizeHttpUrl(url);
+        if (!validUrl) return match;
+        return `<a href="${escapeHTML(validUrl)}" target="_blank" rel="noopener noreferrer" class="node-inline-link">${linkText}</a>`;
+    });
+    return res;
+}
+
 export function parseMarkdown(text: string): string {
     let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     escapedText = escapedText.replace(/ {2}/g, ' &nbsp;');
@@ -156,22 +168,20 @@ export function parseMarkdown(text: string): string {
             /^\[([ xX])\]\s*(.*)/,
             (_match, checked, content) => {
                 const isChecked = checked.toLowerCase() === 'x';
+                const formattedContent = formatInlineMarkdown(content);
                 return `<span class="todo-item ${isChecked ? 'checked' : ''}" data-checked="${isChecked}">
-                          <span class="todo-checkbox-wrapper">
-                            <input type="checkbox" ${isChecked ? 'checked' : ''} disabled>
+                          <span class="todo-checkbox-wrapper" role="checkbox" aria-checked="${isChecked}">
+                            <input type="checkbox" ${isChecked ? 'checked' : ''} disabled style="display:none;">
+                            <span class="todo-custom-checkbox">
+                              <svg viewBox="0 0 10 10"><path d="M2 5.2L4.2 7.4L8.2 2.6"></path></svg>
+                            </span>
                           </span>
-                          <label>${content}</label>
+                          <label>${formattedContent}</label>
                         </span>`;
             }
         );
         if (!processedLine.includes('class="todo-item"')) {
-            processedLine = processedLine.replace(/\*\*(.*?)\*\*|__(.*?)__/g, '<strong>$1$2</strong>');
-            processedLine = processedLine.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)|(?<=^|[^\w_])_(.+?)_(?=[^\w_]|$)/g, '<em>$1$2</em>');
-            processedLine = processedLine.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
-                const validUrl = normalizeHttpUrl(url);
-                if (!validUrl) return match;
-                return `<a href="${escapeHTML(validUrl)}" target="_blank" rel="noopener noreferrer" class="node-inline-link">${text}</a>`;
-            });
+            processedLine = formatInlineMarkdown(processedLine);
         }
         return processedLine;
     });
