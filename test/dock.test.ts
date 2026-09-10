@@ -293,11 +293,19 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         const dotMatches = html.match(/class="help-page-dot/g) || [];
         expect(dotMatches.length).toBe(4);
 
-        // 3. page 4 contains Backslash toggle shortcut
+        // 3. page 1 contains Backslash toggle shortcut
         expect(html).toContain('data-i18n="help_toggle_dock"');
         expect(html).toContain('<span class="help-keys">\\</span>');
 
-        // 4. i18n covers all new keys in both languages
+        // 4. exactly 28 help-rows in total (7 per page)
+        const helpRows = html.match(/class="help-row"/g) || [];
+        expect(helpRows.length).toBe(28);
+
+        // 5. contains newly added shortcuts
+        expect(html).toContain('data-i18n="help_align_center"');
+        expect(html).toContain('data-i18n="help_multiline"');
+
+        // 6. i18n covers all new keys in both languages
         const { getTexts, toggleLang, getCurrentLang } = require('../dango/js/modules/i18n.js');
         if (getCurrentLang() !== 'zh') toggleLang();
         const zh = getTexts();
@@ -306,6 +314,8 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         expect(zh.help_zoom_canvas).toBe('画布缩放 / 重置');
         expect(zh.help_edit_node).toBe('编辑选中节点');
         expect(zh.help_cancel_exit).toBe('取消选择 / 退出');
+        expect(zh.help_align_center).toBe('居中对齐');
+        expect(zh.help_multiline).toBe('卡片内换行');
 
         toggleLang(); // switch to en
         const en = getTexts();
@@ -314,6 +324,8 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         expect(en.help_zoom_canvas).toBe('Zoom / Reset View');
         expect(en.help_edit_node).toBe('Edit Selected Node');
         expect(en.help_cancel_exit).toBe('Deselect / Exit');
+        expect(en.help_align_center).toBe('Center Align');
+        expect(en.help_multiline).toBe('Line Break in Card');
         toggleLang(); // restore to zh
     });
 });

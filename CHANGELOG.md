@@ -7,13 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.10] - 2026-09-10
+
+### Changed
+- **Balanced 7-7-7-7 Shortcut Panel Reorganization**: Re-architected the 4-page keyboard shortcut help modal around progressive user cognitive flow. Discarded the uneven 7-6-7-6 layout in favor of a strictly balanced 7-7-7-7 layout across all four pages:
+  - *Page 1 (Exclusive Flow)*: Directional node creation (`Ctrl+Arrow`), linking (`Ctrl+L`), stroke style cycling (`Ctrl+'`), smart alignment (`Alt+.`), quick jump/multi-select (`f / Alt+F`), step tagging (`T`), and floating dock toggle (`\`).
+  - *Page 2 (Layout & Style)*: Directional alignment (`Alt+WASD`), center alignment (`Alt+H/J`), distribution spacing (`Alt+Shift+H/J`), color cycling (`Alt+1~9`), group toggle (`Ctrl+G`), pixel nudging (`Arrow`), and spotlight focus (`Q`).
+  - *Page 3 (Viewport & Canvas)*: Node search (`Ctrl+F`), canvas pan/drag (`Space+Drag`), zoom/reset (`Ctrl+=/-/0`), center focus (`Home`), select all (`Ctrl+A`), edit node (`Enter`), and deselect/cancel (`Esc`).
+  - *Page 4 (Universal Essentials)*: Duplicate clone (`Ctrl+Drag`), multi-select/box-select (`Ctrl+Click`), copy/paste (`Ctrl+C/V`), undo/redo (`Ctrl+Z/Y`), delete (`Del/Backspace`), manual save (`Ctrl+S`), and card newline (`Shift+Enter`).
+- **Pointer Events Suppression During Pan and Animations**: Suppressed pointer events and hit-testing across child layers (`#nodes-layer`, `#connections-layer`, `#groups-layer`) during canvas panning (`body.mode-pan`) and viewport animations (`body.view-animating`), eliminating expensive shadow repaints and hit detection when the cursor passes over dense node clusters.
+- **Batched Multi-Node Dragging Movement**: Integrated `requestAnimationFrame` vertical sync batching (`flushPendingMove`) into multi-node drag interactions (`mode === 'move'`), coalescing high-frequency mousemove events to prevent redundant intermediate layout computations while ensuring coordinate precision on release.
+
 ### Fixed
 - **Chromium Zoom Blurriness & Hover Invalidation Flash**: Resolved an issue where canvas nodes appeared noticeably blurry on Chrome/Chromium when zooming in and out, and flickered to crisp sharpness only when hovered. Removed the static `will-change: transform` and `backface-visibility: hidden` from `#world` that forced Chromium to cache the canvas into a fixed-resolution GPU raster texture. Introduced dynamic `body.view-animating #world { will-change: transform; }` strictly during high-speed viewport animations (e.g. middle-click pan/zoom and presenter camera flights) to maintain 120Hz smooth animation while guaranteeing pixel-perfect vector rendering during regular canvas exploration.
 - **Spotlight Full-Page Style Recalculation**: Removed unconditional `--mouse-x` and `--mouse-y` CSS variable assignments on `:root` during standard canvas `mousemove` events, eliminating redundant document-wide style recalculations and confining spotlight calculations strictly to active spotlight sessions.
 
-### Changed
-- **Pointer Events Suppression During Pan and Animations**: Suppressed pointer events and hit-testing across child layers (`#nodes-layer`, `#connections-layer`, `#groups-layer`) during canvas panning (`body.mode-pan`) and viewport animations (`body.view-animating`), eliminating expensive shadow repaints and hit detection when the cursor passes over dense node clusters.
-- **Batched Multi-Node Dragging Movement**: Integrated `requestAnimationFrame` vertical sync batching (`flushPendingMove`) into multi-node drag interactions (`mode === 'move'`), coalescing high-frequency mousemove events to prevent redundant intermediate layout computations while ensuring coordinate precision on release.
+### Added
+- **Center Alignment & Multiline Shortcuts in Help Guide**: Added explicit guide entries for horizontal/vertical center alignment (`Alt + H / J`) on Page 2 and in-card line breaks (`Shift + Enter`) on Page 4, complete with Chinese and English localization (`help_align_center`, `help_multiline`).
+- **Help Modal Layout Unit Tests**: Extended `test/dock.test.ts` to assert the 28-item balanced 7-7-7-7 layout and bilingual localization dictionaries.
 
 ## [1.1.9] - 2026-09-09
 

@@ -132,7 +132,9 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         help_select_all: "全选所有节点",
         help_zoom_canvas: "画布缩放 / 重置",
         help_edit_node: "编辑选中节点",
-        help_cancel_exit: "取消选择 / 退出"
+        help_cancel_exit: "取消选择 / 退出",
+        help_align_center: "居中对齐",
+        help_multiline: "卡片内换行"
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -261,7 +263,9 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         help_select_all: "Select All Nodes",
         help_zoom_canvas: "Zoom / Reset View",
         help_edit_node: "Edit Selected Node",
-        help_cancel_exit: "Deselect / Exit"
+        help_cancel_exit: "Deselect / Exit",
+        help_align_center: "Center Align",
+        help_multiline: "Line Break in Card"
     }
 };
 
