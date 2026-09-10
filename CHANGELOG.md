@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.10.1] - 2026-09-10
+
+### Fixed
+- **Spotlight Instant Mouse Alignment on Press**: Resolved an issue where pressing `Q` activated the spotlight at the screen center (`50% 50%`) instead of following the cursor until the mouse was moved. Extracted a dedicated `modules/spotlight.ts` that caches screen mouse coordinates in memory with zero style recalculation overhead during idle exploration, and synchronously seeds `--mouse-x` and `--mouse-y` on `#spotlight-layer` upon `KeyQ` press for instant, seamless spotlight emergence.
+
+### Added
+- **Spotlight Lifecycle & Instant Alignment Unit Tests**: Added `test/spotlight.test.ts` verifying zero DOM style manipulation during idle exploration, instant alignment upon `KeyQ` press, continuous tracking while active, clean deactivation, and fallback behavior.
+
 ## [1.1.10] - 2026-09-10
 
 ### Changed
@@ -21,12 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Chromium Zoom Blurriness & Hover Invalidation Flash**: Resolved an issue where canvas nodes appeared noticeably blurry on Chrome/Chromium when zooming in and out, and flickered to crisp sharpness only when hovered. Removed the static `will-change: transform` and `backface-visibility: hidden` from `#world` that forced Chromium to cache the canvas into a fixed-resolution GPU raster texture. Introduced dynamic `body.view-animating #world { will-change: transform; }` strictly during high-speed viewport animations (e.g. middle-click pan/zoom and presenter camera flights) to maintain 120Hz smooth animation while guaranteeing pixel-perfect vector rendering during regular canvas exploration.
 - **Spotlight Full-Page Style Recalculation**: Removed unconditional `--mouse-x` and `--mouse-y` CSS variable assignments on `:root` during standard canvas `mousemove` events, eliminating redundant document-wide style recalculations and confining spotlight calculations strictly to active spotlight sessions.
-- **Spotlight Instant Mouse Alignment on Press**: Resolved an issue where pressing `Q` activated the spotlight at the screen center (`50% 50%`) instead of following the cursor until the mouse was moved. Extracted a dedicated `modules/spotlight.ts` that caches screen mouse coordinates in memory with zero style recalculation overhead during idle exploration, and synchronously seeds `--mouse-x` and `--mouse-y` on `#spotlight-layer` upon `KeyQ` press for instant, seamless spotlight emergence.
 
 ### Added
 - **Center Alignment & Multiline Shortcuts in Help Guide**: Added explicit guide entries for horizontal/vertical center alignment (`Alt + H / J`) on Page 2 and in-card line breaks (`Shift + Enter`) on Page 4, complete with Chinese and English localization (`help_align_center`, `help_multiline`).
 - **Help Modal Layout Unit Tests**: Extended `test/dock.test.ts` to assert the 28-item balanced 7-7-7-7 layout and bilingual localization dictionaries.
-- **Spotlight Lifecycle & Instant Alignment Unit Tests**: Added `test/spotlight.test.ts` verifying zero DOM style manipulation during idle exploration, instant alignment upon `KeyQ` press, continuous tracking while active, clean deactivation, and fallback behavior.
 
 ## [1.1.9] - 2026-09-09
 
