@@ -22,6 +22,8 @@ let lastMiddleClickTime = 0;
 let middleClickCount = 0;
 let isGlobalViewActive = false;
 let preGlobalViewScale = 1;
+let moveRafId: number | null = null;
+let pendingMoveEvent: MouseEvent | null = null;
 
 export const SNAP_THRESHOLD = 5;
 export const MAX_SNAP_NEIGHBOR_DIST = 350;
@@ -143,6 +145,11 @@ export function renderSnapGuides(guides: SnapGuide[] = []): void {
 }
 
 function cancelTransientInteraction(): void {
+    if (moveRafId !== null) {
+        cancelAnimationFrame(moveRafId);
+        moveRafId = null;
+    }
+    pendingMoveEvent = null;
     mode = null;
     dragStart = null;
     stateBeforeDrag = null;
@@ -275,12 +282,17 @@ export function initInteractions(): void {
     });
 
     window.addEventListener('mousemove', (e: MouseEvent) => {
-        document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
-        document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
-
         const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
         state.mouse.x = worldPos.x;
         state.mouse.y = worldPos.y;
+
+        if (document.body.classList.contains('spotlight-active')) {
+            const spotlight = els.spotlight;
+            if (spotlight) {
+                spotlight.style.setProperty('--mouse-x', e.clientX + 'px');
+                spotlight.style.setProperty('--mouse-y', e.clientY + 'px');
+            }
+        }
     });
 
     const handleWindowDeactivate = () => {
@@ -385,6 +397,52 @@ export function initInteractions(): void {
         }
     });
 
+    const flushPendingMove = () => {
+        if (moveRafId !== null) {
+            cancelAnimationFrame(moveRafId);
+            moveRafId = null;
+        }
+        if (!pendingMoveEvent || mode !== 'move' || !dragStart) return;
+        const e = pendingMoveEvent;
+        pendingMoveEvent = null;
+
+        const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
+        const rawDx = worldPos.x - dragStart.x;
+        const rawDy = worldPos.y - dragStart.y;
+        if (Math.abs(rawDx) > 3 || Math.abs(rawDy) > 3) {
+            hasMovedDuringDrag = true;
+            if (isPrepareToClone) {
+                cloneSelectionInPlace();
+                isPrepareToClone = false;
+            }
+        }
+
+        const snapResult = calculateMagneticSnap(targetIdAtMouseDown, rawDx, rawDy, dragStart.initialPos);
+        const dx = snapResult.effectiveDx;
+        const dy = snapResult.effectiveDy;
+        renderSnapGuides(snapResult.guides);
+
+        state.selection.forEach(id => {
+            const init = dragStart.initialPos[id];
+            if (init) {
+                const item = findItem(id);
+                if (item) {
+                    item.x = init.x + dx; item.y = init.y + dy;
+                    if (init.type === 'group' && (item as any).memberIds) {
+                        (item as any).memberIds.forEach((mid: string) => {
+                            const member = state.nodes.find(n => n.id === mid);
+                            if (member && !dragStart.initialPos[mid]) {
+                                const mInit = dragStart.initialPos[`member_${mid}`];
+                                if (mInit) { member.x = mInit.x + dx; member.y = mInit.y + dy; }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+        render();
+    };
+
     els.container.addEventListener('mousemove', (e: MouseEvent) => {
         if (!mode) return;
         if (mode === 'pan') {
@@ -392,47 +450,17 @@ export function initInteractions(): void {
             state.view.y = dragStart.viewY + (e.clientY - dragStart.y);
             updateViewTransform();
         } else if (mode === 'move') {
-            const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
-            const rawDx = worldPos.x - dragStart.x;
-            const rawDy = worldPos.y - dragStart.y;
-            if (Math.abs(rawDx) > 3 || Math.abs(rawDy) > 3) {
-                hasMovedDuringDrag = true;
-                if (isPrepareToClone) {
-                    cloneSelectionInPlace();
-                    isPrepareToClone = false;
-                }
+            pendingMoveEvent = e;
+            if (moveRafId === null) {
+                moveRafId = requestAnimationFrame(flushPendingMove);
             }
-
-            const snapResult = calculateMagneticSnap(targetIdAtMouseDown, rawDx, rawDy, dragStart.initialPos);
-            const dx = snapResult.effectiveDx;
-            const dy = snapResult.effectiveDy;
-            renderSnapGuides(snapResult.guides);
-
-            state.selection.forEach(id => {
-                const init = dragStart.initialPos[id];
-                if (init) {
-                    const item = findItem(id);
-                    if (item) {
-                        item.x = init.x + dx; item.y = init.y + dy;
-                        if (init.type === 'group' && (item as any).memberIds) {
-                            (item as any).memberIds.forEach((mid: string) => {
-                                const member = state.nodes.find(n => n.id === mid);
-                                if (member && !dragStart.initialPos[mid]) {
-                                    const mInit = dragStart.initialPos[`member_${mid}`];
-                                    if (mInit) { member.x = mInit.x + dx; member.y = mInit.y + dy; }
-                                }
-                            });
-                        }
-                    }
-                }
-            });
-            render();
         } else if (mode === 'box') {
             updateSelectBox(dragStart.x, dragStart.y, e.clientX, e.clientY);
         }
     });
 
     els.container.addEventListener('mouseup', (e: MouseEvent) => {
+        flushPendingMove();
         renderSnapGuides([]);
         if (e.button === 1 && isGlobalViewActive) {
             isGlobalViewActive = false;
@@ -608,7 +636,7 @@ export function initInteractions(): void {
                 longPressTimer = null;
                 if (mode === 'pan') {
                     if (typeof navigator !== 'undefined' && navigator.vibrate) {
-                        try { navigator.vibrate(20); } catch {}
+                        try { navigator.vibrate(20); } catch { }
                     }
                     mode = 'box';
                     dragStart = { x: lastTouchPos.x, y: lastTouchPos.y };
@@ -670,7 +698,7 @@ export function initInteractions(): void {
                 if (init) {
                     const item = findItem(id);
                     if (item) {
-                        item.x = init.x + dx; 
+                        item.x = init.x + dx;
                         item.y = init.y + dy;
                         if (init.type === 'group' && (item as any).memberIds) {
                             (item as any).memberIds.forEach((mid: string) => {
@@ -730,11 +758,11 @@ export function initInteractions(): void {
                 }
             }
             if (stateBeforeDrag) {
-                const currentState = JSON.stringify({ 
-                    nodes: state.nodes, 
-                    groups: state.groups, 
-                    links: state.links, 
-                    selection: Array.from(state.selection) 
+                const currentState = JSON.stringify({
+                    nodes: state.nodes,
+                    groups: state.groups,
+                    links: state.links,
+                    selection: Array.from(state.selection)
                 });
                 if (currentState !== stateBeforeDrag) {
                     history.undo.push(stateBeforeDrag);
@@ -923,19 +951,19 @@ export function applyMarkdownFormat(nodeEl: HTMLElement, formatType: 'bold' | 'i
             newSelectStart = startOffset;
             newSelectEnd = startOffset + replacement.length;
         } else if ((selected.startsWith('**') && selected.endsWith('**') && selected.length >= 4) ||
-                   (selected.startsWith('__') && selected.endsWith('__') && selected.length >= 4)) {
+            (selected.startsWith('__') && selected.endsWith('__') && selected.length >= 4)) {
             replacement = selected.slice(2, -2);
             newSelectStart = startOffset;
             newSelectEnd = startOffset + replacement.length;
         } else if ((before.endsWith('***') && after.startsWith('***')) ||
-                 (before.endsWith('___') && after.startsWith('___'))) {
+            (before.endsWith('___') && after.startsWith('___'))) {
             replaceStartOffset = startOffset - 2;
             replaceEndOffset = endOffset + 2;
             replacement = selected;
             newSelectStart = startOffset - 2;
             newSelectEnd = startOffset - 2 + selected.length;
         } else if ((before.endsWith('**') && after.startsWith('**')) ||
-                   (before.endsWith('__') && after.startsWith('__'))) {
+            (before.endsWith('__') && after.startsWith('__'))) {
             replaceStartOffset = startOffset - 2;
             replaceEndOffset = endOffset + 2;
             replacement = selected;
@@ -978,19 +1006,19 @@ export function applyMarkdownFormat(nodeEl: HTMLElement, formatType: 'bold' | 'i
             newSelectStart = startOffset;
             newSelectEnd = startOffset + replacement.length;
         } else if ((selected.startsWith('*') && selected.endsWith('*') && selected.length >= 2 && !(selected.startsWith('**') && selected.endsWith('**'))) ||
-                   (selected.startsWith('_') && selected.endsWith('_') && selected.length >= 2 && !(selected.startsWith('__') && selected.endsWith('__')))) {
+            (selected.startsWith('_') && selected.endsWith('_') && selected.length >= 2 && !(selected.startsWith('__') && selected.endsWith('__')))) {
             replacement = selected.slice(1, -1);
             newSelectStart = startOffset;
             newSelectEnd = startOffset + replacement.length;
         } else if ((before.endsWith('***') && after.startsWith('***')) ||
-                 (before.endsWith('___') && after.startsWith('___'))) {
+            (before.endsWith('___') && after.startsWith('___'))) {
             replaceStartOffset = startOffset - 1;
             replaceEndOffset = endOffset + 1;
             replacement = selected;
             newSelectStart = startOffset - 1;
             newSelectEnd = startOffset - 1 + selected.length;
         } else if ((before.endsWith('*') && !before.endsWith('**') && after.startsWith('*') && !after.startsWith('**')) ||
-                   (before.endsWith('_') && !before.endsWith('__') && after.startsWith('_') && !after.startsWith('__'))) {
+            (before.endsWith('_') && !before.endsWith('__') && after.startsWith('_') && !after.startsWith('__'))) {
             replaceStartOffset = startOffset - 1;
             replaceEndOffset = endOffset + 1;
             replacement = selected;
@@ -1058,7 +1086,7 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
         if (!force && (mode === 'move' || hasMovedDuringDrag)) {
             return;
         }
-        
+
         if (node.text && node.text.trim()) {
             pushHistory();
         }
@@ -1130,7 +1158,7 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
                     const oldOffset = sel?.focusOffset ?? currentInnerText.length;
                     const diff = morphedText.length - currentInnerText.length;
                     const newOffset = Math.max(0, Math.min(morphedText.length, oldOffset + diff));
-                    
+
                     nodeEl.innerText = morphedText;
                     const range = document.createRange();
                     const textNode = nodeEl.firstChild || nodeEl;
@@ -1139,7 +1167,7 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
                         range.collapse(true);
                         sel?.removeAllRanges();
                         sel?.addRange(range);
-                    } catch {}
+                    } catch { }
                 }
 
                 const finalRaw = nodeEl.innerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
@@ -1157,7 +1185,7 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
             }
         };
         nodeEl.addEventListener('input', handleInput);
-        
+
         requestAnimationFrame(() => {
             if (!nodeEl.isConnected) return;
             const range = document.createRange();
@@ -1194,7 +1222,7 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
                 newText = newText.replace(/\r?\n$/, '');
                 newText = normalizeChineseMarkdownPrefix(newText);
             }
-            
+
             if (!newText.trim()) {
                 state.nodes = state.nodes.filter(n => n.id !== node.id);
                 state.selection.delete(node.id);

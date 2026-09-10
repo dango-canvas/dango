@@ -19,8 +19,23 @@
     top: 0;
     left: 0;
     transform-origin: 0 0;
+}
+
+/* 仅在视口动画期间（如双击中键全景缩放/聚焦、演示模式相机飞跃）启用 GPU 硬件合成层加速，确保 120Hz 动画丝滑不掉帧；
+   日常静止与手动缩放时不常驻，彻底根除 Chromium 低分辨率贴图固化导致的模糊与 hover 闪烁 */
+body.view-animating #world {
     will-change: transform;
-    backface-visibility: hidden;
+}
+
+/* 相机平移/全景巡视/视口动画飞跃期间：禁用所有画布子节点的指针事件与 hover 穿透，
+   彻底消除鼠标划过密集节点链时的命中检测、阴影重绘与样式抖动 */
+body.mode-pan #nodes-layer,
+body.mode-pan #connections-layer,
+body.mode-pan #groups-layer,
+body.view-animating #nodes-layer,
+body.view-animating #connections-layer,
+body.view-animating #groups-layer {
+    pointer-events: none !important;
 }
 
 #nodes-layer,

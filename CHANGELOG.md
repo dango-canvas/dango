@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Chromium Zoom Blurriness & Hover Invalidation Flash**: Resolved an issue where canvas nodes appeared noticeably blurry on Chrome/Chromium when zooming in and out, and flickered to crisp sharpness only when hovered. Removed the static `will-change: transform` and `backface-visibility: hidden` from `#world` that forced Chromium to cache the canvas into a fixed-resolution GPU raster texture. Introduced dynamic `body.view-animating #world { will-change: transform; }` strictly during high-speed viewport animations (e.g. middle-click pan/zoom and presenter camera flights) to maintain 120Hz smooth animation while guaranteeing pixel-perfect vector rendering during regular canvas exploration.
+- **Spotlight Full-Page Style Recalculation**: Removed unconditional `--mouse-x` and `--mouse-y` CSS variable assignments on `:root` during standard canvas `mousemove` events, eliminating redundant document-wide style recalculations and confining spotlight calculations strictly to active spotlight sessions.
+
+### Changed
+- **Pointer Events Suppression During Pan and Animations**: Suppressed pointer events and hit-testing across child layers (`#nodes-layer`, `#connections-layer`, `#groups-layer`) during canvas panning (`body.mode-pan`) and viewport animations (`body.view-animating`), eliminating expensive shadow repaints and hit detection when the cursor passes over dense node clusters.
+- **Batched Multi-Node Dragging Movement**: Integrated `requestAnimationFrame` vertical sync batching (`flushPendingMove`) into multi-node drag interactions (`mode === 'move'`), coalescing high-frequency mousemove events to prevent redundant intermediate layout computations while ensuring coordinate precision on release.
+
 ## [1.1.9] - 2026-09-09
 
 ### Changed
