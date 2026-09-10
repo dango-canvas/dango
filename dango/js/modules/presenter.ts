@@ -2,6 +2,7 @@
 import { state, pushHistory, saveData } from './state.js';
 import { getTexts } from './i18n.js';
 import { showToast, showPersistentToast, dismissPersistentToast } from './ui.js';
+import { activateSpotlight, deactivateSpotlight } from './spotlight.js';
 import type { CanvasState, CanvasNode, CanvasGroup, CanvasLink } from './types.js';
 
 const TAGGING_TOAST_ID = 'dango-tagging-toast';
@@ -429,7 +430,8 @@ export function exitPresentationMode(): void {
     currentStepIndex = 0;
 
     if (typeof document !== 'undefined') {
-        document.body?.classList?.remove('mode-presenting', 'mode-tagging', 'spotlight-active');
+        document.body?.classList?.remove('mode-presenting', 'mode-tagging');
+        deactivateSpotlight();
         if (document.fullscreenElement && document.exitFullscreen) {
             document.exitFullscreen().catch(() => {});
         }
@@ -606,8 +608,8 @@ export function handlePresenterKeyDown(e: KeyboardEvent): boolean {
     }
 
     if (e.code === 'KeyQ') {
-        if (typeof document !== 'undefined') {
-            document.body.classList.add('spotlight-active');
+        if (!e.repeat) {
+            activateSpotlight();
         }
         return true;
     }

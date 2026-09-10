@@ -6,6 +6,7 @@ import { changeZoom, cancelViewAnimation, fitView, animateView } from './view.js
 import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
 import { els } from './dom.js';
+import { trackSpotlightMouse, deactivateSpotlight } from './spotlight.js';
 import { realignDirectionalNodeAfterEdit } from './directional.js';
 import { isPresentationModeActive, isTaggingModeActive, tagItemDirect, tagItemsBatch, nextStep, prevStep, exitPresentationMode } from './presenter.js';
 import type { CanvasNode, CanvasGroup, CanvasItem } from './types.js';
@@ -282,24 +283,22 @@ export function initInteractions(): void {
     });
 
     window.addEventListener('mousemove', (e: MouseEvent) => {
+        trackSpotlightMouse(e);
         const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
         state.mouse.x = worldPos.x;
         state.mouse.y = worldPos.y;
+    });
 
-        if (document.body.classList.contains('spotlight-active')) {
-            const spotlight = els.spotlight;
-            if (spotlight) {
-                spotlight.style.setProperty('--mouse-x', e.clientX + 'px');
-                spotlight.style.setProperty('--mouse-y', e.clientY + 'px');
-            }
-        }
+    window.addEventListener('mouseenter', (e: MouseEvent) => {
+        trackSpotlightMouse(e);
     });
 
     const handleWindowDeactivate = () => {
         forceFinishActiveEdit();
         cancelTransientInteraction();
         Object.keys(keys).forEach(k => { keys[k] = false; });
-        document.body.classList.remove('mode-space', 'spotlight-active');
+        document.body.classList.remove('mode-space');
+        deactivateSpotlight();
     };
 
     window.addEventListener('blur', handleWindowDeactivate);

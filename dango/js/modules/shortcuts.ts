@@ -18,6 +18,7 @@ import {
     clearStepsOfSelection
 } from './presenter.js';
 import { toggleFloatingDock } from './dock.js';
+import { activateSpotlight, deactivateSpotlight } from './spotlight.js';
 
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
 export const keys: Record<string, boolean> = {};
@@ -267,13 +268,15 @@ export function initShortcuts(callbacks: {
             }
         }
 
-        if (e.code === 'KeyQ') document.body.classList.add('spotlight-active');
+        if (e.code === 'KeyQ') {
+            if (!e.repeat) activateSpotlight();
+        }
     });
 
     window.addEventListener('keyup', (e: KeyboardEvent) => {
         keys[e.code] = false;
         if (e.code === 'Space') document.body.classList.remove('mode-space');
-        if (e.code === 'KeyQ') document.body.classList.remove('spotlight-active');
+        if (e.code === 'KeyQ') deactivateSpotlight();
         
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
             handleDirectionalCreateEnd(e.code, callbacks, 'arrow');
