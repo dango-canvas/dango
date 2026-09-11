@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.10.2] - 2026-09-11
+
+### Fixed
+- **Mobile Blank Canvas Tap Modal Dismissal**: Fixed an issue where tapping the blank canvas background on mobile touch devices could not dismiss open Settings or Shortcut Help modals due to touchstart preventing synthetic click event generation. Expanded the outside dismiss listener to handle `pointerdown` and `touchstart` events, cleanly dismissing floating modals and resetting `#ui-layer.mobile-active` upon tapping the canvas.
+
+### Added
+- **Mobile Swipe Pagination on Shortcut Help Modal**: Added touch swipe gesture navigation (`touchstart`, `touchmove`, `touchend`, `touchcancel`) on `#help-modal`, allowing mobile users to effortlessly swipe left/right between help pages with boundary clamping and vertical scroll locking.
+- **Enlarged Touch Target for Pager Dots**: Added an invisible touch target expansion pseudo-element (`::before`) to `.help-page-dot` in `_modals.css` for effortless fingertip tapping without altering its subtle 4px visual aesthetics.
+- **Mobile Modal & Outside Tap Test Suite**: Added `test/mobile_modal.test.ts` with 7 automated tests validating left/right swipe page turning, boundary clamping, gesture axis prioritization, and outside canvas tap dismissal.
+
 ## [1.1.10.1] - 2026-09-10
 
 ### Fixed

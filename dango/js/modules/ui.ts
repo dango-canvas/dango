@@ -942,6 +942,59 @@ export function initUI(_state: CanvasState, _callbacks: any): void {
             lastHelpWheelAt = now;
             setHelpPage(clampedPage);
         }, { passive: false });
+
+        // 移动端左右滑动翻页手势
+        let helpTouchStartX = 0;
+        let helpTouchStartY = 0;
+        let helpTouchStartTime = 0;
+
+        els.helpModal.addEventListener('touchstart', (e: TouchEvent) => {
+            if (!els.helpModal!.classList.contains('show')) return;
+            if (e.touches.length !== 1) return;
+            const t = e.touches[0];
+            helpTouchStartX = t.clientX;
+            helpTouchStartY = t.clientY;
+            helpTouchStartTime = Date.now();
+        }, { passive: true });
+
+        els.helpModal.addEventListener('touchmove', (e: TouchEvent) => {
+            if (!helpTouchStartX || e.touches.length !== 1) return;
+            const t = e.touches[0];
+            const dx = Math.abs(t.clientX - helpTouchStartX);
+            const dy = Math.abs(t.clientY - helpTouchStartY);
+            if (dx > dy && dx > 8 && e.cancelable) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        els.helpModal.addEventListener('touchend', (e: TouchEvent) => {
+            if (!els.helpModal!.classList.contains('show')) return;
+            if (!helpTouchStartX || e.changedTouches.length !== 1) return;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - helpTouchStartX;
+            const dy = t.clientY - helpTouchStartY;
+            const dt = Date.now() - helpTouchStartTime;
+            helpTouchStartX = 0;
+            helpTouchStartY = 0;
+
+            const isFlick = Math.abs(dx) >= 25 && dt < 350;
+            const isDrag = Math.abs(dx) >= 40 && dt < 1000;
+            if ((isFlick || isDrag) && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                const pages = getHelpPages();
+                if (pages.length <= 1) return;
+
+                const nextPage = currentHelpPage + (dx < 0 ? 1 : -1);
+                const clampedPage = Math.max(0, Math.min(nextPage, pages.length - 1));
+                if (clampedPage !== currentHelpPage) {
+                    setHelpPage(clampedPage);
+                }
+            }
+        }, { passive: true });
+
+        els.helpModal.addEventListener('touchcancel', () => {
+            helpTouchStartX = 0;
+            helpTouchStartY = 0;
+        }, { passive: true });
     }
 
     const checkHideGrid = document.getElementById('check-hide-grid') as HTMLInputElement | null;
@@ -1009,21 +1062,35 @@ export function initUI(_state: CanvasState, _callbacks: any): void {
         };
     }
 
-    // 5. 点击外部关闭弹窗
-    window.addEventListener('click', (e: MouseEvent) => {
-        const target = e.target as Node;
-        if (!btnSettings.contains(target) && !modalSettings.contains(target)) {
-            modalSettings.classList.remove('show');
-            btnSettings.classList.remove('active');
-            btnSettings.blur();
+    // 5. 点击外部关闭弹窗 (支持桌面鼠标点击与移动端触屏触摸)
+    const handleOutsideDismiss = (e: Event) => {
+        const target = e.target as Node | null;
+        if (!target) return;
+        let changed = false;
+        if (modalSettings.classList.contains('show')) {
+            if (!btnSettings.contains(target) && !modalSettings.contains(target)) {
+                modalSettings.classList.remove('show');
+                btnSettings.classList.remove('active');
+                btnSettings.blur();
+                changed = true;
+            }
         }
-        if (els.btnHelp && els.helpModal && !els.btnHelp.contains(target) && !els.helpModal.contains(target)) {
-            els.helpModal.classList.remove('show');
-            els.btnHelp.classList.remove('active');
-            els.btnHelp.blur();
+        if (els.btnHelp && els.helpModal && els.helpModal.classList.contains('show')) {
+            if (!els.btnHelp.contains(target) && !els.helpModal.contains(target)) {
+                els.helpModal.classList.remove('show');
+                els.btnHelp.classList.remove('active');
+                els.btnHelp.blur();
+                changed = true;
+            }
         }
-        syncFloatingPanelState();
-    });
+        if (changed) {
+            syncFloatingPanelState();
+        }
+    };
+
+    window.addEventListener('pointerdown', handleOutsideDismiss);
+    window.addEventListener('touchstart', handleOutsideDismiss, { passive: true });
+    window.addEventListener('click', handleOutsideDismiss);
 
     // 6. 节日 Logo & 彩蛋
     updateSeasonalLogo();

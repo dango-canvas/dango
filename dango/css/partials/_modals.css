@@ -291,6 +291,7 @@
     margin-bottom: 12px;
 }
 .help-page-dot {
+    position: relative;
     width: 4px;
     height: 4px;
     border-radius: 50%;
@@ -300,6 +301,14 @@
     opacity: 0.45;
     cursor: pointer;
     transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+.help-page-dot::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    bottom: -8px;
+    left: -6px;
+    right: -6px;
 }
 .help-page-dot.active {
     opacity: 1;
