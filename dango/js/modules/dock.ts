@@ -13,6 +13,7 @@ import { resetViewToCenter } from './view.js';
 import { isPresentationModeActive, tagSelectionStep } from './presenter.js';
 import { uid, getEdgeIntersection } from './utils.js';
 import { buildLinkPathData } from './links.js';
+import { DIRECTIONAL_DISTANCE } from './directional.js';
 import type { CanvasNode, CanvasLink } from './types.js';
 
 export interface DockCallbacks {
@@ -216,7 +217,7 @@ function bindExtrudeDragEvents(): void {
                 const newId = uid();
                 const newNode: CanvasNode = {
                     id: newId,
-                    x: Math.round(srcNode.x + (srcNode.w || 100) + 80),
+                    x: Math.round(srcNode.x + (srcNode.w || 100) + DIRECTIONAL_DISTANCE),
                     y: Math.round(srcNode.y + ((srcNode.h || 44) - 44) / 2),
                     w: 102,
                     h: 44,

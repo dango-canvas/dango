@@ -160,9 +160,9 @@ describe('Group Node Extrude & Directional Creation', () => {
         const newNode = state.nodes.find(n => n.id !== 'm1');
         expect(newNode).toBeDefined();
 
-        // New node coordinates: x = g1.x + g1.w + 80 = 80 + 200 + 80 = 360
+        // New node coordinates: x = g1.x + g1.w + 48 = 80 + 200 + 48 = 328
         // y: centered along g1's height -> g1.y + (140 - 44)/2 = 80 + 48 = 128
-        expect(newNode!.x).toBe(360);
+        expect(newNode!.x).toBe(328);
         expect(newNode!.y).toBe(128);
 
         // Inherits group color
@@ -202,9 +202,9 @@ describe('Group Node Extrude & Directional Creation', () => {
         const moved = realignDirectionalNodeAfterEdit(newNode);
         expect(moved).toBe(true);
         // Down position: x centered relative to g1: g1.x + (200 - 150)/2 = 80 + 25 = 105
-        // y: g1.y + g1.h + 80 = 80 + 140 + 80 = 300
+        // y: g1.y + g1.h + 48 = 80 + 140 + 48 = 268
         expect(newNode.x).toBe(105);
-        expect(newNode.y).toBe(300);
+        expect(newNode.y).toBe(268);
     });
 
     it('Dock extrude: short-point click on Group creates external node with vertical center alignment', () => {
@@ -246,9 +246,9 @@ describe('Group Node Extrude & Directional Creation', () => {
         const newNode = state.nodes.find(n => n.id !== 'm1');
         expect(newNode).toBeDefined();
 
-        // Check geometry: x = g1.x + g1.w + 80 = 80 + 240 + 80 = 400
+        // Check geometry: x = g1.x + g1.w + 48 = 80 + 240 + 48 = 368
         // y = g1.y + (g1.h - 44)/2 = 80 + (160 - 44)/2 = 80 + 58 = 138
-        expect(newNode!.x).toBe(400);
+        expect(newNode!.x).toBe(368);
         expect(newNode!.y).toBe(138);
         expect(newNode!.color).toBe('c-red');
 

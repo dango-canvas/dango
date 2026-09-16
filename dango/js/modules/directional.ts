@@ -30,7 +30,7 @@ const DIRECTIONS: Record<string, DirectionOffset> = {
     'ArrowRight': { dx:  1, dy:  0 },
 };
 
-const DISTANCE = 80;
+export const DIRECTIONAL_DISTANCE = 48;
 const DEFAULT_NODE_BOX_FALLBACK = { w: 102, h: 44 };
 const GHOST_LINK_MODE_ORDER: Array<'target' | 'none' | 'detached'> = ['target', 'none', 'detached'];
 
@@ -67,10 +67,10 @@ function computePosition(
     const sh = sourceNode.h;
     const tw = targetBox.w;
     const th = targetBox.h;
-    if (dir.dx === 1)  return { x: sourceNode.x + sw + DISTANCE, y: sourceNode.y + (sh - th) / 2 };
-    if (dir.dx === -1) return { x: sourceNode.x - tw - DISTANCE, y: sourceNode.y + (sh - th) / 2 };
-    if (dir.dy === 1)  return { x: sourceNode.x + (sw - tw) / 2, y: sourceNode.y + sh + DISTANCE };
-    if (dir.dy === -1) return { x: sourceNode.x + (sw - tw) / 2, y: sourceNode.y - th - DISTANCE };
+    if (dir.dx === 1)  return { x: sourceNode.x + sw + DIRECTIONAL_DISTANCE, y: sourceNode.y + (sh - th) / 2 };
+    if (dir.dx === -1) return { x: sourceNode.x - tw - DIRECTIONAL_DISTANCE, y: sourceNode.y + (sh - th) / 2 };
+    if (dir.dy === 1)  return { x: sourceNode.x + (sw - tw) / 2, y: sourceNode.y + sh + DIRECTIONAL_DISTANCE };
+    if (dir.dy === -1) return { x: sourceNode.x + (sw - tw) / 2, y: sourceNode.y - th - DIRECTIONAL_DISTANCE };
     return { x: sourceNode.x, y: sourceNode.y };
 }
 
