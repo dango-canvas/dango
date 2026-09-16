@@ -293,8 +293,8 @@ export function isItemGhostedInTagging(item: { step?: number }): boolean {
 
 export function isLinkGhostedInTagging(link: CanvasLink): boolean {
     if (!isTaggingActive) return false;
-    const n1 = appState.nodes.find(n => n.id === link.sourceId);
-    const n2 = appState.nodes.find(n => n.id === link.targetId);
+    const n1 = appState.nodes.find(n => n.id === link.sourceId) || appState.groups.find(g => g.id === link.sourceId);
+    const n2 = appState.nodes.find(n => n.id === link.targetId) || appState.groups.find(g => g.id === link.targetId);
     if (!n1 || !n2) return true;
     return isItemGhostedInTagging(n1) || isItemGhostedInTagging(n2);
 }
@@ -314,10 +314,10 @@ export function isItemVisibleInPresentation(item: { id?: string; step?: number }
     return item.step <= currentStepNumber;
 }
 
-export function isLinkVisibleInPresentation(link: CanvasLink, n1Node?: CanvasNode, n2Node?: CanvasNode): boolean {
+export function isLinkVisibleInPresentation(link: CanvasLink, n1Node?: CanvasNode | CanvasGroup, n2Node?: CanvasNode | CanvasGroup): boolean {
     if (!isPresentingActive) return true;
-    const n1 = n1Node || appState.nodes.find(n => n.id === link.sourceId);
-    const n2 = n2Node || appState.nodes.find(n => n.id === link.targetId);
+    const n1 = n1Node || appState.nodes.find(n => n.id === link.sourceId) || appState.groups.find(g => g.id === link.sourceId);
+    const n2 = n2Node || appState.nodes.find(n => n.id === link.targetId) || appState.groups.find(g => g.id === link.targetId);
     if (!n1 || !n2) return false;
 
     return isItemVisibleInPresentation(n1) && isItemVisibleInPresentation(n2);

@@ -447,8 +447,8 @@ export async function exportImage(options: ExportImageOptions = {}): Promise<Blo
     ]);
 
     // 5. 提取并克隆目标连线 SVG 路径与 Marker 样式
-    const targetNodeIdSet = new Set(targetNodes.map(n => n.id));
-    const targetLinks = state.links.filter(l => targetNodeIdSet.has(l.sourceId) && targetNodeIdSet.has(l.targetId));
+    const targetItemIdSet = new Set([...targetNodes.map(n => n.id), ...targetGroups.map(g => g.id)]);
+    const targetLinks = state.links.filter(l => targetItemIdSet.has(l.sourceId) && targetItemIdSet.has(l.targetId));
 
     let connectionsXml = '';
     targetLinks.forEach(l => {

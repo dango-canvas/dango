@@ -1,6 +1,6 @@
 // modules/links.ts
 import { uid } from './utils.js';
-import type { CanvasLink, LinkStrokeStyle, LinkDirection, CanvasNode } from './types.js';
+import type { CanvasLink, LinkStrokeStyle, LinkDirection, CanvasNode, CanvasGroup } from './types.js';
 
 export const DEFAULT_LINK_STROKE_STYLE: LinkStrokeStyle = 'solid';
 export const LINK_STROKE_STYLE_ORDER: LinkStrokeStyle[] = ['solid', 'dashed', 'wavy'];
@@ -187,7 +187,7 @@ function mixCssColors(baseColor: string, accentColor: string, accentRatio = DIRE
     return `rgb(${mixChannel(base.r, accent.r)}, ${mixChannel(base.g, accent.g)}, ${mixChannel(base.b, accent.b)})`;
 }
 
-function getDirectionalSourceNode(link: CanvasLink, sourceNode?: CanvasNode | null, targetNode?: CanvasNode | null): CanvasNode | null {
+function getDirectionalSourceNode(link: CanvasLink, sourceNode?: CanvasNode | CanvasGroup | null, targetNode?: CanvasNode | CanvasGroup | null): CanvasNode | CanvasGroup | null {
     if (link.direction === 'target') return sourceNode || null;
     if (link.direction === 'source') return targetNode || null;
     return null;
@@ -201,8 +201,8 @@ export function clearLinkColorCache(): void {
 
 export function getLinkStrokeColor(
     link: CanvasLink,
-    sourceNode?: CanvasNode | null,
-    targetNode?: CanvasNode | null,
+    sourceNode?: CanvasNode | CanvasGroup | null,
+    targetNode?: CanvasNode | CanvasGroup | null,
     rootStyle?: CSSStyleDeclaration
 ): string {
     const tintNode = getDirectionalSourceNode(link, sourceNode, targetNode);

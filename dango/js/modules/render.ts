@@ -522,7 +522,7 @@ function getOrCreateMarker(defs: SVGDefsElement | null, color: string, fallbackC
     return markerId;
 }
 
-let currentRenderNodeMap: Map<string, CanvasNode> | null = null;
+let currentRenderNodeMap: Map<string, CanvasNode | CanvasGroup> | null = null;
 
 /**
  * 主渲染函数
@@ -555,9 +555,12 @@ export function render(): void {
         defs = els.connectionsLayer.querySelector('defs');
     }
 
-    const nodeMap = new Map<string, CanvasNode>();
+    const nodeMap = new Map<string, CanvasNode | CanvasGroup>();
     for (let i = 0; i < appState.nodes.length; i++) {
         nodeMap.set(appState.nodes[i].id, appState.nodes[i]);
+    }
+    for (let i = 0; i < appState.groups.length; i++) {
+        nodeMap.set(appState.groups[i].id, appState.groups[i]);
     }
     currentRenderNodeMap = nodeMap;
 

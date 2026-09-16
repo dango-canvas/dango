@@ -105,7 +105,7 @@ function bindExtrudeDragEvents(): void {
 
     const startDrag = (startClientX: number, startClientY: number, isTouch = false) => {
         const selId = Array.from(state.selection)[0];
-        const srcNode = state.nodes.find(n => n.id === selId);
+        const srcNode = state.nodes.find(n => n.id === selId) || state.groups.find(g => g.id === selId);
         if (!srcNode) return;
 
         let isExtruding = false;
@@ -217,7 +217,7 @@ function bindExtrudeDragEvents(): void {
                 const newNode: CanvasNode = {
                     id: newId,
                     x: Math.round(srcNode.x + (srcNode.w || 100) + 80),
-                    y: Math.round(srcNode.y),
+                    y: Math.round(srcNode.y + ((srcNode.h || 44) - 44) / 2),
                     w: 102,
                     h: 44,
                     text: '',
@@ -363,10 +363,10 @@ export function updateFloatingDock(force: boolean = false): void {
         // 同一模式下若为单选态，动态更新色盘原点颜色
         if (targetMode === 'single') {
             const selId = Array.from(state.selection)[0];
-            const selNode = state.nodes.find(n => n.id === selId);
+            const selNode = state.nodes.find(n => n.id === selId) || state.groups.find(g => g.id === selId);
             const innerDot = document.getElementById('single-color-dot');
             if (innerDot && selNode) {
-                innerDot.style.background = COLOR_SWATCH_MAP[selNode.color] || '#ffffff';
+                innerDot.style.background = (selNode.color && COLOR_SWATCH_MAP[selNode.color]) || '#ffffff';
             }
         }
         return;
@@ -414,8 +414,8 @@ export function updateFloatingDock(force: boolean = false): void {
     } else if (targetMode === 'single') {
         // 2. 单节点选中态 (Single Node Mode)
         const selId = Array.from(state.selection)[0];
-        const selNode = state.nodes.find(n => n.id === selId);
-        const currentHex = selNode ? (COLOR_SWATCH_MAP[selNode.color] || '#ffffff') : '#ffffff';
+        const selNode = state.nodes.find(n => n.id === selId) || state.groups.find(g => g.id === selId);
+        const currentHex = (selNode && selNode.color && COLOR_SWATCH_MAP[selNode.color]) ? COLOR_SWATCH_MAP[selNode.color] : '#ffffff';
 
         dockEl.innerHTML = `
             <div class="dock-group">

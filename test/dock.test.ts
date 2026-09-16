@@ -141,6 +141,25 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         expect(dock.innerHTML).not.toContain('btn-dock-edit');
     });
 
+    it('Transitions to Single Mode and exposes Extrude when 1 Group is selected', () => {
+        state.groups = [
+            { id: 'g1', x: 100, y: 100, w: 200, h: 100, memberIds: [], isGroup: true }
+        ];
+        state.selection.add('g1');
+
+        initFloatingDock({
+            render: () => {},
+            undo: () => {},
+            redo: () => {}
+        });
+
+        const dock = mockElements['dango-dock'];
+        expect(dock.innerHTML).toContain('btn-dock-color-trigger');
+        expect(dock.innerHTML).toContain('btn-dock-extrude');
+        expect(dock.innerHTML).toContain('btn-dock-clone');
+        expect(dock.innerHTML).toContain('btn-dock-delete');
+    });
+
     it('Transitions to Multi-Selection Mode when 2+ nodes are selected', () => {
         state.nodes = [
             { id: 'n1', x: 100, y: 100, w: 100, h: 40, text: 'Node 1', color: 'c-yellow' },

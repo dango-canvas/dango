@@ -2,7 +2,7 @@
 import { state, pushHistory } from './state.js';
 import { uid, getEdgeIntersection } from './utils.js';
 import { createLink } from './links.js';
-import type { CanvasNode, LinkDirection } from './types.js';
+import type { CanvasNode, CanvasGroup, LinkDirection } from './types.js';
 
 interface DirectionOffset {
     dx: number;
@@ -12,7 +12,7 @@ interface DirectionOffset {
 interface GhostState {
     key: string;
     dir: DirectionOffset;
-    sourceNode: CanvasNode;
+    sourceNode: CanvasNode | CanvasGroup;
     targetBox: { w: number; h: number };
     lineMode: 'target' | 'none' | 'detached';
     nodeEl: HTMLElement;
@@ -131,7 +131,7 @@ function clearDirectionalAnchorMeta(node: any): void {
 export function realignDirectionalNodeAfterEdit(node: any): boolean {
     if (!node?._directionalSourceId || !node?._directionalDir) return false;
 
-    const sourceNode = state.nodes.find(n => n.id === node._directionalSourceId);
+    const sourceNode = state.nodes.find(n => n.id === node._directionalSourceId) || state.groups.find(g => g.id === node._directionalSourceId);
     if (!sourceNode || !node.w || !node.h) {
         clearDirectionalAnchorMeta(node);
         return false;
@@ -147,7 +147,7 @@ export function realignDirectionalNodeAfterEdit(node: any): boolean {
 
 function createDirectionalGhost(
     key: string,
-    sourceNode: CanvasNode,
+    sourceNode: CanvasNode | CanvasGroup,
     dir: DirectionOffset,
     lineMode: 'target' | 'none' | 'detached' = 'target'
 ): boolean {
@@ -222,7 +222,7 @@ export function handleDirectionalCreateStart(key: string, _e?: any): boolean {
     if (ghostState) clearGhost();
 
     const sourceId = Array.from(state.selection)[0];
-    const sourceNode = state.nodes.find(n => n.id === sourceId);
+    const sourceNode = state.nodes.find(n => n.id === sourceId) || state.groups.find(g => g.id === sourceId);
     if (!sourceNode) return false;
 
     return createDirectionalGhost(key, sourceNode, dir, preservedLineMode);
@@ -255,7 +255,7 @@ export function handleDirectionalCreateEnd(
         y: pos.y,
         w: targetBox.w,
         h: targetBox.h,
-        color: sourceNode.color,
+        color: sourceNode.color || 'c-white',
     };
     setDirectionalAnchorMeta(newNode, sourceNode.id, dir);
     state.nodes.push(newNode);
@@ -271,7 +271,7 @@ export function handleDirectionalCreateEnd(
     state.selection.add(newId);
 
     callbacks.render();
-    if (typeof document !== 'undefined') {
+    if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
         const nodeEl = document.querySelector<HTMLElement>(`.node[data-id="${newId}"]`);
         if (nodeEl) {
             forceMinBoxSize(nodeEl, targetBox.w, targetBox.h);
@@ -282,7 +282,7 @@ export function handleDirectionalCreateEnd(
     callbacks.render();
 
     setTimeout(() => {
-        if (typeof document !== 'undefined') {
+        if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
             const el = document.querySelector<HTMLElement>(`.node[data-id="${newId}"]`);
             if (el && callbacks.handleNodeEdit) {
                 callbacks.handleNodeEdit(el);

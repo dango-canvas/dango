@@ -6,9 +6,15 @@ import { showToast } from './ui.js';
 import { getTexts } from './i18n.js';
 import { els } from './dom.js';
 import { createLink, cycleLinkStrokeStyle } from './links.js';
-import type { CanvasNode, CanvasGroup, CanvasLink } from './types.js';
+import type { CanvasNode, CanvasGroup, CanvasLink, CanvasItem } from './types.js';
 
 // --- Helpers (内部函数，不导出) ---
+function isGroupMember(a: CanvasItem, b: CanvasItem): boolean {
+    if (a.memberIds && a.memberIds.includes(b.id)) return true;
+    if (b.memberIds && b.memberIds.includes(a.id)) return true;
+    return false;
+}
+
 function findItem(id: string): CanvasNode | CanvasGroup | undefined {
     return state.nodes.find(n => n.id === id) || state.groups.find(g => g.id === id);
 }
@@ -270,12 +276,17 @@ export function cloneSelection(offset = { x: 30, y: 30 }): void {
 
 export function dissolveGroup(): void {
     const toRemove: number[] = [];
+    const removedGroupIds = new Set<string>();
     state.selection.forEach(id => {
         const idx = state.groups.findIndex(g => g.id === id);
-        if (idx !== -1) toRemove.push(idx);
+        if (idx !== -1) {
+            toRemove.push(idx);
+            removedGroupIds.add(state.groups[idx].id);
+        }
     });
     toRemove.sort((a, b) => b - a).forEach(idx => state.groups.splice(idx, 1));
     if (toRemove.length > 0) {
+        state.links = state.links.filter(l => !removedGroupIds.has(l.sourceId) && !removedGroupIds.has(l.targetId));
         state.selection.clear();
         render();
     }
@@ -297,7 +308,9 @@ export function toggleGroup(): void {
     });
 
     if (selectedGroupIndices.length > 0) {
+        const removedGroupIds = new Set(selectedGroupIndices.map(idx => state.groups[idx].id));
         selectedGroupIndices.sort((a, b) => b - a).forEach(idx => state.groups.splice(idx, 1));
+        state.links = state.links.filter(l => !removedGroupIds.has(l.sourceId) && !removedGroupIds.has(l.targetId));
         state.selection.clear();
         memberNodesToSelect.forEach(id => state.selection.add(id));
         render();
@@ -314,7 +327,9 @@ export function toggleGroup(): void {
     });
 
     if (matchingGroupIndices.length > 0) {
+        const removedGroupIds = new Set(matchingGroupIndices.map(idx => state.groups[idx].id));
         matchingGroupIndices.sort((a, b) => b - a).forEach(idx => state.groups.splice(idx, 1));
+        state.links = state.links.filter(l => !removedGroupIds.has(l.sourceId) && !removedGroupIds.has(l.targetId));
         render();
         return;
     }
@@ -323,14 +338,14 @@ export function toggleGroup(): void {
     createGroup();
 }
 
-function getNodeCenter(node: CanvasNode): {
+function getNodeCenter(node: CanvasItem): {
     cx: number;
     cy: number;
     x: number;
     y: number;
     w: number;
     h: number;
-    node: CanvasNode;
+    node: CanvasItem;
 } {
     const w = typeof node.w === 'number' && node.w > 0 ? node.w : 120;
     const h = typeof node.h === 'number' && node.h > 0 ? node.h : 60;
@@ -348,7 +363,7 @@ function getNodeCenter(node: CanvasNode): {
 /**
  * 检测框选下的 1 对 N 辐射发散结构（左1右N、上1下N、右1左N、下1上N）
  */
-function detectStarTopology(nodes: CanvasNode[]): Array<{ sourceId: string; targetId: string }> | null {
+function detectStarTopology(nodes: CanvasItem[]): Array<{ sourceId: string; targetId: string }> | null {
     if (nodes.length < 3) return null;
     const centers = nodes.map(getNodeCenter);
 
@@ -451,7 +466,7 @@ function detectStarTopology(nodes: CanvasNode[]): Array<{ sourceId: string; targ
     return candidates[0].pairs;
 }
 
-function getLinearChainPairs(nodes: CanvasNode[]): Array<{ sourceId: string; targetId: string }> {
+function getLinearChainPairs(nodes: CanvasItem[]): Array<{ sourceId: string; targetId: string }> {
     const centers = nodes.map(getNodeCenter);
     const minX = Math.min(...centers.map(c => c.cx));
     const maxX = Math.max(...centers.map(c => c.cx));
@@ -478,7 +493,7 @@ function getLinearChainPairs(nodes: CanvasNode[]): Array<{ sourceId: string; tar
     return pairs;
 }
 
-function getSequentialChainPairs(nodes: CanvasNode[]): Array<{ sourceId: string; targetId: string }> {
+function getSequentialChainPairs(nodes: CanvasItem[]): Array<{ sourceId: string; targetId: string }> {
     const pairs: Array<{ sourceId: string; targetId: string }> = [];
     for (let i = 0; i < nodes.length - 1; i++) {
         pairs.push({
@@ -489,30 +504,44 @@ function getSequentialChainPairs(nodes: CanvasNode[]): Array<{ sourceId: string;
     return pairs;
 }
 
-export function resolveLinkingPairs(nodes: CanvasNode[], selectionSource = 'click'): Array<{ sourceId: string; targetId: string }> {
+export function resolveLinkingPairs(nodes: CanvasItem[], selectionSource = 'click'): Array<{ sourceId: string; targetId: string }> {
     if (nodes.length < 2) return [];
-    if (nodes.length === 2) {
-        return [{ sourceId: nodes[0].id, targetId: nodes[1].id }];
-    }
 
-    if (selectionSource === 'box') {
+    let rawPairs: Array<{ sourceId: string; targetId: string }> = [];
+    if (nodes.length === 2) {
+        rawPairs = [{ sourceId: nodes[0].id, targetId: nodes[1].id }];
+    } else if (selectionSource === 'box') {
         const starPairs = detectStarTopology(nodes);
         if (starPairs && starPairs.length > 0) {
-            return starPairs;
+            rawPairs = starPairs;
+        } else {
+            rawPairs = getLinearChainPairs(nodes);
         }
-        return getLinearChainPairs(nodes);
     } else {
-        return getSequentialChainPairs(nodes);
+        rawPairs = getSequentialChainPairs(nodes);
     }
+
+    const itemMap = new Map<string, CanvasItem>();
+    nodes.forEach(n => itemMap.set(n.id, n));
+
+    return rawPairs.filter(p => {
+        const a = itemMap.get(p.sourceId);
+        const b = itemMap.get(p.targetId);
+        if (!a || !b) return false;
+        return !isGroupMember(a, b);
+    });
 }
 
 export function toggleLink(): void {
     const sel = Array.from(state.selection);
-    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter((n): n is CanvasNode => Boolean(n));
-    if (nodes.length < 2) return;
+    const items = sel.map(id => state.nodes.find(n => n.id === id) || state.groups.find(g => g.id === id)).filter((n): n is CanvasItem => Boolean(n));
+    if (items.length < 2) return;
 
-    if (nodes.length === 2) {
-        const [n1, n2] = nodes;
+    if (items.length === 2) {
+        const [n1, n2] = items;
+        // 防环约束（Anti-Cycle Guard）：静默拦截组与其内部子成员之间的连线
+        if (isGroupMember(n1, n2)) return;
+
         const existingLinkIndex = state.links.findIndex(l =>
             (l.sourceId === n1.id && l.targetId === n2.id) ||
             (l.sourceId === n2.id && l.targetId === n1.id)
@@ -551,10 +580,10 @@ export function toggleLink(): void {
     }
 
     const selectionSource = state.selectionSource || 'click';
-    const targetPairs = resolveLinkingPairs(nodes, selectionSource);
+    const targetPairs = resolveLinkingPairs(items, selectionSource);
     if (targetPairs.length === 0) return;
 
-    const selectedNodeIds = new Set(nodes.map(n => n.id));
+    const selectedItemIds = new Set(items.map(n => n.id));
 
     let allTargetMatched = true;
     let allNoneMatched = true;
@@ -610,7 +639,7 @@ export function toggleLink(): void {
         }
     } else if (allNoneMatched) {
         state.links = state.links.filter(l =>
-            !(selectedNodeIds.has(l.sourceId) && selectedNodeIds.has(l.targetId))
+            !(selectedItemIds.has(l.sourceId) && selectedItemIds.has(l.targetId))
         );
     }
 
@@ -619,10 +648,10 @@ export function toggleLink(): void {
 
 export function toggleLinkStrokeStyle(): boolean {
     const sel = Array.from(state.selection);
-    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(Boolean);
-    if (nodes.length < 2) return false;
+    const items = sel.map(id => state.nodes.find(n => n.id === id) || state.groups.find(g => g.id === id)).filter(Boolean);
+    if (items.length < 2) return false;
 
-    const selectedIds = new Set(nodes.map(n => n!.id));
+    const selectedIds = new Set(items.map(n => n!.id));
     const targetLinks = state.links.filter(l =>
         selectedIds.has(l.sourceId) && selectedIds.has(l.targetId)
     );
