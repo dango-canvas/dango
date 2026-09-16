@@ -4,7 +4,9 @@ import { state } from "../dango/js/modules/state.js";
 import {
     HINT_ALPHABET,
     getVisibleNodes,
+    getVisibleItems,
     sortNodesTopologically,
+    sortItemsTopologically,
     generateHintCodes,
     initHints,
     enterHintMode,
@@ -12,7 +14,7 @@ import {
     isHintModeActive,
     handleHintKeyDown
 } from "../dango/js/modules/hints.js";
-import type { CanvasNode, CanvasView } from "../dango/js/modules/types.js";
+import type { CanvasNode, CanvasGroup, CanvasView } from "../dango/js/modules/types.js";
 
 describe("Vimium-Style Node Hints (f / Shift+f)", () => {
     beforeEach(() => {
@@ -227,5 +229,103 @@ describe("Vimium-Style Node Hints (f / Shift+f)", () => {
         handleHintKeyDown({ key: 'a', code: 'KeyA' } as KeyboardEvent);
         expect(state.nodes[0].step).toBeUndefined();
     });
+
+    test("getVisibleItems: filters both nodes and groups based on viewport", () => {
+        const view: CanvasView = { x: 0, y: 0, scale: 1 };
+        const winW = 1000;
+        const winH = 800;
+
+        const insideGroup: CanvasGroup = { id: 'g1', x: 80, y: 80, w: 300, h: 200, memberIds: ['n1'], isGroup: true };
+        const outsideGroup: CanvasGroup = { id: 'g2', x: 1500, y: 80, w: 300, h: 200, memberIds: [], isGroup: true };
+        const insideNode: CanvasNode = { id: 'n1', text: 'n1', x: 100, y: 100, w: 100, h: 40, color: 'c-white' };
+
+        const visible = getVisibleItems([insideGroup, outsideGroup, insideNode], view, winW, winH);
+        expect(visible.map(item => item.id)).toEqual(['g1', 'n1']);
+    });
+
+    test("sortItemsTopologically: places group before its inner members when ordered topologically", () => {
+        const g1: CanvasGroup = { id: 'g1', x: 80, y: 80, w: 300, h: 200, memberIds: ['n1'], isGroup: true };
+        const n1: CanvasNode = { id: 'n1', text: 'n1', x: 100, y: 100, w: 100, h: 40, color: 'c-white' };
+        const n2: CanvasNode = { id: 'n2', text: 'n2', x: 450, y: 100, w: 100, h: 40, color: 'c-white' };
+
+        const sorted = sortItemsTopologically([n2, n1, g1]);
+        expect(sorted.map(item => item.id)).toEqual(['g1', 'n1', 'n2']);
+    });
+
+    test("enterHintMode and handleHintKeyDown: single-select jump targets a Group", () => {
+        let renderCalled = false;
+        initHints(state, {
+            render: () => { renderCalled = true; }
+        });
+
+        const g1: CanvasGroup = { id: 'g1', x: 80, y: 80, w: 250, h: 150, memberIds: ['n1'], isGroup: true };
+        const n1: CanvasNode = { id: 'n1', text: 'inside', x: 100, y: 100, w: 100, h: 40, color: 'c-white' };
+        state.groups = [g1];
+        state.nodes = [n1];
+        state.selection.add('n1'); // initially member selected
+
+        enterHintMode(false); // Single select mode
+        expect(isHintModeActive()).toBe(true);
+
+        // g1 is at (80, 80) -> gets first hint code 'a'
+        // n1 is at (100, 100) -> gets second hint code 's'
+        const handled = handleHintKeyDown({ key: 'a', code: 'KeyA' } as KeyboardEvent);
+        expect(handled).toBe(true);
+        expect(isHintModeActive()).toBe(false);
+
+        // Group g1 is now selected, n1 deselected
+        expect(state.selection.has('g1')).toBe(true);
+        expect(state.selection.has('n1')).toBe(false);
+        expect(renderCalled).toBe(true);
+    });
+
+    test("enterHintMode and handleHintKeyDown: multi-select (Shift+f) allows selecting Group and Node together", () => {
+        let renderCalled = false;
+        initHints(state, {
+            render: () => { renderCalled = true; }
+        });
+
+        const g1: CanvasGroup = { id: 'g1', x: 80, y: 80, w: 250, h: 150, memberIds: ['n1'], isGroup: true };
+        const n1: CanvasNode = { id: 'n1', text: 'node 1', x: 400, y: 100, w: 100, h: 40, color: 'c-white' };
+        state.groups = [g1];
+        state.nodes = [n1];
+        state.selection.add('n1'); // n1 already selected
+
+        enterHintMode(true); // Multi-select mode
+        // Press 'a' (matches g1)
+        handleHintKeyDown({ key: 'a', code: 'KeyA' } as KeyboardEvent);
+
+        // Both g1 and n1 selected
+        expect(state.selection.has('g1')).toBe(true);
+        expect(state.selection.has('n1')).toBe(true);
+    });
+
+    test("enterHintMode and handleHintKeyDown in Tagging Mode: can tag a Group directly", () => {
+        const { initPresenter, enterTaggingMode } = require("../dango/js/modules/presenter.js");
+        initPresenter(state, {
+            render: () => {},
+            animateView: () => {},
+            fitView: () => {}
+        });
+        initHints(state, { render: () => {} });
+
+        const g1: CanvasGroup = { id: 'g1', x: 80, y: 80, w: 250, h: 150, memberIds: ['n1'], isGroup: true };
+        const n1: CanvasNode = { id: 'n1', text: 'node 1', x: 100, y: 100, w: 100, h: 40, color: 'c-white' };
+        state.groups = [g1];
+        state.nodes = [n1];
+
+        enterTaggingMode();
+
+        // 1. Press f -> press a (matches g1) -> tags step 1 on group
+        enterHintMode(false);
+        handleHintKeyDown({ key: 'a', code: 'KeyA' } as KeyboardEvent);
+        expect(state.groups[0].step).toBe(1);
+
+        // 2. Press f -> press a again -> toggles step off
+        enterHintMode(false);
+        handleHintKeyDown({ key: 'a', code: 'KeyA' } as KeyboardEvent);
+        expect(state.groups[0].step).toBeUndefined();
+    });
 });
+
 

@@ -1,6 +1,6 @@
 // modules/hints.ts
 import { isTaggingModeActive, tagItemDirect } from './presenter.js';
-import type { CanvasState, CanvasNode, CanvasView } from './types.js';
+import type { CanvasState, CanvasNode, CanvasGroup, CanvasView } from './types.js';
 
 export const HINT_ALPHABET = [
     'a', 's', 'd', 'f', 'j', 'k', 'l', 'g', 'h',
@@ -17,7 +17,7 @@ let callbacks: {
 let isHintActive = false;
 let isMultiMode = false;
 let typedPrefix = '';
-const hintMap = new Map<string, CanvasNode>(); // hintCode -> CanvasNode
+const hintMap = new Map<string, CanvasNode | CanvasGroup>(); // hintCode -> CanvasNode | CanvasGroup
 
 export function isHintModeActive(): boolean {
     return isHintActive;
@@ -27,18 +27,18 @@ export function isHintMultiMode(): boolean {
     return isMultiMode;
 }
 
-export function getVisibleNodes(
-    nodes: CanvasNode[],
+export function getVisibleItems<T extends { x: number; y: number; w?: number; h?: number }>(
+    items: T[],
     view: CanvasView,
     winW: number,
     winH: number
-): CanvasNode[] {
+): T[] {
     const scale = view.scale || 1;
-    return nodes.filter(node => {
-        const nw = (typeof node.w === 'number' && node.w > 0) ? node.w : 100;
-        const nh = (typeof node.h === 'number' && node.h > 0) ? node.h : 40;
-        const screenX = node.x * scale + view.x;
-        const screenY = node.y * scale + view.y;
+    return items.filter(item => {
+        const nw = (typeof item.w === 'number' && item.w > 0) ? item.w : 100;
+        const nh = (typeof item.h === 'number' && item.h > 0) ? item.h : 40;
+        const screenX = item.x * scale + view.x;
+        const screenY = item.y * scale + view.y;
         const screenW = nw * scale;
         const screenH = nh * scale;
 
@@ -51,8 +51,17 @@ export function getVisibleNodes(
     });
 }
 
-export function sortNodesTopologically(nodes: CanvasNode[]): CanvasNode[] {
-    const sorted = [...nodes];
+export function getVisibleNodes(
+    nodes: CanvasNode[],
+    view: CanvasView,
+    winW: number,
+    winH: number
+): CanvasNode[] {
+    return getVisibleItems(nodes, view, winW, winH);
+}
+
+export function sortItemsTopologically<T extends { x: number; y: number }>(items: T[]): T[] {
+    const sorted = [...items];
     const ROW_TOLERANCE = 30;
     sorted.sort((a, b) => {
         if (Math.abs(a.y - b.y) > ROW_TOLERANCE) {
@@ -61,6 +70,10 @@ export function sortNodesTopologically(nodes: CanvasNode[]): CanvasNode[] {
         return a.x - b.x;
     });
     return sorted;
+}
+
+export function sortNodesTopologically(nodes: CanvasNode[]): CanvasNode[] {
+    return sortItemsTopologically(nodes);
 }
 
 export function generateHintCodes(count: number): string[] {
@@ -141,19 +154,23 @@ export function enterHintMode(multi = false): void {
     const winW = (typeof window !== 'undefined' && typeof window.innerWidth === 'number' && window.innerWidth > 0) ? window.innerWidth : 1920;
     const winH = (typeof window !== 'undefined' && typeof window.innerHeight === 'number' && window.innerHeight > 0) ? window.innerHeight : 1080;
 
-    const visibleNodes = getVisibleNodes(appState.nodes, appState.view, winW, winH);
-    if (visibleNodes.length === 0) return;
+    const allItems: Array<CanvasNode | CanvasGroup> = [
+        ...(appState.groups || []),
+        ...(appState.nodes || [])
+    ];
+    const visibleItems = getVisibleItems(allItems, appState.view, winW, winH);
+    if (visibleItems.length === 0) return;
 
-    const sortedNodes = sortNodesTopologically(visibleNodes);
-    const codes = generateHintCodes(sortedNodes.length);
+    const sortedItems = sortItemsTopologically(visibleItems);
+    const codes = generateHintCodes(sortedItems.length);
 
     isHintActive = true;
     isMultiMode = multi;
     typedPrefix = '';
     hintMap.clear();
 
-    sortedNodes.forEach((node, i) => {
-        hintMap.set(codes[i], node);
+    sortedItems.forEach((item, i) => {
+        hintMap.set(codes[i], item);
     });
 
     const layer = getHintsLayer();
@@ -161,13 +178,17 @@ export function enterHintMode(multi = false): void {
         layer.innerHTML = '';
         const scale = appState.view.scale || 1;
 
-        sortedNodes.forEach((node, i) => {
+        sortedItems.forEach((item, i) => {
             const code = codes[i];
-            const screenX = node.x * scale + appState!.view.x;
-            const screenY = node.y * scale + appState!.view.y;
+            const isGroup = (item as any).isGroup || Array.isArray((item as any).memberIds);
+            const screenX = item.x * scale + appState!.view.x;
+            const screenY = item.y * scale + appState!.view.y;
 
             const badge = document.createElement('div');
-            badge.className = multi ? 'dango-hint-badge mode-multi' : 'dango-hint-badge';
+            let badgeClass = 'dango-hint-badge';
+            if (multi) badgeClass += ' mode-multi';
+            if (isGroup) badgeClass += ' is-group';
+            badge.className = badgeClass;
             badge.dataset.code = code;
             badge.style.left = `${Math.round(screenX)}px`;
             badge.style.top = `${Math.round(screenY)}px`;
@@ -227,20 +248,20 @@ export function handleHintKeyDown(e: KeyboardEvent): boolean {
 
         // 1. Exact Match
         if (hintMap.has(typedPrefix)) {
-            const targetNode = hintMap.get(typedPrefix)!;
+            const targetItem = hintMap.get(typedPrefix)!;
             if (isMultiMode) {
-                if (appState.selection.has(targetNode.id)) {
-                    appState.selection.delete(targetNode.id);
+                if (appState.selection.has(targetItem.id)) {
+                    appState.selection.delete(targetItem.id);
                 } else {
-                    appState.selection.add(targetNode.id);
+                    appState.selection.add(targetItem.id);
                 }
             } else {
                 appState.selection.clear();
-                appState.selection.add(targetNode.id);
+                appState.selection.add(targetItem.id);
             }
             appState.selectionSource = 'click';
             if (isTaggingModeActive()) {
-                tagItemDirect(targetNode);
+                tagItemDirect(targetItem);
             }
             exitHintMode();
             callbacks.render();

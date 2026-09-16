@@ -615,6 +615,11 @@ line.snap-guide {
     box-shadow: var(--hint-multi-shadow);
 }
 
+.dango-hint-badge.is-group {
+    border-style: dashed;
+    border-width: 1.5px;
+}
+
 .dango-hint-badge.hidden-filter {
     opacity: 0;
     transform: translate(-6px, -10px) scale(0.7);
