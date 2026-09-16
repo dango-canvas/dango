@@ -38,6 +38,14 @@ body.view-animating #groups-layer {
     pointer-events: none !important;
 }
 
+/* 视口飞行动画期间：启用极速矢量光栅化与轻量卡片阴影，彻底根除高斯模糊卷积与密集贝塞尔重算丢帧 */
+body.view-animating #connections-layer {
+    shape-rendering: optimizeSpeed;
+}
+body.view-animating .node {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
 #nodes-layer,
 #connections-layer,
 #groups-layer {
@@ -56,10 +64,10 @@ body.view-animating #groups-layer {
     padding: 12px 20px;
     min-width: 60px;
     
-    /* 重点：保留阴影，但移除 box-shadow 的 transition */
-    /* 我们不希望原来的灰色投影动来动去，只希望文字和位置动 */
+    /* 重点：保留阴影与细腻的跟手阻尼手感 */
     box-shadow: var(--node-shadow);
-    transition: transform 0.1s; 
+    transition: transform 0.1s;
+    contain: layout style;
     
     font-size: 14px;
     font-weight: 500;
@@ -71,6 +79,7 @@ body.view-animating #groups-layer {
     line-height: 1.44;
 }
 
+
 /* 2. 这里的 ::after 是专门的“高亮光圈”层 */
 .node::after {
     content: '';
@@ -80,19 +89,10 @@ body.view-animating #groups-layer {
     pointer-events: none;
     z-index: 50;
 
-    /* 定义选中时的边框样式 */
-    box-shadow: 0 0 0 2px var(--select-color), 0 0 0 4px rgba(99, 102, 241, 0.2);
-
-    /* 优化过渡：仅透明度过渡，保持轻量无抖动 */
+    /* 优化过渡：仅在状态切换时执行 opacity 与 transform 回弹 */
     opacity: 0;
-    transition: opacity 0.15s ease-out;
-    
-    /* 2. 稍微缩小一点点 (0.95)，这样动画开始时，它像是从节点“里面”长出来的 */
     transform: scale(0.95);
-    
-    /* 这里的贝塞尔曲线 (cubic-bezier) 是灵魂 */
-    /* 它有一个轻微的“回弹”效果，让选中感觉很有弹性 */
-    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 0.15s ease-out, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .node:hover {
@@ -105,8 +105,9 @@ body.view-animating #groups-layer {
     z-index: 50;
 }
 
-/* 4. 选中时触发 ::after 动画 */
+/* 4. 选中时触发 ::after 动画并渲染高亮光圈 */
 .node.selected::after {
+    box-shadow: 0 0 0 2px var(--select-color), 0 0 0 4px rgba(99, 102, 241, 0.2);
     opacity: 1;
     /* 放大到正常大小，配合上面的 cubic-bezier，会有一个轻微溢出再收回的视觉欺骗 */
     transform: scale(1);

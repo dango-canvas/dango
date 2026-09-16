@@ -97,17 +97,13 @@ body {
     transition: background-color 0.3s ease;
 }
 
-body.mode-space {
+body.mode-space,
+body.mode-space #canvas-container {
     cursor: grab;
 }
-body.mode-pan {
+body.mode-pan,
+body.mode-pan #canvas-container {
     cursor: grabbing;
-}
-body.mode-space * {
-    cursor: grab !important;
-}
-body.mode-pan * {
-    cursor: grabbing !important;
 }
 
 body.hide-grid,

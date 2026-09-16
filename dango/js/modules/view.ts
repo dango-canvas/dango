@@ -1,4 +1,3 @@
-// modules/view.ts
 import { screenToWorld } from './utils.js';
 import { updateViewTransform } from './render.js';
 import type { CanvasState } from './types.js';
@@ -14,7 +13,7 @@ export function initView(state: CanvasState, render: () => void): void {
 
 // 停止当前所有视口动画
 export function cancelViewAnimation(): void {
-    if (viewAnimationId) {
+    if (viewAnimationId !== null) {
         cancelAnimationFrame(viewAnimationId);
         viewAnimationId = null;
     }
@@ -180,23 +179,22 @@ export function animateView(targetX: number, targetY: number, targetScale: numbe
         return;
     }
 
+    if (duration <= 0) {
+        stateRef.view.x = targetX;
+        stateRef.view.y = targetY;
+        stateRef.view.scale = targetScale;
+        updateViewTransform();
+        return;
+    }
+
     if (typeof document !== 'undefined' && document.body) {
         document.body.classList.add('view-animating');
     }
 
     const startTime = performance.now();
-    let lastStepTime = startTime;
 
     function step(now: number) {
         if (!stateRef || !renderRef) return;
-
-        if (typeof window !== 'undefined' && (window as any).__DANGO_PERF__) {
-            const perf = (window as any).__DANGO_PERF__;
-            const delta = now - lastStepTime;
-            if (perf.recording === 'A') perf.phaseAFrames.push({ timestamp: now, delta, progress: Math.min((now - startTime) / duration, 1) });
-            if (perf.recording === 'B') perf.phaseBFrames.push({ timestamp: now, delta, progress: Math.min((now - startTime) / duration, 1) });
-        }
-        lastStepTime = now;
 
         const elapsed = now - startTime;
         const progress = Math.min(elapsed / duration, 1);
@@ -206,16 +204,15 @@ export function animateView(targetX: number, targetY: number, targetScale: numbe
         stateRef.view.y = progress >= 1 ? targetY : startY + (targetY - startY) * ease;
         stateRef.view.scale = progress >= 1 ? targetScale : startScale + (targetScale - startScale) * ease;
 
+        updateViewTransform();
+
         if (progress < 1) {
-            updateViewTransform();
             viewAnimationId = requestAnimationFrame(step);
         } else {
             viewAnimationId = null;
             if (typeof document !== 'undefined' && document.body) {
                 document.body.classList.remove('view-animating');
             }
-            updateViewTransform();
-            renderRef();
         }
     }
     viewAnimationId = requestAnimationFrame(step);
