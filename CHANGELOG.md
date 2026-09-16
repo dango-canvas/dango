@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-09-16
+
+### Added
+- **Compound Graph & Group Linking**: Enhanced canvas topology with first-class compound graph linking (`Ctrl+L`). Enabled full bi-directional linking between groups and nodes, group-to-group connections, circular dependency guard, and directional group expansion (`Ctrl+Arrow`).
+- **Hint Mode Group Selection (`F` / `Alt+F`)**: Extended keyboard quick-jump hint navigation to include group containers with distinct dashed badges, supporting single-letter rapid group targeting and focus.
+
+### Changed
+- **Directional Extrude Distance Tuning**: Balanced `Ctrl+Arrow` node extrusion offset distance from 80px down to 48px, harmonizing card rhythm and avoiding sprawling cluster dispersion.
+
+### Performance
+- **Camera Viewport Animation Pipeline & Render Optimization**: Resolved frame drop spikes during middle-click pan/zoom and landing animations. Dynamically enabled `shape-rendering: optimizeSpeed` on `#connections-layer` and lightweight card shadows on `.node` strictly during flight (`body.view-animating`), completely eliminating 55-element Gaussian blur convolution bottlenecks on 120Hz displays.
+- **Root-Cause Font Reshaping & Overlay De-convolution**: Eliminated `body.view-animating { text-rendering: optimizeSpeed; }` that triggered full-tree font reshaping, and removed `backdrop-filter: blur` from the performance monitor panel to prevent dynamic viewport convolution lag.
+- **Pure 2D Matrix Rendering**: Preserved clean 2D `translate` and `scale` transforms, avoiding font blurring and subpixel anti-aliasing degradation associated with 3D composited textures.
+
 ## [1.1.10.2] - 2026-09-11
 
 ### Fixed
