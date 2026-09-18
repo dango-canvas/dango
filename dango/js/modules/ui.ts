@@ -574,9 +574,17 @@ function showManualCopyModal(url: string): void {
 }
 
 // --- Toast 通知 ---
+export interface ToastActionContext {
+    mutateText: (text: string) => void;
+    confirmAndDismiss: (btnText?: string, delayMs?: number) => void;
+    dismissAction: () => void;
+    resetTimer: (delayMs?: number) => void;
+    removeToast: () => void;
+}
+
 export interface ToastActionButton {
     text: string;
-    onClick: () => void;
+    onClick: (e?: MouseEvent, ctx?: ToastActionContext) => void;
     className?: string;
     title?: string;
     popoverHtml?: string;
@@ -584,20 +592,35 @@ export interface ToastActionButton {
 
 interface ToastQueueItem {
     message: string;
-    safetySnapshot: any;
+    safetySnapshot?: any;
+    actions?: ToastActionButton[];
 }
 
 const toastQueue: ToastQueueItem[] = [];
 let activeToasts = 0;
 const MAX_VISIBLE_TOASTS = 3;
 
-function renderToastActions(actionsEl: HTMLElement, actions: ToastActionButton[]): void {
+function renderToastActions(
+    actionsEl: HTMLElement, 
+    actions: ToastActionButton[],
+    ctxBuilder?: (btn: HTMLButtonElement) => ToastActionContext
+): void {
     actionsEl.innerHTML = '';
     actions.forEach(act => {
         const btn = document.createElement('button');
         btn.className = act.className ? `btn-toast ${act.className}` : 'btn-toast';
         btn.innerText = act.text;
         if (act.title) btn.title = act.title;
+
+        const getCtx = (): ToastActionContext => {
+            if (ctxBuilder) return ctxBuilder(btn);
+            return {
+                mutateText: () => {},
+                dismissAction: () => { btn.remove(); },
+                resetTimer: () => {},
+                removeToast: () => {}
+            };
+        };
 
         if (act.popoverHtml) {
             const wrap = document.createElement('div');
@@ -633,7 +656,7 @@ function renderToastActions(actionsEl: HTMLElement, actions: ToastActionButton[]
                 } else {
                     showPop();
                 }
-                act.onClick();
+                act.onClick(e, getCtx());
             };
 
             wrap.appendChild(btn);
@@ -642,16 +665,16 @@ function renderToastActions(actionsEl: HTMLElement, actions: ToastActionButton[]
         } else {
             btn.onclick = (e) => {
                 e.stopPropagation();
-                act.onClick();
+                act.onClick(e, getCtx());
             };
             actionsEl.appendChild(btn);
         }
     });
 }
 
-export function showToast(message: string, safetySnapshot: any = null): void {
+export function showToast(message: string, safetySnapshot: any = null, actions: ToastActionButton[] = []): void {
     if (typeof document === 'undefined') return;
-    toastQueue.push({ message, safetySnapshot });
+    toastQueue.push({ message, safetySnapshot, actions });
     processToastQueue();
 }
 
@@ -735,7 +758,7 @@ function processToastQueue(): void {
 
     const item = toastQueue.shift();
     if (!item) return;
-    const { message, safetySnapshot } = item;
+    const { message, safetySnapshot, actions } = item;
 
     const texts = getTexts();
     const container = document.getElementById('toast-container');
@@ -747,6 +770,8 @@ function processToastQueue(): void {
     const textNode = document.createElement('span');
     textNode.innerText = message;
     toast.appendChild(textNode);
+
+    let dismissTimer: any = null;
 
     const removeToast = () => {
         if (toast.parentNode) {
@@ -761,9 +786,11 @@ function processToastQueue(): void {
         }
     };
 
+    const hasActions = !!safetySnapshot || (Array.isArray(actions) && actions.length > 0);
+
     if (safetySnapshot) {
-        const actions = document.createElement('div');
-        actions.className = 'toast-actions';
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'toast-actions';
         const btnUndo = document.createElement('button');
         btnUndo.className = 'btn-toast';
         btnUndo.innerText = texts.toast_undo;
@@ -779,16 +806,71 @@ function processToastQueue(): void {
             downloadBlob(data, `safety-backup_${getTimestamp()}.dango`, 'application/json');
             removeToast();
         };
-        actions.appendChild(btnUndo);
-        actions.appendChild(btnExport);
-        toast.appendChild(actions);
+        actionsEl.appendChild(btnUndo);
+        actionsEl.appendChild(btnExport);
+        toast.appendChild(actionsEl);
+    } else if (actions && actions.length > 0) {
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'toast-actions';
+        renderToastActions(actionsEl, actions, (btn) => ({
+            mutateText: (newText: string) => {
+                textNode.innerText = newText;
+            },
+            confirmAndDismiss: (btnText: string = '✓', delayMs: number = 400) => {
+                btn.innerText = btnText;
+                btn.classList.add('btn-toast-success');
+                btn.style.pointerEvents = 'none';
+                if (dismissTimer) clearTimeout(dismissTimer);
+                dismissTimer = setTimeout(removeToast, delayMs);
+            },
+            dismissAction: () => {
+                btn.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                btn.style.opacity = '0';
+                btn.style.transform = 'scale(0.95)';
+                btn.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    btn.remove();
+                    if (actionsEl.children.length === 0) {
+                        actionsEl.remove();
+                    }
+                }, 200);
+            },
+            resetTimer: (delayMs: number = 1500) => {
+                remainingTime = delayMs;
+                if (dismissTimer) clearTimeout(dismissTimer);
+                dismissTimer = setTimeout(removeToast, delayMs);
+            },
+            removeToast
+        }));
+        toast.appendChild(actionsEl);
     }
 
     container.appendChild(toast);
     setTimeout(() => toast.classList.add('show'), 10);
 
-    const delay = safetySnapshot ? 6000 : 3000;
-    setTimeout(removeToast, delay);
+    const initialDelay = hasActions ? 6000 : 3000;
+    let remainingTime = initialDelay;
+    let startTime = Date.now();
+
+    dismissTimer = setTimeout(removeToast, initialDelay);
+
+    // 悬停阻尼 (Hover Damping): 凡有操作按钮的 Toast，悬停时暂停关闭，移出后重启动态倒计时
+    if (hasActions && typeof toast.addEventListener === 'function') {
+        toast.addEventListener('mouseenter', () => {
+            if (dismissTimer) {
+                clearTimeout(dismissTimer);
+                dismissTimer = null;
+            }
+            remainingTime = Math.max(1500, remainingTime - (Date.now() - startTime));
+        });
+
+        toast.addEventListener('mouseleave', () => {
+            startTime = Date.now();
+            if (!dismissTimer) {
+                dismissTimer = setTimeout(removeToast, Math.max(2000, remainingTime));
+            }
+        });
+    }
 }
 
 // --- 统一初始化函数 ---
@@ -1180,7 +1262,7 @@ export function initUI(_state: CanvasState, _callbacks: any): void {
 
     bindExportAction('opt-json', callbacks.exportJson);
     bindExportAction('opt-link', callbacks.createShareLink);
-    bindExportAction('opt-embed', callbacks.createEmbedCode);
+    bindExportAction('opt-image', callbacks.exportImage);
 
     document.addEventListener('click', (e) => {
         if (actionStack?.classList.contains('is-exporting') && !actionStack.contains(e.target as Node)) {

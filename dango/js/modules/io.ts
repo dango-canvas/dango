@@ -763,7 +763,20 @@ export function createShareLink(): void {
     const baseUrl = (typeof window !== 'undefined' && window.location) ? (window.location.origin + window.location.pathname) : '';
     const url = baseUrl + '#' + compressed;
     copyToClipboard(url).then((success) => {
-        showToast(getTexts().toast_copy_link_success);
+        const texts = getTexts();
+        const iframe = `<iframe src="${baseUrl}?embed=true#${compressed}" style="width: 100%; height: 500px; border: none; border-radius: 12px;" allow="clipboard-write"></iframe>`;
+        showToast(texts.toast_copy_link_success, null, [
+            {
+                text: texts.toast_btn_embed || '嵌入',
+                onClick: (_e, ctx) => {
+                    copyToClipboard(iframe).then(() => {
+                        if (ctx) {
+                            ctx.confirmAndDismiss('✓', 400);
+                        }
+                    });
+                }
+            }
+        ]);
         if (success) checkAndTriggerFeedback();
     });
 }

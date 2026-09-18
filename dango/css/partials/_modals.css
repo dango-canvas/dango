@@ -72,6 +72,13 @@
 .btn-toast.btn-toast-primary:hover {
     opacity: 0.9;
 }
+.btn-toast.btn-toast-success {
+    background: var(--select-color);
+    color: white;
+    border-color: var(--select-color);
+    cursor: default;
+    pointer-events: none;
+}
 .btn-toast.btn-toast-danger {
     border-color: rgba(239, 68, 68, 0.28);
     color: rgba(239, 68, 68, 0.75);

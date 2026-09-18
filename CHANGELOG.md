@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.2] - 2026-09-18
+
+### Changed
+- **Image Export (`PNG` / `图片`) Promotion**: Promoted the built-in 3x Retina WYSIWYG screenshot engine (`exportImage`) to a first-class option in the main action drawer, replacing the redundant `EMBED` button. The secondary export stack now mirrors the primary row with three orthogonal formats: `LINK` (Web), `DANGO` (Raw Data), and `PNG` (Image).
+- **Progressive Embed Mode Action in Toast**: Re-architected Embed mode into a progressive disclosure action button (`EMBED` / `嵌入`) inside the link copy success toast. Clicking it copies the `<iframe>` snippet, provides instant tactile checkmark (`✓`) confirmation, and dismisses smoothly after 400ms without layout shift or semantic redundancy.
+- **Universal Hover Damping on Interactive Toasts**: Added hover damping across all action-bearing toasts (clear canvas undo/backup and share link embed). Hovering freezes the auto-dismiss countdown, and moving the cursor away resumes countdown with a safe minimum floor (≥2000ms).
+
+### Fixed
+- **Clear Canvas Button Tooltip Localization**: Added `data-i18n-title="btn_clear_tooltip"` to the clear button (`#btn-clear`), ensuring the hover tooltip displays localized text (Chinese "清空" / English "Clear") instead of static English across all locales.
+
 ## [1.12.0] - 2026-09-16
 
 ### Added
