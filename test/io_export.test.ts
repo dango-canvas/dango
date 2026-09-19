@@ -8,7 +8,10 @@ import {
     initIO,
     sanitizeFilenameTitle,
     extractCanvasTitle,
-    getExportFilename 
+    getExportFilename,
+    calculateCrc32,
+    injectDangoMetadataToPng,
+    extractDangoMetadataFromPng
 } from '../dango/js/modules/io.js';
 
 class MockElement {
@@ -264,6 +267,13 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
                     }
                 }, 0);
             }
+            readAsArrayBuffer(file: any) {
+                setTimeout(() => {
+                    if (this.onload) {
+                        this.onload({ target: { result: file._buffer } });
+                    }
+                }, 0);
+            }
         }
         (globalThis as any).FileReader = MockFileReader;
 
@@ -275,12 +285,223 @@ describe('IO Export & Share Methods Execution Reliability and Format Fidelity', 
         processDangoFile(fakeFile);
     });
 
-    it('processDangoFile ignores non-dango / non-json file extensions', () => {
+    it('processDangoFile ignores unsupported file extensions', () => {
         state.nodes = [{ id: 'n1', text: 'Preserved', x: 0, y: 0, w: 100, h: 40, color: 'c-white' }];
-        const invalidFile = { name: 'image.png' } as any;
+        const invalidFile = { name: 'document.pdf' } as any;
         processDangoFile(invalidFile);
         expect(state.nodes.length).toBe(1);
         expect(state.nodes[0].text).toBe('Preserved');
+    });
+
+    it('calculateCrc32 computes standard IEEE 802.3 CRC32 correctly', () => {
+        // "IEND" chunk type CRC is fixed at 0xAE426082
+        const iendBytes = new Uint8Array([0x49, 0x45, 0x4E, 0x44]);
+        expect(calculateCrc32(iendBytes)).toBe(0xAE426082);
+    });
+
+    it('injectDangoMetadataToPng and extractDangoMetadataFromPng perform lossless roundtrip', () => {
+        // Minimal valid 1x1 PNG (45 bytes)
+        const minimalPng = new Uint8Array([
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // Signature
+            0x00, 0x00, 0x00, 0x0D,                         // IHDR Length
+            0x49, 0x48, 0x44, 0x52,                         // "IHDR"
+            0x00, 0x00, 0x00, 0x01,                         // Width 1
+            0x00, 0x00, 0x00, 0x01,                         // Height 1
+            0x08, 0x02, 0x00, 0x00, 0x00,                   // 8-bit RGB
+            0x90, 0x77, 0x53, 0xDE,                         // IHDR CRC
+            0x00, 0x00, 0x00, 0x00,                         // IEND Length
+            0x49, 0x45, 0x4E, 0x44,                         // "IEND"
+            0xAE, 0x42, 0x60, 0x82                          // IEND CRC
+        ]);
+
+        const sampleData = {
+            nodes: [
+                { id: 'node-a', text: 'Hello Dango PNG', x: 100, y: 100, w: 120, h: 44, color: 'c-blue' }
+            ],
+            groups: [],
+            links: []
+        };
+
+        const injectedBuffer = injectDangoMetadataToPng(minimalPng.buffer, JSON.stringify(sampleData));
+        expect(injectedBuffer.byteLength).toBeGreaterThan(minimalPng.byteLength);
+
+        const extracted = extractDangoMetadataFromPng(injectedBuffer);
+        expect(extracted).not.toBeNull();
+        expect(extracted.nodes.length).toBe(1);
+        expect(extracted.nodes[0].text).toBe('Hello Dango PNG');
+        expect(extracted.nodes[0].color).toBe('c-blue');
+    });
+
+    it('extractDangoMetadataFromPng returns null on plain PNG without metadata', () => {
+        const minimalPng = new Uint8Array([
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D,
+            0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x08, 0x02, 0x00, 0x00, 0x00,
+            0x90, 0x77, 0x53, 0xDE,
+            0x00, 0x00, 0x00, 0x00,
+            0x49, 0x45, 0x4E, 0x44,
+            0xAE, 0x42, 0x60, 0x82
+        ]);
+        expect(extractDangoMetadataFromPng(minimalPng.buffer)).toBeNull();
+    });
+
+    it('processDangoFile successfully imports PNG containing Dango metadata', (done) => {
+        initIO(() => {});
+
+        const minimalPng = new Uint8Array([
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D,
+            0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x08, 0x02, 0x00, 0x00, 0x00,
+            0x90, 0x77, 0x53, 0xDE,
+            0x00, 0x00, 0x00, 0x00,
+            0x49, 0x45, 0x4E, 0x44,
+            0xAE, 0x42, 0x60, 0x82
+        ]);
+
+        const embeddedData = {
+            nodes: [
+                { id: 'png-n1', text: 'From PNG Image', x: 200, y: 200, w: 100, h: 40, color: 'c-red' }
+            ],
+            groups: [],
+            links: [],
+            settings: { hideGrid: true }
+        };
+
+        const injectedBuffer = injectDangoMetadataToPng(minimalPng.buffer, JSON.stringify(embeddedData));
+
+        class MockFileReaderPng {
+            onload: ((ev: any) => void) | null = null;
+            readAsArrayBuffer(file: any) {
+                setTimeout(() => {
+                    if (this.onload) {
+                        this.onload({ target: { result: file._buffer } });
+                        try {
+                            expect(state.nodes.length).toBe(1);
+                            expect(state.nodes[0].text).toBe('From PNG Image');
+                            done();
+                        } catch (err) {
+                            done(err);
+                        }
+                    }
+                }, 0);
+            }
+        }
+        (globalThis as any).FileReader = MockFileReaderPng;
+
+        const fakePngFile = {
+            name: 'exported_board.png',
+            _buffer: injectedBuffer
+        } as any;
+
+        processDangoFile(fakePngFile);
+    });
+
+    it('processDangoFile successfully imports PNG containing packed array metadata (packData format)', (done) => {
+        initIO(() => {});
+
+        const minimalPng = new Uint8Array([
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D,
+            0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x08, 0x02, 0x00, 0x00, 0x00,
+            0x90, 0x77, 0x53, 0xDE,
+            0x00, 0x00, 0x00, 0x00,
+            0x49, 0x45, 0x4E, 0x44,
+            0xAE, 0x42, 0x60, 0x82
+        ]);
+
+        // Packed array format [version, pNodes, pGroups, pLinks, pSettings]
+        const packedArrayData = [
+            5,
+            [[0, 'Packed Array Node', 150, 150, 120, 50, 1]],
+            [],
+            [],
+            [1, 0, 0, '']
+        ];
+
+        const injectedBuffer = injectDangoMetadataToPng(minimalPng.buffer, JSON.stringify(packedArrayData));
+
+        class MockFileReaderPacked {
+            onload: ((ev: any) => void) | null = null;
+            readAsArrayBuffer(file: any) {
+                setTimeout(() => {
+                    if (this.onload) {
+                        this.onload({ target: { result: file._buffer } });
+                        try {
+                            expect(state.nodes.length).toBe(1);
+                            expect(state.nodes[0].text).toBe('Packed Array Node');
+                            done();
+                        } catch (err) {
+                            done(err);
+                        }
+                    }
+                }, 0);
+            }
+        }
+        (globalThis as any).FileReader = MockFileReaderPacked;
+
+        const fakePngFile = {
+            name: 'packed_board.png',
+            _buffer: injectedBuffer
+        } as any;
+
+        processDangoFile(fakePngFile);
+    });
+
+    it('processDangoFile rejects invalid/corrupted data without wiping existing nodes', (done) => {
+        initIO(() => {});
+        state.nodes = [{ id: 'keep-me', text: 'Should Not Be Wiped', x: 50, y: 50, w: 100, h: 40, color: 'c-white' }];
+
+        const minimalPng = new Uint8Array([
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D,
+            0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x01,
+            0x08, 0x02, 0x00, 0x00, 0x00,
+            0x90, 0x77, 0x53, 0xDE,
+            0x00, 0x00, 0x00, 0x00,
+            0x49, 0x45, 0x4E, 0x44,
+            0xAE, 0x42, 0x60, 0x82
+        ]);
+
+        // Malformed data (not an array with nodes or object with nodes/groups)
+        const corruptedData = { somethingElse: 123 };
+        const injectedBuffer = injectDangoMetadataToPng(minimalPng.buffer, JSON.stringify(corruptedData));
+
+        class MockFileReaderCorrupted {
+            onload: ((ev: any) => void) | null = null;
+            readAsArrayBuffer(file: any) {
+                setTimeout(() => {
+                    if (this.onload) {
+                        this.onload({ target: { result: file._buffer } });
+                        try {
+                            expect(state.nodes.length).toBe(1);
+                            expect(state.nodes[0].text).toBe('Should Not Be Wiped');
+                            done();
+                        } catch (err) {
+                            done(err);
+                        }
+                    }
+                }, 0);
+            }
+        }
+        (globalThis as any).FileReader = MockFileReaderCorrupted;
+
+        const fakePngFile = {
+            name: 'corrupted.png',
+            _buffer: injectedBuffer
+        } as any;
+
+        processDangoFile(fakePngFile);
     });
 });
 

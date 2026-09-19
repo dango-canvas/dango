@@ -1,9 +1,9 @@
 // modules/io.ts
-import { state, pushHistory, packData, unpackData } from './state.js';
+import { state, pushHistory, packData, unpackData, saveData } from './state.js';
 import { getTexts } from './i18n.js';
 import { showToast, applySettings, showPersistentToast, dismissPersistentToast } from './ui.js';
 import { getTimestamp, downloadBlob, copyToClipboard } from './utils.js';
-import { fitView } from './view.js';
+import { fitView, resetViewToCenter } from './view.js';
 import { els } from './dom.js';
 
 import type { CanvasState, ExportImageOptions } from './types.js';
@@ -306,6 +306,156 @@ export function renderTodoCheckboxSvg(isChecked: boolean): string {
     return `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; flex-shrink:0; margin:0;"><rect x="0.6" y="0.6" width="12.8" height="12.8" rx="2.5" fill="${fillColor}" stroke="${borderColor}" stroke-width="1.2" stroke-opacity="${strokeOpacity}"/>${checkPath}</svg>`;
 }
 
+const crcTable: Uint32Array = (() => {
+    const table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let k = 0; k < 8; k++) {
+            c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        }
+        table[i] = c >>> 0;
+    }
+    return table;
+})();
+
+export function calculateCrc32(buf: Uint8Array, offset = 0, length = buf.length): number {
+    let crc = 0xFFFFFFFF;
+    for (let i = offset; i < offset + length; i++) {
+        crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xFF];
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/**
+ * 将 Dango JSON 画板数据无损注入至 PNG 二进制 ArrayBuffer 中（标准 tEXt Chunk）。
+ */
+export function injectDangoMetadataToPng(pngBuffer: ArrayBuffer, jsonData: string): ArrayBuffer {
+    if (pngBuffer.byteLength < 8) {
+        throw new Error('Invalid PNG buffer: too short');
+    }
+    const view = new DataView(pngBuffer);
+    if (view.getUint32(0) !== 0x89504E47 || view.getUint32(4) !== 0x0D0A1A0A) {
+        throw new Error('Invalid PNG buffer: missing PNG signature');
+    }
+
+    let iendOffset = -1;
+    let offset = 8;
+    while (offset + 8 <= pngBuffer.byteLength) {
+        const chunkLength = view.getUint32(offset);
+        const chunkType = String.fromCharCode(
+            view.getUint8(offset + 4),
+            view.getUint8(offset + 5),
+            view.getUint8(offset + 6),
+            view.getUint8(offset + 7)
+        );
+        if (chunkType === 'IEND') {
+            iendOffset = offset;
+            break;
+        }
+        offset += 8 + chunkLength + 4;
+    }
+
+    if (iendOffset === -1) {
+        iendOffset = pngBuffer.byteLength >= 12 ? pngBuffer.byteLength - 12 : pngBuffer.byteLength;
+    }
+
+    const encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : {
+        encode: (s: string) => Buffer.from(s, 'utf-8')
+    };
+    const jsonBytes = encoder.encode(jsonData);
+    // Keyword "dango" + null separator \0
+    const keywordBytes = new Uint8Array([100, 97, 110, 103, 111, 0]);
+    const chunkDataLength = keywordBytes.length + jsonBytes.length;
+
+    const chunkTotalLength = 4 + 4 + chunkDataLength + 4;
+    const chunkBuffer = new Uint8Array(chunkTotalLength);
+    const chunkView = new DataView(chunkBuffer.buffer);
+
+    // 1. Length (4B)
+    chunkView.setUint32(0, chunkDataLength);
+
+    // 2. Type "tEXt" (4B)
+    chunkBuffer[4] = 116; // 't'
+    chunkBuffer[5] = 69;  // 'E'
+    chunkBuffer[6] = 88;  // 'X'
+    chunkBuffer[7] = 116; // 't'
+
+    // 3. Data: keyword + json
+    chunkBuffer.set(keywordBytes, 8);
+    chunkBuffer.set(jsonBytes, 8 + keywordBytes.length);
+
+    // 4. CRC32 over Type + Data
+    const crc = calculateCrc32(chunkBuffer, 4, 4 + chunkDataLength);
+    chunkView.setUint32(8 + chunkDataLength, crc);
+
+    // 组装新 Buffer
+    const resultBuffer = new Uint8Array(pngBuffer.byteLength + chunkTotalLength);
+    const originalU8 = new Uint8Array(pngBuffer);
+
+    resultBuffer.set(originalU8.subarray(0, iendOffset), 0);
+    resultBuffer.set(chunkBuffer, iendOffset);
+    resultBuffer.set(originalU8.subarray(iendOffset), iendOffset + chunkTotalLength);
+
+    return resultBuffer.buffer;
+}
+
+/**
+ * 从 PNG 二进制 ArrayBuffer 中解析提取嵌入的 Dango JSON 画板数据。
+ */
+export function extractDangoMetadataFromPng(pngBuffer: ArrayBuffer): any | null {
+    if (!pngBuffer || pngBuffer.byteLength < 8) return null;
+    const view = new DataView(pngBuffer);
+    if (view.getUint32(0) !== 0x89504E47 || view.getUint32(4) !== 0x0D0A1A0A) {
+        return null;
+    }
+
+    let offset = 8;
+    const u8 = new Uint8Array(pngBuffer);
+    const decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : {
+        decode: (bytes: Uint8Array) => Buffer.from(bytes).toString('utf-8')
+    };
+
+    while (offset + 8 <= pngBuffer.byteLength) {
+        const chunkLength = view.getUint32(offset);
+        const chunkType = String.fromCharCode(
+            view.getUint8(offset + 4),
+            view.getUint8(offset + 5),
+            view.getUint8(offset + 6),
+            view.getUint8(offset + 7)
+        );
+
+        if (chunkType === 'tEXt') {
+            const dataOffset = offset + 8;
+            if (dataOffset + chunkLength <= pngBuffer.byteLength) {
+                // 检查 Keyword 是否为 "dango\0"
+                if (chunkLength >= 6 &&
+                    u8[dataOffset] === 100 &&     // 'd'
+                    u8[dataOffset + 1] === 97 &&  // 'a'
+                    u8[dataOffset + 2] === 110 && // 'n'
+                    u8[dataOffset + 3] === 103 && // 'g'
+                    u8[dataOffset + 4] === 111 && // 'o'
+                    u8[dataOffset + 5] === 0) {   // '\0'
+                    try {
+                        const jsonText = decoder.decode(u8.subarray(dataOffset + 6, dataOffset + chunkLength));
+                        return JSON.parse(jsonText);
+                    } catch (e) {
+                        console.error('[Dango] Failed to parse embedded dango JSON from PNG:', e);
+                        return null;
+                    }
+                }
+            }
+        }
+
+        if (chunkType === 'IEND') {
+            break;
+        }
+
+        offset += 8 + chunkLength + 4;
+    }
+
+    return null;
+}
+
 /**
  * 根据参数及画布当前设置解析背景与网格输出策略：
  * - 默认或 'auto'：所见即所得，联动画板设置（若未隐藏网格则带网格，若已隐藏网格则纯色）
@@ -575,13 +725,47 @@ export async function exportImage(options: ExportImageOptions = {}): Promise<Blo
                     resolve(null);
                     return;
                 }
-                if (options.download !== false) {
-                    const filename = getExportImageFilename(state);
-                    downloadBlob(blob, filename, 'image/png');
-                    showToast(getTexts().toast_export_image_success || '截图已导出 ✨');
-                    checkAndTriggerFeedback();
-                }
-                resolve(blob);
+
+                const handleDownloadedBlob = (finalBlob: Blob) => {
+                    if (options.download !== false) {
+                        const filename = getExportImageFilename(state);
+                        downloadBlob(finalBlob, filename, 'image/png');
+                        showToast(getTexts().toast_export_image_success || '截图已导出 ✨');
+                        checkAndTriggerFeedback();
+                    }
+                    resolve(finalBlob);
+                };
+
+                // 尝试向 PNG 注入 Dango 画板元数据
+                const getArrayBuffer = (b: Blob): Promise<ArrayBuffer> => {
+                    if (typeof b.arrayBuffer === 'function') {
+                        return b.arrayBuffer();
+                    }
+                    return new Promise((resolve, reject) => {
+                        const fr = new FileReader();
+                        fr.onload = () => resolve(fr.result as ArrayBuffer);
+                        fr.onerror = reject;
+                        fr.readAsArrayBuffer(b);
+                    });
+                };
+
+                getArrayBuffer(blob).then(arrayBuf => {
+                    try {
+                        const dangoJson = JSON.stringify({
+                            nodes: state.nodes,
+                            groups: state.groups,
+                            links: state.links,
+                            settings: state.settings
+                        });
+                        const injectedBuf = injectDangoMetadataToPng(arrayBuf, dangoJson);
+                        handleDownloadedBlob(new Blob([injectedBuf], { type: 'image/png' }));
+                    } catch (e) {
+                        console.warn('[Dango] Failed to inject metadata into PNG, falling back to raw PNG:', e);
+                        handleDownloadedBlob(blob);
+                    }
+                }).catch(() => {
+                    handleDownloadedBlob(blob);
+                });
             }, 'image/png');
         };
 
@@ -618,47 +802,89 @@ function persistSettings(settings: Partial<typeof state.settings>): void {
 
 export function processDangoFile(file: File): void {
     if (!file) return;
-    if (!file.name.endsWith('.dango') && !file.name.endsWith('.json')) {
+
+    const isPng = file.name.endsWith('.png') || file.type === 'image/png';
+    const isDangoOrJson = file.name.endsWith('.dango') || file.name.endsWith('.json');
+
+    if (!isPng && !isDangoOrJson) {
         showToast(getTexts().alert_file_err);
         return;
     }
-    const reader = new FileReader();
-    reader.onload = (ev: ProgressEvent<FileReader>) => {
-        try {
-            const content = ev.target?.result as string;
-            const data = JSON.parse(content);
-            let oldSnapshot: any = null;
-            if (state.nodes.length > 0) {
-                oldSnapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links], settings: { ...state.settings } };
-            }
-            pushHistory();
-            state.nodes = data.nodes || [];
-            state.groups = data.groups || [];
-            state.links = data.links || [];
-            if (data.settings) {
-                Object.assign(state.settings, data.settings);
-                persistSettings(data.settings);
-            }
-            state.selection.clear();
 
-            // 导入文件时重置视角到中心
-            const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
-            const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
-            state.view = {
-                x: winW / 2,
-                y: winH / 2,
-                scale: 1.2
-            };
-
-            if (renderRef) renderRef();
-            applySettings(state);
-            showToast(getTexts().toast_import_success, oldSnapshot);
-        } catch (err) {
-            console.error(err);
+    const applyImportData = (dataRaw: any) => {
+        if (!dataRaw) return;
+        const data = Array.isArray(dataRaw) ? unpackData(dataRaw) : dataRaw;
+        if (!data || (!Array.isArray(data.nodes) && !Array.isArray(data.groups))) {
             showToast(getTexts().alert_file_err);
+            return;
         }
+
+        let oldSnapshot: any = null;
+        if (state.nodes.length > 0) {
+            oldSnapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links], settings: { ...state.settings } };
+        }
+        pushHistory();
+        state.nodes = data.nodes || [];
+        state.groups = data.groups || [];
+        state.links = data.links || [];
+        if (data.settings) {
+            Object.assign(state.settings, data.settings);
+            persistSettings(data.settings);
+        }
+        state.selection.clear();
+
+        // 导入文件时重置视角到画布内容中心
+        if (typeof resetViewToCenter === 'function') {
+            try {
+                resetViewToCenter(false);
+            } catch {
+                const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
+                const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
+                state.view = {
+                    x: winW / 2,
+                    y: winH / 2,
+                    scale: 1.2
+                };
+            }
+        }
+
+        if (renderRef) renderRef();
+        applySettings(state);
+        saveData();
+        showToast(getTexts().toast_import_success, oldSnapshot);
     };
-    reader.readAsText(file);
+
+    if (isPng) {
+        const reader = new FileReader();
+        reader.onload = (ev: ProgressEvent<FileReader>) => {
+            try {
+                const arrayBuf = ev.target?.result as ArrayBuffer;
+                const data = extractDangoMetadataFromPng(arrayBuf);
+                if (!data) {
+                    showToast(getTexts().toast_png_no_dango || '该图片未包含 Dango 画板数据');
+                    return;
+                }
+                applyImportData(data);
+            } catch (err) {
+                console.error(err);
+                showToast(getTexts().toast_png_no_dango || '该图片未包含 Dango 画板数据');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+        const reader = new FileReader();
+        reader.onload = (ev: ProgressEvent<FileReader>) => {
+            try {
+                const content = ev.target?.result as string;
+                const data = JSON.parse(content);
+                applyImportData(data);
+            } catch (err) {
+                console.error(err);
+                showToast(getTexts().alert_file_err);
+            }
+        };
+        reader.readAsText(file);
+    }
 }
 
 const FIRST_USED_KEY = 'dango_first_used';
