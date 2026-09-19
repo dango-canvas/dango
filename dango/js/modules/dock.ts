@@ -10,7 +10,7 @@ import {
 import { smartAlignSelection } from './animation.js';
 import { toggleSearch } from './search.js';
 import { resetViewToCenter } from './view.js';
-import { isPresentationModeActive, tagSelectionStep } from './presenter.js';
+import { isPresentationModeActive, tagSelectionStep, clearDockRestoreTimer } from './presenter.js';
 import { uid, getEdgeIntersection } from './utils.js';
 import { buildLinkPathData } from './links.js';
 import { DIRECTIONAL_DISTANCE } from './directional.js';
@@ -325,9 +325,11 @@ export function toggleFloatingDock(forceVisible?: boolean): void {
     localStorage.setItem('cc-hide-toolbar', String(shouldHide));
 
     if (!shouldHide && !isPresentationModeActive()) {
+        clearDockRestoreTimer();
         container.classList.remove('hidden-dock');
         updateFloatingDock(true);
     } else {
+        clearDockRestoreTimer();
         container.classList.add('hidden-dock');
     }
 }
@@ -345,6 +347,7 @@ export function updateFloatingDock(force: boolean = false): void {
         container.classList.add('hidden-dock');
         return;
     } else {
+        clearDockRestoreTimer();
         container.classList.remove('hidden-dock');
     }
 

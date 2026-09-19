@@ -14,10 +14,10 @@ let callbacks: {
     fitView: (padding?: number, animated?: boolean, duration?: number) => void;
     saveData?: () => void;
 } = {
-    render: () => {},
-    animateView: () => {},
-    fitView: () => {},
-    saveData: () => {}
+    render: () => { },
+    animateView: () => { },
+    fitView: () => { },
+    saveData: () => { }
 };
 
 let isTaggingActive = false;
@@ -37,6 +37,7 @@ export function initPresenter(
 ): void {
     appState = _state;
     callbacks = _callbacks;
+    bindFullscreenListener();
 }
 
 export function isTaggingModeActive(): boolean {
@@ -97,8 +98,8 @@ function updateTaggingToast(): void {
     if (!isTaggingActive) return;
     const texts = getTexts();
     const uniqueSteps = getUniqueSteps(appState.nodes, appState.groups);
-    const pillHtml = uniqueSteps.length > 0 
-        ? `<span class="toast-step-pill">${uniqueSteps.length}</span>` 
+    const pillHtml = uniqueSteps.length > 0
+        ? `<span class="toast-step-pill">${uniqueSteps.length}</span>`
         : '';
     const message = `<span>${texts.toast_tagging_enter}</span>${pillHtml}`;
 
@@ -124,7 +125,7 @@ function updateTaggingToast(): void {
         },
         {
             text: '?',
-            onClick: () => {},
+            onClick: () => { },
             className: 'btn-toast-help',
             popoverHtml
         }
@@ -154,7 +155,7 @@ export function clearStepsOfSelection(): void {
     const targetGroups = selectedGroups.length > 0 ? selectedGroups : (appState.selection.size === 0 ? appState.groups : []);
 
     const hasAnySteps = targetNodes.some(n => typeof n.step === 'number' && n.step > 0) ||
-                        targetGroups.some(g => typeof g.step === 'number' && g.step > 0);
+        targetGroups.some(g => typeof g.step === 'number' && g.step > 0);
     if (!hasAnySteps) return;
 
     pushHistory();
@@ -174,7 +175,18 @@ export function clearStepsOfSelection(): void {
     if (callbacks.saveData) callbacks.saveData();
 }
 
+export const DOCK_RESTORE_DELAY_MS = 850;
+let dockRestoreTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function clearDockRestoreTimer(): void {
+    if (dockRestoreTimer) {
+        clearTimeout(dockRestoreTimer);
+        dockRestoreTimer = null;
+    }
+}
+
 export function enterTaggingMode(): void {
+    clearDockRestoreTimer();
     if (isPresentingActive) exitPresentationMode();
     appState.selection.clear();
     isTaggingActive = true;
@@ -376,6 +388,7 @@ function hidePresentationHud(): void {
 }
 
 export function enterPresentationMode(): void {
+    clearDockRestoreTimer();
     const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
     isNavigatingForward = true;
     if (isTaggingActive) exitTaggingMode(false);
@@ -391,9 +404,10 @@ export function enterPresentationMode(): void {
     isPresentingActive = true;
 
     if (typeof document !== 'undefined') {
+        bindFullscreenListener();
         document.body?.classList?.add('mode-presenting');
         if (!document.fullscreenElement && document.documentElement?.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(() => {});
+            document.documentElement.requestFullscreen().catch(() => { });
         }
     }
 
@@ -433,7 +447,7 @@ export function exitPresentationMode(): void {
         document.body?.classList?.remove('mode-presenting', 'mode-tagging');
         deactivateSpotlight();
         if (document.fullscreenElement && document.exitFullscreen) {
-            document.exitFullscreen().catch(() => {});
+            document.exitFullscreen().catch(() => { });
         }
     }
 
@@ -445,10 +459,42 @@ export function exitPresentationMode(): void {
             400
         );
         savedViewBeforePresentation = null;
-    } else {
-        callbacks.render();
+    }
+    callbacks.render();
+
+    if (typeof document !== 'undefined') {
+        const container = document.getElementById('dango-dock-container');
+        if (container && !appState.settings?.hideToolbar && !appState.isEmbed) {
+            container.classList.add('hidden-dock');
+            clearDockRestoreTimer();
+            dockRestoreTimer = setTimeout(() => {
+                dockRestoreTimer = null;
+                if (!isPresentingActive && !isTaggingActive && !appState.settings?.hideToolbar && !appState.isEmbed) {
+                    container.classList.remove('hidden-dock');
+                }
+            }, DOCK_RESTORE_DELAY_MS);
+        }
     }
 }
+
+let isFullscreenListenerBound = false;
+
+export function bindFullscreenListener(): void {
+    if (isFullscreenListenerBound) return;
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+        isFullscreenListenerBound = true;
+        const handleFullscreenChange = () => {
+            const isFullscreen = !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+            if (!isFullscreen && isPresentingActive) {
+                exitPresentationMode();
+            }
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    }
+}
+
+bindFullscreenListener();
 
 function showFinaleToast(): void {
     const texts = getTexts();

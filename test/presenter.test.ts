@@ -298,11 +298,89 @@ describe("Dango Presentation Engine & Step Tagging (T / P)", () => {
 
         // Exit returns directly to normal canvas and restores saved view
         animateViewCalls = [];
+        renderCalls = 0;
         exitPresentationMode();
         expect(isPresentationModeActive()).toBe(false);
         expect(isTaggingModeActive()).toBe(false);
         expect(isItemVisibleInPresentation(state.nodes[2])).toBe(true);
         expect(animateViewCalls.length).toBe(1);
+        expect(renderCalls).toBe(1);
+    });
+
+    test("exitPresentationMode: unconditionally triggers render and animateView to restore dock and canvas", () => {
+        state.nodes = [
+            { id: 'n1', text: 'Node 1', x: 0, y: 0, w: 100, h: 40, color: 'c-white', step: 1 }
+        ];
+
+        enterPresentationMode();
+        expect(isPresentationModeActive()).toBe(true);
+
+        animateViewCalls = [];
+        renderCalls = 0;
+        exitPresentationMode();
+
+        expect(isPresentationModeActive()).toBe(false);
+        expect(animateViewCalls.length).toBe(1);
+        expect(renderCalls).toBe(1);
+    });
+
+    test("fullscreenchange: automatically exits presentation mode when browser exits fullscreen", () => {
+        const listeners: Record<string, () => void> = {};
+        (globalThis as any).document.addEventListener = (event: string, handler: () => void) => {
+            listeners[event] = handler;
+        };
+
+        const { bindFullscreenListener } = require('../dango/js/modules/presenter.js');
+        bindFullscreenListener();
+
+        state.nodes = [
+            { id: 'n1', text: 'Node 1', x: 0, y: 0, w: 100, h: 40, color: 'c-white', step: 1 }
+        ];
+        enterPresentationMode();
+        expect(isPresentationModeActive()).toBe(true);
+
+        // Simulate user exiting fullscreen via Esc / browser UI
+        (globalThis as any).document.fullscreenElement = null;
+        if (listeners['fullscreenchange']) {
+            listeners['fullscreenchange']();
+        }
+
+        expect(isPresentationModeActive()).toBe(false);
+    });
+
+    test("exitPresentationMode: delays dock appearance by DOCK_RESTORE_DELAY_MS (850ms)", () => {
+        const { clearDockRestoreTimer, DOCK_RESTORE_DELAY_MS } = require('../dango/js/modules/presenter.js');
+        expect(DOCK_RESTORE_DELAY_MS).toBe(850);
+        let dockClassList = new Set<string>();
+        const mockDockContainer = {
+            id: 'dango-dock-container',
+            classList: {
+                add: (c: string) => dockClassList.add(c),
+                remove: (c: string) => dockClassList.delete(c),
+                contains: (c: string) => dockClassList.has(c)
+            }
+        };
+        const prevGetElementById = (globalThis as any).document.getElementById;
+        (globalThis as any).document.getElementById = (id: string) => {
+            if (id === 'dango-dock-container') return mockDockContainer;
+            return null;
+        };
+
+        state.nodes = [
+            { id: 'n1', text: 'Node 1', x: 0, y: 0, w: 100, h: 40, color: 'c-white', step: 1 }
+        ];
+        enterPresentationMode();
+        expect(isPresentationModeActive()).toBe(true);
+
+        exitPresentationMode();
+        expect(isPresentationModeActive()).toBe(false);
+
+        // Immediately upon exit: dock container is hidden with .hidden-dock
+        expect(dockClassList.has('hidden-dock')).toBe(true);
+
+        // Explicit action or cleanup cancels timer
+        clearDockRestoreTimer();
+        (globalThis as any).document.getElementById = prevGetElementById;
     });
 
     test("handlePresenterKeyDown: handles presentation shortcuts correctly", () => {
