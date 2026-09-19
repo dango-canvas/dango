@@ -42,7 +42,7 @@ body.view-animating #groups-layer {
 body.view-animating #connections-layer {
     shape-rendering: optimizeSpeed;
 }
-body.view-animating .node {
+body.view-animating .node:not(.node-comment) {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
 }
 

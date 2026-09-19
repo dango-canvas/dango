@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.3] - 2026-09-19
+
+### Fixed
+- **Comment Node Animation Shadow Artifact**: Excluded `.node-comment` from `body.view-animating` box-shadow overrides via `:not(.node-comment)`, preventing transparent comment nodes from flashing faint rectangular borders during middle-click pan/zoom and viewport camera flights.
+
+### Changed
+- **Help Modal Layout & Overview Shortcut**: Documented the middle-click double-click and drag interaction (`Mid DblClick + Drag` / `全景巡视 / 聚焦`) in the canvas navigation help page. Merged `Ctrl+A` (Select All) and `Esc` (Deselect) into a unified row to preserve the balanced 4-page, 7-row modal geometry without layout distortion.
+
 ## [1.12.2] - 2026-09-18
 
 ### Changed

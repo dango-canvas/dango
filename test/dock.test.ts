@@ -323,28 +323,36 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         // 5. contains newly added shortcuts
         expect(html).toContain('data-i18n="help_align_center"');
         expect(html).toContain('data-i18n="help_multiline"');
+        expect(html).toContain('data-i18n="help_global_view"');
+        expect(html).toContain('<span class="help-keys">Mid DblClick + Drag</span>');
+        expect(html).toContain('data-i18n="help_select_all_cancel"');
+        expect(html).toContain('<span class="help-keys">Ctrl + A / Esc</span>');
 
         // 6. i18n covers all new keys in both languages
         const { getTexts, toggleLang, getCurrentLang } = require('../dango/js/modules/i18n.js');
         if (getCurrentLang() !== 'zh') toggleLang();
         const zh = getTexts();
         expect(zh.help_toggle_dock).toBe('显示 / 隐藏悬浮栏');
-        expect(zh.help_select_all).toBe('全选所有节点');
+        expect(zh.help_select_all_cancel).toBe('全选 / 取消选择');
         expect(zh.help_zoom_canvas).toBe('画布缩放 / 重置');
         expect(zh.help_edit_node).toBe('编辑选中节点');
-        expect(zh.help_cancel_exit).toBe('取消选择 / 退出');
         expect(zh.help_align_center).toBe('居中对齐');
         expect(zh.help_multiline).toBe('卡片内换行');
+        expect(zh.help_global_view).toBe('全景巡视 / 聚焦');
 
         toggleLang(); // switch to en
         const en = getTexts();
         expect(en.help_toggle_dock).toBe('Show / Hide Dock');
-        expect(en.help_select_all).toBe('Select All Nodes');
+        expect(en.help_select_all_cancel).toBe('Select All / Deselect');
         expect(en.help_zoom_canvas).toBe('Zoom / Reset View');
         expect(en.help_edit_node).toBe('Edit Selected Node');
-        expect(en.help_cancel_exit).toBe('Deselect / Exit');
         expect(en.help_align_center).toBe('Center Align');
         expect(en.help_multiline).toBe('Line Break in Card');
+        expect(en.help_global_view).toBe('Overview & Focus');
         toggleLang(); // restore to zh
+
+        // 7. canvas css: view-animating excludes node-comment
+        const canvasCss = readFileSync(resolve(__dirname, '../dango/css/partials/_canvas.css'), 'utf-8');
+        expect(canvasCss).toContain('body.view-animating .node:not(.node-comment)');
     });
 });
