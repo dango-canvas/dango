@@ -528,7 +528,7 @@ let currentRenderNodeMap: Map<string, CanvasNode | CanvasGroup> | null = null;
  * 主渲染函数
  */
 export function render(): void {
-    if (typeof document === 'undefined' || !els.connectionsLayer) return;
+    if (typeof document === 'undefined' || !els.connectionsLayer || typeof els.connectionsLayer.querySelector !== 'function') return;
     document.body?.classList?.toggle?.('is-empty', appState.nodes.length === 0);
     updateViewTransform();
 
