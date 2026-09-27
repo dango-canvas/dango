@@ -529,7 +529,7 @@ let currentRenderNodeMap: Map<string, CanvasNode | CanvasGroup> | null = null;
  */
 export function render(): void {
     if (typeof document === 'undefined' || !els.connectionsLayer) return;
-    document.body.classList.toggle('is-empty', appState.nodes.length === 0);
+    document.body?.classList?.toggle?.('is-empty', appState.nodes.length === 0);
     updateViewTransform();
 
     // Ensure defs exists

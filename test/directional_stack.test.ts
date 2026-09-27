@@ -67,6 +67,14 @@ describe('Directional Branch Stacking Engine', () => {
         const connectionsLayer = new MockElement('connections-layer', 'svg');
 
         (globalThis as any).document = {
+            body: {
+                classList: {
+                    add: () => {},
+                    remove: () => {},
+                    toggle: () => {},
+                    contains: () => false
+                }
+            },
             getElementById: (id: string) => {
                 if (id === 'nodes-layer') return nodesLayer;
                 if (id === 'connections-layer') return connectionsLayer;

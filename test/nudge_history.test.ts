@@ -30,6 +30,7 @@ describe('Arrow Key Nudge Undo Session & Stack Preservation', () => {
                 classList: {
                     add: () => {},
                     remove: () => {},
+                    toggle: () => {},
                     contains: () => false
                 }
             },
