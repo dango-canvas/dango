@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { state } from '../dango/js/modules/state.js';
 import {
     computePosition,
@@ -50,7 +50,13 @@ class MockElement {
 }
 
 describe('Directional Branch Stacking Engine', () => {
+    let prevDoc: any;
+    let prevComputedStyle: any;
+
     beforeEach(() => {
+        prevDoc = (globalThis as any).document;
+        prevComputedStyle = (globalThis as any).getComputedStyle;
+
         state.nodes = [];
         state.groups = [];
         state.links = [];
@@ -81,6 +87,11 @@ describe('Directional Branch Stacking Engine', () => {
             borderTopWidth: '1px',
             borderBottomWidth: '1px'
         });
+    });
+
+    afterEach(() => {
+        (globalThis as any).document = prevDoc;
+        (globalThis as any).getComputedStyle = prevComputedStyle;
     });
 
     it('computes initial position when no existing links are present', () => {

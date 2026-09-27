@@ -36,7 +36,7 @@ function setItemPos(item: any, newX: number, newY: number): void {
 }
 
 export function syncLiveDimensions(items: (CanvasNode | CanvasGroup)[]): void {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return;
     for (const item of items) {
         const selector = ('memberIds' in item) ? `.group[data-id="${item.id}"]` : `.node[data-id="${item.id}"]`;
         const el = document.querySelector<HTMLElement>(selector);

@@ -5,9 +5,14 @@ import type { CanvasNode } from '../dango/js/modules/types.js';
 
 describe('Arrow Key Nudge Undo Session & Stack Preservation', () => {
     let listeners: Record<string, ((e: any) => void)[]> = {};
+    let prevWindow: any;
+    let prevDocument: any;
 
     beforeEach(() => {
         listeners = {};
+        prevWindow = (globalThis as any).window;
+        prevDocument = (globalThis as any).document;
+
         (globalThis as any).window = {
             addEventListener: (type: string, fn: (e: any) => void) => {
                 listeners[type] = listeners[type] || [];
@@ -28,7 +33,9 @@ describe('Arrow Key Nudge Undo Session & Stack Preservation', () => {
                     contains: () => false
                 }
             },
-            getElementById: () => null
+            getElementById: () => null,
+            querySelector: () => null,
+            querySelectorAll: () => []
         };
 
         state.nodes = [];
@@ -51,6 +58,8 @@ describe('Arrow Key Nudge Undo Session & Stack Preservation', () => {
 
     afterEach(() => {
         endNudgeSession();
+        (globalThis as any).window = prevWindow;
+        (globalThis as any).document = prevDocument;
     });
 
     const triggerKeydown = (code: string, opts: Partial<KeyboardEvent> = {}) => {
