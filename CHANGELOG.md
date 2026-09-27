@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.12.5] - 2026-09-27
+
+### Added
+- **Directional Branch Stacking & Orthogonal Sibling Layout (`Ctrl+Arrow`)**: Enhanced directional node creation to automatically detect existing connected sibling branches. Horizontal expansion (`Ctrl+ArrowRight`/`Ctrl+ArrowLeft`) stacks subsequent siblings vertically downwards aligned to the column (`gap = 20px`), while vertical expansion (`Ctrl+ArrowDown`/`Ctrl+ArrowUp`) stacks subsequent siblings horizontally to the right aligned to the row (`gap = 20px`), eliminating node overlap and preserving branch anchors across live text editing.
+
+### Fixed
+- **Keyboard Nudge Undo Debouncing & History Stack Conservation**: Grouped continuous or rapid arrow key nudges into a unified history session. Pressing or holding Arrow keys now pushes a single snapshot to `history.undo` at the start of the sequence, preventing repeat keydowns from flooding the 50-step undo stack and allowing a single `Ctrl+Z` to revert the entire displacement cleanly.
 
 ## [1.12.3] - 2026-09-19
 

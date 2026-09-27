@@ -23,6 +23,17 @@ import { activateSpotlight, deactivateSpotlight } from './spotlight.js';
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
 export const keys: Record<string, boolean> = {};
 
+let isNudgeSessionActive = false;
+let nudgeSessionTimer: any = null;
+
+export function endNudgeSession(): void {
+    if (nudgeSessionTimer) {
+        clearTimeout(nudgeSessionTimer);
+        nudgeSessionTimer = null;
+    }
+    isNudgeSessionActive = false;
+}
+
 export function isModifier(e: KeyboardEvent | MouseEvent): boolean {
     return e.ctrlKey || e.metaKey || (state.settings.altAsCtrl && e.altKey);
 }
@@ -36,7 +47,17 @@ export function initShortcuts(callbacks: {
 }): void {
     const { render, undo, redo, handleNodeEdit, exportJson } = callbacks;
 
+    if (typeof window !== 'undefined') {
+        window.addEventListener('pointerdown', endNudgeSession);
+        window.addEventListener('blur', endNudgeSession);
+    }
+
     window.addEventListener('keydown', (e: KeyboardEvent) => {
+        const isNudgeKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) && !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey;
+        if (!isNudgeKey) {
+            endNudgeSession();
+        }
+
         const target = e.target as HTMLElement | null;
         const isContentEditable = target?.isContentEditable;
         const isTextArea = target?.tagName === 'TEXTAREA';
@@ -132,11 +153,20 @@ export function initShortcuts(callbacks: {
                     return;
                 }
             } else if (!e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault();
-                pushHistory();
-                nudgeSelection(e.code);
-                render();
-                return;
+                if (state.selection.size > 0) {
+                    e.preventDefault();
+                    if (!isNudgeSessionActive) {
+                        pushHistory();
+                        isNudgeSessionActive = true;
+                    }
+                    if (nudgeSessionTimer) clearTimeout(nudgeSessionTimer);
+                    nudgeSessionTimer = setTimeout(() => {
+                        isNudgeSessionActive = false;
+                        nudgeSessionTimer = null;
+                    }, 400);
+                    nudgeSelection(e.code);
+                    return;
+                }
             }
         }
 
