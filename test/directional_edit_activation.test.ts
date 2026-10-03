@@ -251,5 +251,10 @@ describe('Directional Create & Drag-to-Edit Transition Lifecycle', () => {
         expect(createdNodeEl).not.toBeNull();
         expect(createdNodeEl!.classList.contains('editing')).toBe(true);
         expect(createdNodeEl!.contentEditable).toBe('true');
+
+        // Clean up editing state so activeEditFinish does not leak to other tests
+        if (createdNodeEl) {
+            (createdNodeEl as any).onblur?.();
+        }
     });
 });

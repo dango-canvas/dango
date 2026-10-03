@@ -1,10 +1,12 @@
 import { screenToWorld } from './utils.js';
 import { updateViewTransform } from './render.js';
+import { saveData } from './state.js';
 import type { CanvasState } from './types.js';
 
 let renderRef: (() => void) | null = null;
 let stateRef: CanvasState | null = null;
 let viewAnimationId: number | null = null;
+let panSaveTimeout: any = null;
 
 export function initView(state: CanvasState, render: () => void): void {
     stateRef = state;
@@ -19,6 +21,22 @@ export function cancelViewAnimation(): void {
     }
     if (typeof document !== 'undefined' && document.body) {
         document.body.classList.remove('view-animating');
+    }
+}
+
+// 平移视口
+export function panViewBy(dx: number, dy: number): void {
+    if (!stateRef) return;
+    cancelViewAnimation();
+    stateRef.view.x += dx;
+    stateRef.view.y += dy;
+    updateViewTransform();
+    if (typeof localStorage !== 'undefined') {
+        if (panSaveTimeout) clearTimeout(panSaveTimeout);
+        panSaveTimeout = setTimeout(() => {
+            saveData();
+            panSaveTimeout = null;
+        }, 400);
     }
 }
 

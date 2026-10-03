@@ -7,7 +7,7 @@ import {
     toggleLinkStrokeStyle
 } from './actions.js';
 import { smartAlignSelection } from './animation.js';
-import { changeZoom, resetViewToCenter } from './view.js';
+import { changeZoom, resetViewToCenter, panViewBy } from './view.js';
 import { openSearch, closeSearch } from './search.js';
 import { handleDirectionalCreateStart, handleDirectionalCreateEnd, clearDirectionalGhost, handleDirectionalModifierUp } from './directional.js';
 import { isHintModeActive, handleHintKeyDown, enterHintMode, exitHintMode } from './hints.js';
@@ -101,7 +101,8 @@ export function initShortcuts(callbacks: {
         if (state.isReadonly) {
             const isZoom = isModifier(e) && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '0');
             const isSearch = isModifier(e) && e.code === 'KeyF';
-            const allowed = ['Escape', 'Space', 'Home', 'KeyF', 'KeyT', 'KeyP', 'Backslash', 'KeyQ'].includes(e.code) || isZoom || isSearch;
+            const isArrow = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code);
+            const allowed = ['Escape', 'Space', 'Home', 'KeyF', 'KeyT', 'KeyP', 'Backslash', 'KeyQ'].includes(e.code) || isZoom || isSearch || isArrow;
             if (!allowed) {
                 return;
             }
@@ -145,7 +146,7 @@ export function initShortcuts(callbacks: {
             resetViewToCenter(true);
         }
 
-        // 方向键处理：快捷生成与微移
+        // 方向键处理：画布平移、快捷生成与微移
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
             if (isModifier(e)) {
                 if (handleDirectionalCreateStart(e.code, e)) {
@@ -153,6 +154,23 @@ export function initShortcuts(callbacks: {
                     return;
                 }
             } else if (!e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                const isSpacePan = Boolean(keys.Space);
+                if (isSpacePan || state.selection.size === 0) {
+                    e.preventDefault();
+                    endNudgeSession();
+                    const PAN_STEP = 50;
+                    const panMap: Record<string, { dx: number; dy: number }> = {
+                        'ArrowUp':    { dx: 0, dy: PAN_STEP },
+                        'ArrowDown':  { dx: 0, dy: -PAN_STEP },
+                        'ArrowLeft':  { dx: PAN_STEP, dy: 0 },
+                        'ArrowRight': { dx: -PAN_STEP, dy: 0 }
+                    };
+                    const delta = panMap[e.code];
+                    if (delta) {
+                        panViewBy(delta.dx, delta.dy);
+                    }
+                    return;
+                }
                 if (state.selection.size > 0) {
                     e.preventDefault();
                     if (!isNudgeSessionActive) {

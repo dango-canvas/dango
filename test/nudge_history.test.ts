@@ -102,13 +102,13 @@ describe('Arrow Key Nudge Undo Session & Stack Preservation', () => {
         expect(state.nodes[0].y).toBe(200);
     });
 
-    it('does not push history or prevent default when arrow keys are pressed with empty selection', () => {
+    it('does not push history when arrow keys are pressed with empty selection (pans canvas instead)', () => {
         const node: CanvasNode = { id: 'n1', text: 'Node', x: 200, y: 200, w: 100, h: 40, color: 'c-white' };
         state.nodes = [node];
         state.selection = new Set(); // Empty selection
 
         const { prevented } = triggerKeydown('ArrowUp');
-        expect(prevented).toBe(false);
+        expect(prevented).toBe(true);
         expect(history.undo.length).toBe(0);
         expect(state.nodes[0].y).toBe(200);
     });
