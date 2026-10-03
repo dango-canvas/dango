@@ -4,7 +4,8 @@ import {
     toggleGroup, toggleLink, deleteSelection, 
     nudgeSelection, colorSelection, alignSelection, distributeSelection,
     copySelection, pasteClipboard,
-    toggleLinkStrokeStyle
+    toggleLinkStrokeStyle,
+    createStandaloneNode
 } from './actions.js';
 import { smartAlignSelection } from './animation.js';
 import { changeZoom, resetViewToCenter, panViewBy } from './view.js';
@@ -270,12 +271,25 @@ export function initShortcuts(callbacks: {
             }
         }
 
-        if (e.code === 'Enter' && state.selection.size === 1) {
-            e.preventDefault();
-            const selectedId = Array.from(state.selection)[0];
-            const nodeEl = document.querySelector<HTMLElement>(`.node[data-id="${selectedId}"]`);
-            if (nodeEl) handleNodeEdit(nodeEl, true);
-            return;
+        if (e.code === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+            if (state.selection.size === 1) {
+                e.preventDefault();
+                const selectedId = Array.from(state.selection)[0];
+                const nodeEl = document.querySelector<HTMLElement>(`.node[data-id="${selectedId}"]`);
+                if (nodeEl) handleNodeEdit(nodeEl, true);
+                return;
+            }
+            if (state.selection.size === 0 && !state.isReadonly) {
+                const about = document.getElementById('about-overlay');
+                if (about?.classList.contains('show')) return;
+
+                e.preventDefault();
+                const newNode = createStandaloneNode();
+                render();
+                const nodeEl = document.querySelector<HTMLElement>(`.node[data-id="${newNode.id}"]`);
+                if (nodeEl) handleNodeEdit(nodeEl, true);
+                return;
+            }
         }
 
         // 颜色 (Alt + 1-9)

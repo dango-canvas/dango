@@ -9,6 +9,8 @@ import { els } from './dom.js';
 import { trackSpotlightMouse, deactivateSpotlight } from './spotlight.js';
 import { realignDirectionalNodeAfterEdit } from './directional.js';
 import { isPresentationModeActive, isTaggingModeActive, tagItemDirect, tagItemsBatch, nextStep, prevStep, exitPresentationMode } from './presenter.js';
+import { createNodeAt, getNearestNodeColor } from './actions.js';
+export { createNodeAt, getNearestNodeColor };
 import type { CanvasNode, CanvasGroup, CanvasItem } from './types.js';
 
 let dragStart: any = null;
@@ -1359,38 +1361,6 @@ function cloneSelectionInPlace(): void {
     state.nodes.push(...newNodes);
     state.groups.push(...newGroups);
     state.selection = newSelection;
-}
-
-export function createNodeAt(pos: { x: number; y: number }): CanvasNode {
-    pushHistory();
-    const color = getNearestNodeColor(pos);
-    const node: CanvasNode = { id: uid(), text: '', x: pos.x, y: pos.y, w: 0, h: 0, color };
-    state.nodes.push(node);
-    state.selection.clear();
-    state.selection.add(node.id);
-    return node;
-}
-
-function getNearestNodeColor(pos: { x: number; y: number }): string {
-    let nearest: CanvasNode | null = null;
-    let minDist = Infinity;
-    state.nodes.forEach(n => {
-        const cx = n.x + (n.w || 0) / 2;
-        const cy = n.y + (n.h || 0) / 2;
-        const dist = Math.hypot(pos.x - cx, pos.y - cy);
-        if (dist < minDist) {
-            minDist = dist;
-            nearest = n;
-        }
-    });
-    if (nearest && minDist <= 300) {
-        const c = (nearest as any).color;
-        if (typeof c === 'number') {
-            return CONFIG.colors[c] || 'c-white';
-        }
-        return c || 'c-white';
-    }
-    return 'c-white';
 }
 
 function getTouchPos(e: TouchEvent): { x: number; y: number } {

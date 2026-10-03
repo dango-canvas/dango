@@ -1,7 +1,7 @@
 // modules/actions.ts
 import { state, history, pushHistory, MAX_HISTORY, CONFIG } from './state.js';
 import { render } from './render.js';
-import { uid, isUrl, normalizeChineseMarkdownPrefix } from './utils.js';
+import { uid, isUrl, normalizeChineseMarkdownPrefix, screenToWorld } from './utils.js';
 import { showToast } from './ui.js';
 import { getTexts } from './i18n.js';
 import { els } from './dom.js';
@@ -48,6 +48,78 @@ export function syncLiveDimensions(items: (CanvasNode | CanvasGroup)[]): void {
 }
 
 // --- Exported Actions ---
+
+export function getNearestNodeColor(pos: { x: number; y: number }): string {
+    let nearest: CanvasNode | null = null;
+    let minDist = Infinity;
+    state.nodes.forEach(n => {
+        const cx = n.x + (n.w || 0) / 2;
+        const cy = n.y + (n.h || 0) / 2;
+        const dist = Math.hypot(pos.x - cx, pos.y - cy);
+        if (dist < minDist) {
+            minDist = dist;
+            nearest = n;
+        }
+    });
+    if (nearest && minDist <= 300) {
+        const c = (nearest as any).color;
+        if (typeof c === 'number') {
+            return CONFIG.colors[c] || 'c-white';
+        }
+        return c || 'c-white';
+    }
+    return 'c-white';
+}
+
+export function createNodeAt(pos: { x: number; y: number }): CanvasNode {
+    pushHistory();
+    const color = getNearestNodeColor(pos);
+    const node: CanvasNode = { id: uid(), text: '', x: pos.x, y: pos.y, w: 0, h: 0, color };
+    state.nodes.push(node);
+    state.selection.clear();
+    state.selection.add(node.id);
+    return node;
+}
+
+export function createStandaloneNode(targetPos?: { x: number; y: number }): CanvasNode {
+    pushHistory();
+    const w = 120;
+    const h = 44;
+    const NODE_GAP = 20;
+
+    let worldPos: { x: number; y: number };
+    if (targetPos) {
+        worldPos = targetPos;
+    } else {
+        const vw = typeof window !== 'undefined' && window.innerWidth ? window.innerWidth : 1000;
+        const vh = typeof window !== 'undefined' && window.innerHeight ? window.innerHeight : 800;
+        worldPos = screenToWorld(vw / 2, vh / 2, state.view);
+    }
+
+    let targetX = worldPos.x - w / 2;
+    let targetY = worldPos.y - h / 2;
+
+    // 避让检测：若视口正中心已有节点重叠（距离左上角非常接近，如 < 15px），则向下微距阶梯顺延，避免完全重叠覆盖
+    while (state.nodes.some(n => Math.hypot(n.x - targetX, n.y - targetY) < 15)) {
+        targetY += h + NODE_GAP;
+    }
+
+    const color = getNearestNodeColor({ x: targetX + w / 2, y: targetY + h / 2 });
+    const node: CanvasNode = {
+        id: uid(),
+        text: '',
+        x: targetX,
+        y: targetY,
+        w,
+        h,
+        color
+    };
+
+    state.nodes.push(node);
+    state.selection.clear();
+    state.selection.add(node.id);
+    return node;
+}
 
 export function createNodesFromInput(text?: string): void {
     const inputText = text || (els.input ? els.input.value : '');
