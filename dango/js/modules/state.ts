@@ -44,6 +44,7 @@ export const state: CanvasState = {
 // --- Config ---
 export const CONFIG = {
     keyboardPanStep: 50, // 键盘方向键单步平移像素（默认 50px）
+    wheelPanSpeed: 0.5, // 实体滚轮平移速度比例（默认 0.5，减半至约 50px/齿，与键盘手感对齐）
     colors: [
         'c-white', 'c-red', 'c-yellow', 'c-green', 'c-blue',
         'c-orange', 'c-purple', 'c-pink', 'c-cyan'

@@ -37,6 +37,7 @@ export function isWheelNotch(e: WheelEvent): boolean {
 
 export const SNAP_THRESHOLD = 5;
 export const MAX_SNAP_NEIGHBOR_DIST = 350;
+export const WHEEL_PAN_SPEED = 0.5; // 实体滚轮平移速度比例（默认 0.5，减半至约 50px/齿）
 
 export interface SnapGuide {
     type: 'vertical' | 'horizontal';
@@ -562,8 +563,9 @@ export function initInteractions(): void {
             const deltaY = e.deltaMode === 1 ? e.deltaY * 33 : (e.deltaMode === 2 ? e.deltaY * winH : e.deltaY);
 
             if (isWheelNotch(e)) {
-                // 实体滚轮单齿：接入连续丝滑阻尼平移控制器，获得与键盘平移一致的顺滑缓冲手感
-                smoothPan(-deltaX, -deltaY);
+                // 实体滚轮单齿：接入连续丝滑阻尼平移控制器，默认以 0.5 比例平移（单齿约 50px，与键盘手感对齐）
+                const speed = (CONFIG as any)?.wheelPanSpeed ?? WHEEL_PAN_SPEED;
+                smoothPan(-deltaX * speed, -deltaY * speed);
             } else {
                 // 触控板高频滑动：直接 1:1 原生无延迟跟随，保留系统自带的物理惯性
                 cancelViewAnimation();

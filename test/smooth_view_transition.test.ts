@@ -1,8 +1,8 @@
 // test/smooth_view_transition.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { state } from '../dango/js/modules/state.js';
+import { state, CONFIG } from '../dango/js/modules/state.js';
 import { initView, smoothZoom, smoothPan, changeZoom, cancelViewAnimation } from '../dango/js/modules/view.js';
-import { isWheelNotch, initInteractions } from '../dango/js/modules/interactions.js';
+import { isWheelNotch, initInteractions, WHEEL_PAN_SPEED } from '../dango/js/modules/interactions.js';
 import { initShortcuts, keys } from '../dango/js/modules/shortcuts.js';
 
 describe('Smooth View Transition Specification (Animated Zoom & Wheel Damping)', () => {
@@ -160,6 +160,11 @@ describe('Smooth View Transition Specification (Animated Zoom & Wheel Damping)',
         // Should reach full cumulative distance of 5 * (-100) = -500 without getting stuck
         expect(state.view.y).toBe(-500);
         expect(state.view.x).toBe(0);
+    });
+
+    it('wheelPanSpeed is configured to 0.5 to balance mouse wheel feel with keyboard step', () => {
+        expect(CONFIG.wheelPanSpeed).toBe(0.5);
+        expect(WHEEL_PAN_SPEED).toBe(0.5);
     });
 
     it('shortcuts Ctrl + = and Ctrl + - trigger smoothZoom instead of discrete changeZoom', () => {
