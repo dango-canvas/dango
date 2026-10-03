@@ -8,6 +8,12 @@ let stateRef: CanvasState | null = null;
 let viewAnimationId: number | null = null;
 let panSaveTimeout: any = null;
 
+let activeZoomTargetScale: number | null = null;
+let activeZoomTargetX: number | null = null;
+let activeZoomTargetY: number | null = null;
+let activePanTargetX: number | null = null;
+let activePanTargetY: number | null = null;
+
 export function initView(state: CanvasState, render: () => void): void {
     stateRef = state;
     renderRef = render;
@@ -16,9 +22,16 @@ export function initView(state: CanvasState, render: () => void): void {
 // 停止当前所有视口动画
 export function cancelViewAnimation(): void {
     if (viewAnimationId !== null) {
-        cancelAnimationFrame(viewAnimationId);
+        if (typeof cancelAnimationFrame !== 'undefined') {
+            cancelAnimationFrame(viewAnimationId);
+        }
         viewAnimationId = null;
     }
+    activeZoomTargetScale = null;
+    activeZoomTargetX = null;
+    activeZoomTargetY = null;
+    activePanTargetX = null;
+    activePanTargetY = null;
     if (typeof document !== 'undefined' && document.body) {
         document.body.classList.remove('view-animating');
     }
@@ -40,7 +53,49 @@ export function panViewBy(dx: number, dy: number): void {
     }
 }
 
-// 通用缩放函数
+// 丝滑阻尼平移 (适用于滚轮等连续或阶跃位移)
+export function smoothPan(dx: number, dy: number, duration = 120): void {
+    if (!stateRef) return;
+    const baseTargetX = (viewAnimationId !== null && activePanTargetX !== null)
+        ? activePanTargetX
+        : stateRef.view.x;
+    const baseTargetY = (viewAnimationId !== null && activePanTargetY !== null)
+        ? activePanTargetY
+        : stateRef.view.y;
+
+    const targetX = baseTargetX + dx;
+    const targetY = baseTargetY + dy;
+
+    animateView(targetX, targetY, stateRef.view.scale, duration);
+    activePanTargetX = targetX;
+    activePanTargetY = targetY;
+}
+
+// 丝滑缓动缩放 (适用于快捷键 Ctrl + = / - 及实体滚轮单齿缩放)
+export function smoothZoom(
+    factor: number,
+    anchorX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500,
+    anchorY = typeof window !== 'undefined' ? window.innerHeight / 2 : 500,
+    duration = 180
+): void {
+    if (!stateRef) return;
+    const baseScale = (viewAnimationId !== null && activeZoomTargetScale !== null)
+        ? activeZoomTargetScale
+        : stateRef.view.scale;
+
+    const newTargetScale = Math.max(0.1, Math.min(5, baseScale * factor));
+    
+    const worldAnchor = screenToWorld(anchorX, anchorY, stateRef.view);
+    const targetX = anchorX - worldAnchor.x * newTargetScale;
+    const targetY = anchorY - worldAnchor.y * newTargetScale;
+
+    animateView(targetX, targetY, newTargetScale, duration);
+    activeZoomTargetScale = newTargetScale;
+    activeZoomTargetX = targetX;
+    activeZoomTargetY = targetY;
+}
+
+// 通用缩放函数 (立即缩放)
 export function changeZoom(
     factor: number,
     mouseX = typeof window !== 'undefined' ? window.innerWidth / 2 : 500,
@@ -197,7 +252,7 @@ export function animateView(targetX: number, targetY: number, targetScale: numbe
         return;
     }
 
-    if (duration <= 0) {
+    if (duration <= 0 || typeof requestAnimationFrame === 'undefined') {
         stateRef.view.x = targetX;
         stateRef.view.y = targetY;
         stateRef.view.scale = targetScale;
@@ -228,8 +283,20 @@ export function animateView(targetX: number, targetY: number, targetScale: numbe
             viewAnimationId = requestAnimationFrame(step);
         } else {
             viewAnimationId = null;
+            activeZoomTargetScale = null;
+            activeZoomTargetX = null;
+            activeZoomTargetY = null;
+            activePanTargetX = null;
+            activePanTargetY = null;
             if (typeof document !== 'undefined' && document.body) {
                 document.body.classList.remove('view-animating');
+            }
+            if (typeof localStorage !== 'undefined') {
+                if (panSaveTimeout) clearTimeout(panSaveTimeout);
+                panSaveTimeout = setTimeout(() => {
+                    saveData();
+                    panSaveTimeout = null;
+                }, 300);
             }
         }
     }

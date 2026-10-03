@@ -2,7 +2,7 @@
 import { state, history, pushHistory, MAX_HISTORY, saveData, CONFIG } from './state.js';
 import { render, updateViewTransform } from './render.js';
 import { uid, screenToWorld, getStandardRect, isIntersect, morphChineseSymbols, normalizeChineseMarkdownPrefix } from './utils.js';
-import { changeZoom, cancelViewAnimation, fitView, animateView } from './view.js';
+import { changeZoom, cancelViewAnimation, fitView, animateView, smoothZoom, smoothPan } from './view.js';
 import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
 import { els } from './dom.js';
@@ -27,6 +27,11 @@ let isGlobalViewActive = false;
 let preGlobalViewScale = 1;
 let moveRafId: number | null = null;
 let pendingMoveEvent: MouseEvent | null = null;
+
+export function isWheelNotch(e: WheelEvent): boolean {
+    if (e.deltaMode !== 0) return true;
+    return Math.abs(e.deltaY) >= 40 && Number.isInteger(e.deltaY);
+}
 
 export const SNAP_THRESHOLD = 5;
 export const MAX_SNAP_NEIGHBOR_DIST = 350;
@@ -530,17 +535,35 @@ export function initInteractions(): void {
     let wheelSaveTimeout: any;
 
     els.container.addEventListener('wheel', (e: WheelEvent) => {
-        cancelViewAnimation();
         e.preventDefault();
-        if (e.ctrlKey || e.metaKey || (state.settings.altAsCtrl && e.altKey)) {
-            const factor = 1 + ((e.deltaY > 0 ? -1 : 1) * 0.1);
-            changeZoom(factor, e.clientX, e.clientY);
+        const isZoom = e.ctrlKey || e.metaKey || (state.settings.altAsCtrl && e.altKey);
+
+        if (isZoom) {
+            if (isWheelNotch(e)) {
+                // 实体滚轮单齿阶跃：触发丝滑平滑过渡，杜绝生硬跳变
+                const factor = e.deltaY > 0 ? 0.88 : 1.14;
+                smoothZoom(factor, e.clientX, e.clientY, 140);
+            } else {
+                // 触控板高频捏合：直接 1:1 连续无缝跟随，无输入迟滞
+                cancelViewAnimation();
+                const factor = Math.exp(-e.deltaY * 0.005);
+                changeZoom(factor, e.clientX, e.clientY);
+                clearTimeout(wheelSaveTimeout);
+                wheelSaveTimeout = setTimeout(saveData, 500);
+            }
         } else {
-            state.view.x -= e.deltaX;
-            state.view.y -= e.deltaY;
-            updateViewTransform();
-            clearTimeout(wheelSaveTimeout);
-            wheelSaveTimeout = setTimeout(saveData, 500);
+            if (isWheelNotch(e)) {
+                // 实体滚轮滚动：阻尼平滑位移
+                smoothPan(-e.deltaX, -e.deltaY, 120);
+            } else {
+                // 触控板双指滑动：即时位移，保证指尖贴合感
+                cancelViewAnimation();
+                state.view.x -= e.deltaX;
+                state.view.y -= e.deltaY;
+                updateViewTransform();
+                clearTimeout(wheelSaveTimeout);
+                wheelSaveTimeout = setTimeout(saveData, 500);
+            }
         }
     }, { passive: false });
 

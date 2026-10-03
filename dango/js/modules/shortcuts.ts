@@ -8,7 +8,7 @@ import {
     createStandaloneNode
 } from './actions.js';
 import { smartAlignSelection } from './animation.js';
-import { changeZoom, resetViewToCenter, panViewBy } from './view.js';
+import { changeZoom, resetViewToCenter, panViewBy, smoothZoom } from './view.js';
 import { openSearch, closeSearch } from './search.js';
 import { handleDirectionalCreateStart, handleDirectionalCreateEnd, clearDirectionalGhost, handleDirectionalModifierUp } from './directional.js';
 import { isHintModeActive, handleHintKeyDown, enterHintMode, exitHintMode } from './hints.js';
@@ -192,8 +192,8 @@ export function initShortcuts(callbacks: {
         // 3. 修饰键组合 (Ctrl/Cmd + ...)
         if (isModifier(e)) {
             // 缩放
-            if (e.key === '=' || e.key === '+') { e.preventDefault(); changeZoom(1.2); return; }
-            if (e.key === '-') { e.preventDefault(); changeZoom(0.8); return; }
+            if (e.key === '=' || e.key === '+') { e.preventDefault(); smoothZoom(1.2); return; }
+            if (e.key === '-') { e.preventDefault(); smoothZoom(0.8); return; }
             if (e.key === '0') { e.preventDefault(); resetViewToCenter(true); return; }
 
             // 撤销重做
