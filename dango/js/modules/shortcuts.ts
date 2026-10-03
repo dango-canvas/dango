@@ -8,7 +8,7 @@ import {
     createStandaloneNode
 } from './actions.js';
 import { smartAlignSelection } from './animation.js';
-import { changeZoom, resetViewToCenter, panViewBy, smoothZoom } from './view.js';
+import { changeZoom, resetViewToCenter, panViewBy, smoothZoom, smoothPan } from './view.js';
 import { openSearch, closeSearch } from './search.js';
 import { handleDirectionalCreateStart, handleDirectionalCreateEnd, clearDirectionalGhost, handleDirectionalModifierUp } from './directional.js';
 import { isHintModeActive, handleHintKeyDown, enterHintMode, exitHintMode } from './hints.js';
@@ -168,7 +168,7 @@ export function initShortcuts(callbacks: {
                     };
                     const delta = panMap[e.code];
                     if (delta) {
-                        panViewBy(delta.dx, delta.dy);
+                        smoothPan(delta.dx, delta.dy, 120);
                     }
                     return;
                 }

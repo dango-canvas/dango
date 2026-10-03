@@ -134,4 +134,35 @@ describe('Canvas Keyboard Panning Specification', () => {
         keydownHandler?.({ code: 'ArrowDown', key: 'ArrowDown', preventDefault: () => {} });
         expect(state.view.y).toBe(250);
     });
+
+    it('animates smoothly via smoothPan when requestAnimationFrame is present and compounds rapid keys', () => {
+        const rafCallbacks: Array<(t: number) => void> = [];
+        (globalThis as any).requestAnimationFrame = (cb: any) => {
+            rafCallbacks.push(cb);
+            return rafCallbacks.length;
+        };
+        (globalThis as any).cancelAnimationFrame = (id: number) => {
+            if (id > 0 && id <= rafCallbacks.length) rafCallbacks[id - 1] = () => {};
+        };
+
+        state.view = { x: 500, y: 300, scale: 1.0 };
+        expect(state.selection.size).toBe(0);
+
+        // Press ArrowRight (moves view.x by -50)
+        keydownHandler?.({ code: 'ArrowRight', key: 'ArrowRight', preventDefault: () => {} });
+        expect(rafCallbacks.length).toBeGreaterThan(0);
+
+        // Rapid consecutive press: ArrowRight again
+        keydownHandler?.({ code: 'ArrowRight', key: 'ArrowRight', preventDefault: () => {} });
+
+        // Advance to finish
+        const cb = rafCallbacks[rafCallbacks.length - 1];
+        if (cb) cb(performance.now() + 500);
+
+        // Target compounded: 500 - 50 - 50 = 400
+        expect(state.view.x).toBe(400);
+
+        delete (globalThis as any).requestAnimationFrame;
+        delete (globalThis as any).cancelAnimationFrame;
+    });
 });
