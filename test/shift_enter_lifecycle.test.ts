@@ -1,5 +1,4 @@
-// test/shift_enter_lifecycle.test.ts
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { state } from '../dango/js/modules/state.js';
 import { initRender } from '../dango/js/modules/render.js';
 import { handleNodeEdit } from '../dango/js/modules/interactions.js';
@@ -98,6 +97,7 @@ class MockDOMElement {
 }
 
 describe('Shift+Enter Multiline & Enter-Enter No-Op Invariance', () => {
+    let prevRaf: any;
     beforeEach(() => {
         state.nodes = [
             { id: 'node-test', text: '', x: 0, y: 0, w: 100, h: 40, color: 'c-white' }
@@ -138,11 +138,16 @@ describe('Shift+Enter Multiline & Enter-Enter No-Op Invariance', () => {
             querySelector: () => null,
             querySelectorAll: () => []
         };
+        prevRaf = (globalThis as any).requestAnimationFrame;
         (globalThis as any).requestAnimationFrame = (fn: Function) => fn();
 
         initRender(state, {
             handleNodeEdit: () => {}
         });
+    });
+
+    afterEach(() => {
+        (globalThis as any).requestAnimationFrame = prevRaf;
     });
 
     it('Scenario 1: typing -1\\n-2\\n-3\\n-4\\n ending with Shift+Enter preserves exactly 1 trailing newline', () => {

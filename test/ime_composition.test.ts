@@ -1,5 +1,4 @@
-// test/ime_composition.test.ts
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { state } from '../dango/js/modules/state.js';
 import { initRender } from '../dango/js/modules/render.js';
 import { handleNodeEdit } from '../dango/js/modules/interactions.js';
@@ -98,6 +97,7 @@ class MockDOMElement {
 }
 
 describe('IME Composition Guard for Node Editing', () => {
+    let prevRaf: any;
     beforeEach(() => {
         state.nodes = [
             { id: 'node-1', text: '初始文本', x: 0, y: 0, w: 100, h: 40, color: 'c-white' }
@@ -139,11 +139,16 @@ describe('IME Composition Guard for Node Editing', () => {
             querySelector: () => null,
             querySelectorAll: () => []
         };
+        prevRaf = (globalThis as any).requestAnimationFrame;
         (globalThis as any).requestAnimationFrame = (fn: Function) => fn();
 
         initRender(state, {
             handleNodeEdit: () => {}
         });
+    });
+
+    afterEach(() => {
+        (globalThis as any).requestAnimationFrame = prevRaf;
     });
 
     it('does not clobber innerText with zero-width space during active IME composition', () => {

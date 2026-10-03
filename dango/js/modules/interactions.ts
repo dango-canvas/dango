@@ -30,7 +30,9 @@ let pendingMoveEvent: MouseEvent | null = null;
 
 export function isWheelNotch(e: WheelEvent): boolean {
     if (e.deltaMode !== 0) return true;
-    return Math.abs(e.deltaY) >= 40 && Number.isInteger(e.deltaY);
+    const isIntY = Number.isInteger(e.deltaY);
+    const isIntX = Number.isInteger(e.deltaX);
+    return (Math.abs(e.deltaY) >= 30 && isIntY) || (Math.abs(e.deltaX) >= 30 && isIntX);
 }
 
 export const SNAP_THRESHOLD = 5;
@@ -552,13 +554,25 @@ export function initInteractions(): void {
                 wheelSaveTimeout = setTimeout(saveData, 500);
             }
         } else {
-            // 普通滚轮 / 触控板滑动平移：直接 1:1 响应硬件原生位移，零阻滞、高帧率即时滚动
-            cancelViewAnimation();
-            state.view.x -= e.deltaX;
-            state.view.y -= e.deltaY;
-            updateViewTransform();
-            clearTimeout(wheelSaveTimeout);
-            wheelSaveTimeout = setTimeout(saveData, 500);
+            // 普通滚轮 / 触控板平移
+            // 兼容 Firefox line 模式 (deltaMode === 1) 及普通像素模式
+            const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
+            const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
+            const deltaX = e.deltaMode === 1 ? e.deltaX * 33 : (e.deltaMode === 2 ? e.deltaX * winW : e.deltaX);
+            const deltaY = e.deltaMode === 1 ? e.deltaY * 33 : (e.deltaMode === 2 ? e.deltaY * winH : e.deltaY);
+
+            if (isWheelNotch(e)) {
+                // 实体滚轮单齿：接入连续丝滑阻尼平移控制器，获得与键盘平移一致的顺滑缓冲手感
+                smoothPan(-deltaX, -deltaY);
+            } else {
+                // 触控板高频滑动：直接 1:1 原生无延迟跟随，保留系统自带的物理惯性
+                cancelViewAnimation();
+                state.view.x -= deltaX;
+                state.view.y -= deltaY;
+                updateViewTransform();
+                clearTimeout(wheelSaveTimeout);
+                wheelSaveTimeout = setTimeout(saveData, 500);
+            }
         }
     }, { passive: false });
 

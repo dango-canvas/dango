@@ -75,15 +75,18 @@ describe('Smooth View Transition Specification (Animated Zoom & Wheel Damping)',
     });
 
     it('isWheelNotch differentiates physical mouse wheel notches from trackpad events', () => {
-        // Physical mouse wheel notches (typically 100, 120, -100, -120)
-        expect(isWheelNotch({ deltaMode: 0, deltaY: 100 } as any)).toBe(true);
-        expect(isWheelNotch({ deltaMode: 0, deltaY: -120 } as any)).toBe(true);
-        expect(isWheelNotch({ deltaMode: 1, deltaY: 3 } as any)).toBe(true); // Line mode
+        // Physical mouse wheel notches (typically 100, 120, -100, -120, or horizontal tilt)
+        expect(isWheelNotch({ deltaMode: 0, deltaY: 100, deltaX: 0 } as any)).toBe(true);
+        expect(isWheelNotch({ deltaMode: 0, deltaY: -120, deltaX: 0 } as any)).toBe(true);
+        expect(isWheelNotch({ deltaMode: 0, deltaY: 0, deltaX: 100 } as any)).toBe(true);
+        expect(isWheelNotch({ deltaMode: 0, deltaY: 0, deltaX: -50 } as any)).toBe(true);
+        expect(isWheelNotch({ deltaMode: 1, deltaY: 3, deltaX: 0 } as any)).toBe(true); // Line mode
 
         // Trackpad continuous micro-deltas
-        expect(isWheelNotch({ deltaMode: 0, deltaY: 4 } as any)).toBe(false);
-        expect(isWheelNotch({ deltaMode: 0, deltaY: 12.5 } as any)).toBe(false);
-        expect(isWheelNotch({ deltaMode: 0, deltaY: -1.33 } as any)).toBe(false);
+        expect(isWheelNotch({ deltaMode: 0, deltaY: 4, deltaX: 0 } as any)).toBe(false);
+        expect(isWheelNotch({ deltaMode: 0, deltaY: 12.5, deltaX: 0 } as any)).toBe(false);
+        expect(isWheelNotch({ deltaMode: 0, deltaY: 0, deltaX: 2.5 } as any)).toBe(false);
+        expect(isWheelNotch({ deltaMode: 0, deltaY: -1.33, deltaX: 0 } as any)).toBe(false);
     });
 
     it('smoothZoom schedules view animation and compounds in-flight zoom targets cleanly', () => {
@@ -140,6 +143,23 @@ describe('Smooth View Transition Specification (Animated Zoom & Wheel Damping)',
 
         expect(state.view.x).toBe(200);
         expect(state.view.y).toBe(0);
+    });
+
+    it('smoothPan handles rapid mouse wheel scrolling without resetting or stalling', () => {
+        state.view = { x: 0, y: 0, scale: 1.0 };
+        
+        // Simulate rapid mouse wheel spin: 5 notches in quick succession
+        for (let i = 0; i < 5; i++) {
+            smoothPan(0, -100);
+        }
+
+        // Advance animation to completion
+        const cb = rafCallbacks[rafCallbacks.length - 1];
+        if (cb) cb(performance.now() + 500);
+
+        // Should reach full cumulative distance of 5 * (-100) = -500 without getting stuck
+        expect(state.view.y).toBe(-500);
+        expect(state.view.x).toBe(0);
     });
 
     it('shortcuts Ctrl + = and Ctrl + - trigger smoothZoom instead of discrete changeZoom', () => {
