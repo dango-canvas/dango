@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.7] - 2026-10-04
+
+### Added
+- **Seamless Continuous Keyboard Roaming & Speed Enhancement**: Eliminated initial repeat delay and stutter during arrow key roaming, seamlessly blending the initial 25px tap impulse into a brisk 600px/s continuous cruising loop. Calculated via frame-rate independent $\Delta t$ integration to deliver full 120Hz/60Hz refresh rate fluidity.
+- **Dynamic Content-Aware Image Sizing & Action Semantics**: Retained the crisp 100px small image baseline while introducing dynamic content-aware sizing for large images ($\min(800, \max(200, \text{naturalWidth}))$) preserving original aspect ratios without distortion. Aligned toggle button icons with intended action semantics (expand outward icon when small, shrink inward icon when large).
+
+### Fixed
+- **Viewport Roaming Shadow Stability & Zero-Repaint GPU Compositing**: Removed dynamic removal of node box-shadows during `view-animating` state, eliminating visual popping and preserving continuous shadow rendering on the hardware-accelerated GPU layer during viewport pan and zoom.
+
 ## [1.12.6] - 2026-10-03
 
 ### Added

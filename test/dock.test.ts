@@ -351,8 +351,8 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         expect(en.help_global_view).toBe('Overview & Focus');
         toggleLang(); // restore to zh
 
-        // 7. canvas css: view-animating excludes node-comment
+        // 7. canvas css: view-animating does not override node box-shadow (eliminating repaint flickers & preserving 120Hz GPU compositing)
         const canvasCss = readFileSync(resolve(__dirname, '../dango/css/partials/_canvas.css'), 'utf-8');
-        expect(canvasCss).toContain('body.view-animating .node:not(.node-comment)');
+        expect(canvasCss).not.toContain('body.view-animating .node:not(.node-comment)');
     });
 });

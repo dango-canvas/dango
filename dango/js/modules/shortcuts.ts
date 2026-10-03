@@ -25,10 +25,66 @@ import { activateSpotlight, deactivateSpotlight } from './spotlight.js';
 export const keys: Record<string, boolean> = {};
 
 /**
- * 键盘方向键平移画布的默认单步步长（像素）
- * 优先读取 CONFIG.keyboardPanStep，若未配置则回退到此默认值
+ * 键盘方向键平移画布的默认单步步长（像素）与巡航速度（像素/秒）
+ * 优先读取 CONFIG.keyboardPanStep / CONFIG.keyboardPanSpeed，若未配置则回退到此默认值
  */
-export const KEYBOARD_PAN_STEP = 50;
+export const KEYBOARD_PAN_STEP = 25;
+export const KEYBOARD_PAN_SPEED = 600;
+
+const activePanKeys = new Set<string>();
+let panLoopRafId: number | null = null;
+let panLoopLastTime = 0;
+
+function updateKeyboardPanLoop(timestamp?: number): void {
+    if (activePanKeys.size === 0) {
+        if (panLoopRafId !== null && typeof cancelAnimationFrame !== 'undefined') {
+            cancelAnimationFrame(panLoopRafId);
+        }
+        panLoopRafId = null;
+        return;
+    }
+
+    const now = typeof timestamp === 'number' ? timestamp : performance.now();
+    const rawDt = (now - panLoopLastTime) / 1000;
+    const dt = Math.max(0.001, Math.min(rawDt, 0.05));
+    panLoopLastTime = now;
+
+    const speed = (CONFIG as any).keyboardPanSpeed ?? KEYBOARD_PAN_SPEED;
+    let vx = 0;
+    let vy = 0;
+    if (activePanKeys.has('ArrowUp')) vy += speed;
+    if (activePanKeys.has('ArrowDown')) vy -= speed;
+    if (activePanKeys.has('ArrowLeft')) vx += speed;
+    if (activePanKeys.has('ArrowRight')) vx -= speed;
+
+    if (vx !== 0 || vy !== 0) {
+        smoothPan(vx * dt, vy * dt, 80);
+    }
+
+    if (typeof requestAnimationFrame !== 'undefined') {
+        panLoopRafId = requestAnimationFrame(updateKeyboardPanLoop);
+    }
+}
+
+export function stopKeyboardPanKey(code: string): void {
+    activePanKeys.delete(code);
+    if (activePanKeys.size === 0 && panLoopRafId !== null) {
+        if (typeof cancelAnimationFrame !== 'undefined') {
+            cancelAnimationFrame(panLoopRafId);
+        }
+        panLoopRafId = null;
+    }
+}
+
+export function stopAllKeyboardPan(): void {
+    activePanKeys.clear();
+    if (panLoopRafId !== null) {
+        if (typeof cancelAnimationFrame !== 'undefined') {
+            cancelAnimationFrame(panLoopRafId);
+        }
+        panLoopRafId = null;
+    }
+}
 
 let isNudgeSessionActive = false;
 let nudgeSessionTimer: any = null;
@@ -55,8 +111,14 @@ export function initShortcuts(callbacks: {
     const { render, undo, redo, handleNodeEdit, exportJson } = callbacks;
 
     if (typeof window !== 'undefined') {
-        window.addEventListener('pointerdown', endNudgeSession);
-        window.addEventListener('blur', endNudgeSession);
+        window.addEventListener('pointerdown', () => {
+            endNudgeSession();
+            stopAllKeyboardPan();
+        });
+        window.addEventListener('blur', () => {
+            endNudgeSession();
+            stopAllKeyboardPan();
+        });
     }
 
     window.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -165,16 +227,23 @@ export function initShortcuts(callbacks: {
                 if (isSpacePan || state.selection.size === 0) {
                     e.preventDefault();
                     endNudgeSession();
-                    const PAN_STEP = (CONFIG as any).keyboardPanStep ?? KEYBOARD_PAN_STEP;
-                    const panMap: Record<string, { dx: number; dy: number }> = {
-                        'ArrowUp':    { dx: 0, dy: PAN_STEP },
-                        'ArrowDown':  { dx: 0, dy: -PAN_STEP },
-                        'ArrowLeft':  { dx: PAN_STEP, dy: 0 },
-                        'ArrowRight': { dx: -PAN_STEP, dy: 0 }
-                    };
-                    const delta = panMap[e.code];
-                    if (delta) {
-                        smoothPan(delta.dx, delta.dy, 80);
+                    if (!e.repeat) {
+                        const PAN_STEP = (CONFIG as any).keyboardPanStep ?? KEYBOARD_PAN_STEP;
+                        const panMap: Record<string, { dx: number; dy: number }> = {
+                            'ArrowUp':    { dx: 0, dy: PAN_STEP },
+                            'ArrowDown':  { dx: 0, dy: -PAN_STEP },
+                            'ArrowLeft':  { dx: PAN_STEP, dy: 0 },
+                            'ArrowRight': { dx: -PAN_STEP, dy: 0 }
+                        };
+                        const delta = panMap[e.code];
+                        if (delta) {
+                            smoothPan(delta.dx, delta.dy, 80);
+                        }
+                        activePanKeys.add(e.code);
+                        panLoopLastTime = performance.now();
+                        if (panLoopRafId === null && typeof requestAnimationFrame !== 'undefined') {
+                            panLoopRafId = requestAnimationFrame(updateKeyboardPanLoop);
+                        }
                     }
                     return;
                 }
@@ -343,10 +412,16 @@ export function initShortcuts(callbacks: {
 
     window.addEventListener('keyup', (e: KeyboardEvent) => {
         keys[e.code] = false;
-        if (e.code === 'Space') document.body.classList.remove('mode-space');
+        if (e.code === 'Space') {
+            document.body.classList.remove('mode-space');
+            if (state.selection.size > 0) {
+                stopAllKeyboardPan();
+            }
+        }
         if (e.code === 'KeyQ') deactivateSpotlight();
         
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+            stopKeyboardPanKey(e.code);
             handleDirectionalCreateEnd(e.code, callbacks, 'arrow');
         }
         if (['ControlLeft', 'ControlRight', 'MetaLeft', 'MetaRight', 'AltLeft', 'AltRight'].includes(e.code)) {

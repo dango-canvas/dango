@@ -1,8 +1,8 @@
 // test/canvas_panning.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { state } from '../dango/js/modules/state.js';
-import { initView, panViewBy } from '../dango/js/modules/view.js';
-import { initShortcuts, keys } from '../dango/js/modules/shortcuts.js';
+import { initView, panViewBy, cancelViewAnimation } from '../dango/js/modules/view.js';
+import { initShortcuts, keys, stopAllKeyboardPan } from '../dango/js/modules/shortcuts.js';
 import type { CanvasNode } from '../dango/js/modules/types.js';
 
 describe('Canvas Keyboard Panning Specification', () => {
@@ -13,6 +13,8 @@ describe('Canvas Keyboard Panning Specification', () => {
     let nudgedDirection: string | null = null;
 
     beforeEach(() => {
+        stopAllKeyboardPan();
+        cancelViewAnimation();
         prevDoc = (globalThis as any).document;
         prevWin = (globalThis as any).window;
 
@@ -60,6 +62,8 @@ describe('Canvas Keyboard Panning Specification', () => {
     });
 
     afterEach(() => {
+        stopAllKeyboardPan();
+        cancelViewAnimation();
         (globalThis as any).document = prevDoc;
         (globalThis as any).window = prevWin;
         state.isReadonly = false;
@@ -75,19 +79,19 @@ describe('Canvas Keyboard Panning Specification', () => {
     it('pans canvas on Arrow keys when selection is empty', () => {
         expect(state.selection.size).toBe(0);
 
-        // ArrowUp: camera moves UP -> view.y increases by 50
+        // ArrowUp: camera moves UP -> view.y increases by 25
         keydownHandler?.({ code: 'ArrowUp', key: 'ArrowUp', preventDefault: () => {} });
-        expect(state.view.y).toBe(350);
+        expect(state.view.y).toBe(325);
 
-        // ArrowDown: camera moves DOWN -> view.y decreases by 50
+        // ArrowDown: camera moves DOWN -> view.y decreases by 25
         keydownHandler?.({ code: 'ArrowDown', key: 'ArrowDown', preventDefault: () => {} });
         expect(state.view.y).toBe(300);
 
-        // ArrowLeft: camera moves LEFT -> view.x increases by 50
+        // ArrowLeft: camera moves LEFT -> view.x increases by 25
         keydownHandler?.({ code: 'ArrowLeft', key: 'ArrowLeft', preventDefault: () => {} });
-        expect(state.view.x).toBe(550);
+        expect(state.view.x).toBe(525);
 
-        // ArrowRight: camera moves RIGHT -> view.x decreases by 50
+        // ArrowRight: camera moves RIGHT -> view.x decreases by 25
         keydownHandler?.({ code: 'ArrowRight', key: 'ArrowRight', preventDefault: () => {} });
         expect(state.view.x).toBe(500);
     });
@@ -121,8 +125,8 @@ describe('Canvas Keyboard Panning Specification', () => {
         // Press ArrowRight while Space is held
         keydownHandler?.({ code: 'ArrowRight', key: 'ArrowRight', preventDefault: () => {} });
 
-        // Canvas pans right (-50 X)
-        expect(state.view.x).toBe(450);
+        // Canvas pans right (-25 X)
+        expect(state.view.x).toBe(475);
         // Node position must NOT be nudged!
         expect(node.x).toBe(initialNodeX);
     });
@@ -132,7 +136,7 @@ describe('Canvas Keyboard Panning Specification', () => {
         expect(state.selection.size).toBe(0);
 
         keydownHandler?.({ code: 'ArrowDown', key: 'ArrowDown', preventDefault: () => {} });
-        expect(state.view.y).toBe(250);
+        expect(state.view.y).toBe(275);
     });
 
     it('animates smoothly via smoothPan when requestAnimationFrame is present and compounds rapid keys', () => {
@@ -144,11 +148,16 @@ describe('Canvas Keyboard Panning Specification', () => {
         (globalThis as any).cancelAnimationFrame = (id: number) => {
             if (id > 0 && id <= rafCallbacks.length) rafCallbacks[id - 1] = () => {};
         };
+        const flushRaf = (t: number) => {
+            const batch = [...rafCallbacks];
+            rafCallbacks.length = 0;
+            for (const cb of batch) cb(t);
+        };
 
         state.view = { x: 500, y: 300, scale: 1.0 };
         expect(state.selection.size).toBe(0);
 
-        // Press ArrowRight (moves view.x by -50)
+        // Press ArrowRight (moves view.x by -25)
         keydownHandler?.({ code: 'ArrowRight', key: 'ArrowRight', preventDefault: () => {} });
         expect(rafCallbacks.length).toBeGreaterThan(0);
 
@@ -156,13 +165,52 @@ describe('Canvas Keyboard Panning Specification', () => {
         keydownHandler?.({ code: 'ArrowRight', key: 'ArrowRight', preventDefault: () => {} });
 
         // Advance to finish
-        const cb = rafCallbacks[rafCallbacks.length - 1];
-        if (cb) cb(performance.now() + 500);
+        flushRaf(performance.now() + 500);
 
-        // Target compounded: 500 - 50 - 50 = 400
-        expect(state.view.x).toBe(400);
+        // Target compounded: 500 - 25 - 25 = 450
+        expect(state.view.x).toBe(450);
 
         delete (globalThis as any).requestAnimationFrame;
         delete (globalThis as any).cancelAnimationFrame;
+        stopAllKeyboardPan();
+    });
+
+    it('cruises smoothly during continuous key hold without waiting for OS repeat delay', () => {
+        const rafCallbacks: Array<(t: number) => void> = [];
+        (globalThis as any).requestAnimationFrame = (cb: any) => {
+            rafCallbacks.push(cb);
+            return rafCallbacks.length;
+        };
+        (globalThis as any).cancelAnimationFrame = (id: number) => {
+            if (id > 0 && id <= rafCallbacks.length) rafCallbacks[id - 1] = () => {};
+        };
+        const flushRaf = (t: number) => {
+            const batch = [...rafCallbacks];
+            rafCallbacks.length = 0;
+            for (const cb of batch) cb(t);
+        };
+
+        state.view = { x: 500, y: 300, scale: 1.0 };
+        expect(state.selection.size).toBe(0);
+
+        const startTime = performance.now();
+        // First keydown: tap step of 25px
+        keydownHandler?.({ code: 'ArrowDown', key: 'ArrowDown', preventDefault: () => {} });
+
+        // Simulate 200ms elapsed holding the key down (past the 100ms cruise threshold)
+        flushRaf(startTime + 200);
+
+        // Advance animation to completion
+        flushRaf(startTime + 800);
+
+        // View y should have moved downwards by initial 25px PLUS continuous cruise distance
+        expect(state.view.y).toBeLessThan(275);
+
+        // Releasing key cleanly stops the pan key
+        keyupHandler?.({ code: 'ArrowDown', key: 'ArrowDown' });
+
+        delete (globalThis as any).requestAnimationFrame;
+        delete (globalThis as any).cancelAnimationFrame;
+        stopAllKeyboardPan();
     });
 });

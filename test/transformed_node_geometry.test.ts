@@ -1,7 +1,7 @@
 // test/transformed_node_geometry.test.ts
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { state } from '../dango/js/modules/state.js';
-import { initRender, render } from '../dango/js/modules/render.js';
+import { initRender, render, calculateLargeImageWidth, IMAGE_SIZE_SMALL, IMAGE_SIZE_MIN_LARGE, IMAGE_SIZE_MAX_LARGE, IMAGE_SIZE_ICONS } from '../dango/js/modules/render.js';
 import { alignSelection } from '../dango/js/modules/actions.js';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -115,6 +115,26 @@ describe('Transformed Node Geometry & Alignment Fidelity', () => {
     it('CSS: .node.image-node specifies box-sizing: border-box for pixel-perfect bounding box', () => {
         const cssContent = readFileSync(resolve(__dirname, '../dango/css/partials/_canvas.css'), 'utf-8');
         expect(cssContent).toMatch(/\.node\.image-node\s*\{[^}]*box-sizing:\s*border-box;/);
+    });
+
+    it('Image Node: calculates dynamic large width bounded between 200px and 800px', () => {
+        expect(IMAGE_SIZE_SMALL).toBe(100);
+        expect(IMAGE_SIZE_MIN_LARGE).toBe(200);
+        expect(IMAGE_SIZE_MAX_LARGE).toBe(800);
+
+        // Clamps below 200px to 200px
+        expect(calculateLargeImageWidth(120)).toBe(200);
+        // Retains original natural width if within [200, 800]
+        expect(calculateLargeImageWidth(540)).toBe(540);
+        // Clamps above 800px to 800px
+        expect(calculateLargeImageWidth(1920)).toBe(800);
+        // Falls back to reasonable default when missing
+        expect(calculateLargeImageWidth(undefined)).toBe(400);
+
+        // Action semantics: when small, button shows expand icon (pointing outwards)
+        expect(IMAGE_SIZE_ICONS.s).toContain('10 4 4 4 4 10');
+        // When large, button shows shrink icon (pointing inwards)
+        expect(IMAGE_SIZE_ICONS.l).toContain('4 10 10 10 10 4');
     });
 
     it('Link Node: updates node.w and node.h to capsule offset dimensions rather than raw text length', () => {

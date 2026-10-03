@@ -24,10 +24,22 @@ let callbacks: {
     saveData?: () => void;
 };
 
-const IMAGE_SIZE_WIDTHS = { s: 100, l: 200 };
-const IMAGE_SIZE_ICONS = {
-    s: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 10 10 10 10 4"></polyline><polyline points="20 10 14 10 14 4"></polyline><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 14 14 14 14 20"></polyline></svg>',
-    l: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 4 4 4 4 10"></polyline><polyline points="14 4 20 4 20 10"></polyline><polyline points="10 20 4 20 4 14"></polyline><polyline points="14 20 20 20 20 14"></polyline></svg>'
+export const IMAGE_SIZE_SMALL = 100;
+export const IMAGE_SIZE_MIN_LARGE = 200;
+export const IMAGE_SIZE_MAX_LARGE = 800;
+export const IMAGE_SIZE_WIDTHS = { s: IMAGE_SIZE_SMALL, l: 400 };
+
+export function calculateLargeImageWidth(naturalWidth?: number): number {
+    const raw = naturalWidth || 400;
+    return Math.min(IMAGE_SIZE_MAX_LARGE, Math.max(IMAGE_SIZE_MIN_LARGE, raw));
+}
+
+const ICON_EXPAND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 4 4 4 4 10"></polyline><polyline points="14 4 20 4 20 10"></polyline><polyline points="10 20 4 20 4 14"></polyline><polyline points="14 20 20 20 20 14"></polyline></svg>';
+const ICON_SHRINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 10 10 10 10 4"></polyline><polyline points="20 10 14 10 14 4"></polyline><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 14 14 14 14 20"></polyline></svg>';
+
+export const IMAGE_SIZE_ICONS = {
+    s: ICON_EXPAND, // 处于小尺寸时，操作意图为“放大”
+    l: ICON_SHRINK  // 处于大尺寸时，操作意图为“缩小”
 };
 const HTML_ESCAPE_MAP: Record<string, string> = {
     '&': '&amp;',
@@ -196,7 +208,7 @@ function parseImageMarkdown(text?: string): { alt: string; url: string } | null 
 }
 
 function getImageSizeKey(width?: number): 's' | 'l' {
-    return width === IMAGE_SIZE_WIDTHS.l ? 'l' : 's';
+    return (width && width > IMAGE_SIZE_SMALL + 20) ? 'l' : 's';
 }
 
 function getNextImageSizeKey(currentKey: 's' | 'l'): 's' | 'l' {
@@ -256,15 +268,14 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
         if (img.getAttribute('alt') !== imageData.alt) img.setAttribute('alt', imageData.alt);
 
         const currentSizeKey = getImageSizeKey(node.w);
-        const targetWidth = IMAGE_SIZE_WIDTHS[currentSizeKey];
-        if (node.w !== targetWidth) {
-            node.w = targetWidth;
+        if (!node.w) {
+            node.w = IMAGE_SIZE_SMALL;
         }
         el.style.width = `${node.w}px`;
         if (el.dataset.lastText !== (node.text || '')) {
             el.dataset.lastText = node.text || '';
             if (!img.complete || !img.naturalWidth) {
-                node.h = targetWidth;
+                node.h = node.w;
             }
         }
         if (node.h) {
@@ -273,6 +284,14 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
 
         const updateH = () => {
             if (img && img.naturalWidth) {
+                const curKey = getImageSizeKey(node.w);
+                if (curKey === 'l') {
+                    const idealLargeW = calculateLargeImageWidth(img.naturalWidth);
+                    if (node.w !== idealLargeW) {
+                        node.w = idealLargeW;
+                        el.style.width = `${node.w}px`;
+                    }
+                }
                 const newH = Math.round(node.w * (img.naturalHeight / img.naturalWidth));
                 if (node.h !== newH || el.style.height !== `${newH}px`) {
                     node.h = newH;
@@ -295,8 +314,10 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
                 e.stopPropagation();
                 const curKey = getImageSizeKey(node.w);
                 const nextKey = getNextImageSizeKey(curKey);
-                const width = IMAGE_SIZE_WIDTHS[nextKey];
-                if (applyImageSize(node, img, width)) {
+                const targetWidth = nextKey === 'l'
+                    ? calculateLargeImageWidth(img?.naturalWidth)
+                    : IMAGE_SIZE_SMALL;
+                if (applyImageSize(node, img, targetWidth)) {
                     render();
                 }
             };
