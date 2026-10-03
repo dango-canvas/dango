@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.6] - 2026-10-03
+
+### Added
+- **Canvas Keyboard Roaming & Dynamic Damping (`Arrow` / `Space+Arrow`)**: Added full-keyboard viewport navigation. Pressing Arrow keys with an empty selection, or pressing `Space + Arrow` in any selection state, smoothly roams the viewport by `50px` increments with continuous exponential cushioning (`smoothPan`), eliminating discrete hard steps and compounding repeat keydowns seamlessly.
+- **Standalone Node Creation on Empty Selection (`Enter`)**: Pressing `Enter` when no node is selected now creates a standalone root node at the viewport center, cascades downward if occupied to prevent overlap, inherits theme color from the nearest existing node (within 300px threshold), and immediately enters live editing mode.
+- **Smooth Animated Zoom (`Ctrl + = / -` & Physical Wheel Damping)**: Implemented `180ms` cubic ease-out animated zoom transitions (`smoothZoom`) for keyboard zoom shortcuts and physical mouse wheel clicks, compounding in-flight targets without lag and clamping strictly within scale bounds (`0.1 <= scale <= 5.0`).
+- **Continuous Exponential Damping Smooth Pan for Wheel & Keyboard (`smoothPan`)**: Replaced discrete wheel jumps with persistent exponential damping ($\text{factor} = 1 - e^{-18 \Delta t}$) and target accumulation, delivering an ultra-smooth gliding feel on mouse wheel notches while preserving native 1:1 zero-latency tracking on precision trackpads.
+
+### Fixed
+- **Directional Node Edit Activation Invariance (`Ctrl+Arrow`)**: Fixed intermittent non-editable empty node creation when branching rapidly or after dragging by unconditionally resetting the `hasMovedDuringDrag` dirty flag on `mouseup` and guaranteeing clean DOM edit focus.
+
 ## [1.12.5] - 2026-09-27
 
 ### Added
