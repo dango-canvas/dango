@@ -24,6 +24,12 @@ import { activateSpotlight, deactivateSpotlight } from './spotlight.js';
 // 维护全局按键状态（供 main.js 使用，比如空格判定）
 export const keys: Record<string, boolean> = {};
 
+/**
+ * 键盘方向键平移画布的默认单步步长（像素）
+ * 优先读取 CONFIG.keyboardPanStep，若未配置则回退到此默认值
+ */
+export const KEYBOARD_PAN_STEP = 50;
+
 let isNudgeSessionActive = false;
 let nudgeSessionTimer: any = null;
 
@@ -159,7 +165,7 @@ export function initShortcuts(callbacks: {
                 if (isSpacePan || state.selection.size === 0) {
                     e.preventDefault();
                     endNudgeSession();
-                    const PAN_STEP = 50;
+                    const PAN_STEP = (CONFIG as any).keyboardPanStep ?? KEYBOARD_PAN_STEP;
                     const panMap: Record<string, { dx: number; dy: number }> = {
                         'ArrowUp':    { dx: 0, dy: PAN_STEP },
                         'ArrowDown':  { dx: 0, dy: -PAN_STEP },
@@ -168,7 +174,7 @@ export function initShortcuts(callbacks: {
                     };
                     const delta = panMap[e.code];
                     if (delta) {
-                        smoothPan(delta.dx, delta.dy, 120);
+                        smoothPan(delta.dx, delta.dy, 80);
                     }
                     return;
                 }

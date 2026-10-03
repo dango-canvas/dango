@@ -552,18 +552,13 @@ export function initInteractions(): void {
                 wheelSaveTimeout = setTimeout(saveData, 500);
             }
         } else {
-            if (isWheelNotch(e)) {
-                // 实体滚轮滚动：阻尼平滑位移
-                smoothPan(-e.deltaX, -e.deltaY, 120);
-            } else {
-                // 触控板双指滑动：即时位移，保证指尖贴合感
-                cancelViewAnimation();
-                state.view.x -= e.deltaX;
-                state.view.y -= e.deltaY;
-                updateViewTransform();
-                clearTimeout(wheelSaveTimeout);
-                wheelSaveTimeout = setTimeout(saveData, 500);
-            }
+            // 普通滚轮 / 触控板滑动平移：直接 1:1 响应硬件原生位移，零阻滞、高帧率即时滚动
+            cancelViewAnimation();
+            state.view.x -= e.deltaX;
+            state.view.y -= e.deltaY;
+            updateViewTransform();
+            clearTimeout(wheelSaveTimeout);
+            wheelSaveTimeout = setTimeout(saveData, 500);
         }
     }, { passive: false });
 

@@ -43,6 +43,7 @@ export const state: CanvasState = {
 
 // --- Config ---
 export const CONFIG = {
+    keyboardPanStep: 50, // 键盘方向键单步平移像素（默认 50px）
     colors: [
         'c-white', 'c-red', 'c-yellow', 'c-green', 'c-blue',
         'c-orange', 'c-purple', 'c-pink', 'c-cyan'
