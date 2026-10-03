@@ -380,7 +380,7 @@ export function handleDirectionalCreateStart(key: string, _e?: any): boolean {
 
 export function handleDirectionalCreateEnd(
     key: string,
-    callbacks: { render: () => void; handleNodeEdit?: (el: HTMLElement) => void },
+    callbacks: { render: () => void; handleNodeEdit?: (el: HTMLElement, force?: boolean) => void },
     releasedKeyType?: 'arrow' | 'modifier'
 ): boolean {
     if (!ghostState || ghostState.key !== key) return false;
@@ -431,19 +431,17 @@ export function handleDirectionalCreateEnd(
     }
     callbacks.render();
 
-    setTimeout(() => {
-        if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
-            const el = document.querySelector<HTMLElement>(`.node[data-id="${newId}"]`);
-            if (el && callbacks.handleNodeEdit) {
-                callbacks.handleNodeEdit(el);
-            }
+    if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+        const el = document.querySelector<HTMLElement>(`.node[data-id="${newId}"]`);
+        if (el && callbacks.handleNodeEdit) {
+            callbacks.handleNodeEdit(el, true);
         }
-    }, 10);
+    }
 
     return true;
 }
 
-export function handleDirectionalModifierUp(callbacks: { render: () => void; handleNodeEdit?: (el: HTMLElement) => void }): void {
+export function handleDirectionalModifierUp(callbacks: { render: () => void; handleNodeEdit?: (el: HTMLElement, force?: boolean) => void }): void {
     if (ghostState) {
         handleDirectionalCreateEnd(ghostState.key, callbacks, 'modifier');
     }

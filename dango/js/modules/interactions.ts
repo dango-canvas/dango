@@ -521,6 +521,7 @@ export function initInteractions(): void {
         dragStart = null;
         isPrepareToClone = false;
         targetIdAtMouseDown = null;
+        hasMovedDuringDrag = false;
         document.body.classList.remove('mode-pan');
     });
 
@@ -831,7 +832,7 @@ export function initInteractions(): void {
 
         render();
         const createdEl = document.querySelector<HTMLElement>(`.node[data-id="${newNode.id}"]`);
-        if (createdEl) handleNodeEdit(createdEl);
+        if (createdEl) handleNodeEdit(createdEl, true);
     });
 }
 
@@ -1186,7 +1187,7 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
         nodeEl.addEventListener('input', handleInput);
 
         requestAnimationFrame(() => {
-            if (!nodeEl.isConnected) return;
+            if (!nodeEl.isConnected || typeof document === 'undefined' || typeof document.createRange !== 'function') return;
             const range = document.createRange();
             range.selectNodeContents(nodeEl);
             range.collapse(false);

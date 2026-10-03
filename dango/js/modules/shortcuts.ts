@@ -42,7 +42,7 @@ export function initShortcuts(callbacks: {
     render: () => void;
     undo: () => void;
     redo: () => void;
-    handleNodeEdit: (el: HTMLElement) => void;
+    handleNodeEdit: (el: HTMLElement, force?: boolean) => void;
     exportJson: () => void;
 }): void {
     const { render, undo, redo, handleNodeEdit, exportJson } = callbacks;
@@ -256,7 +256,7 @@ export function initShortcuts(callbacks: {
             e.preventDefault();
             const selectedId = Array.from(state.selection)[0];
             const nodeEl = document.querySelector<HTMLElement>(`.node[data-id="${selectedId}"]`);
-            if (nodeEl) handleNodeEdit(nodeEl);
+            if (nodeEl) handleNodeEdit(nodeEl, true);
             return;
         }
 

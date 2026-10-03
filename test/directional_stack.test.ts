@@ -300,4 +300,37 @@ describe('Directional Branch Stacking Engine', () => {
         expect(b2.x).toBe(348);
         expect(b2.y).toBe(262);
     });
+
+    it('handleDirectionalCreateEnd immediately and unconditionally activates node edit mode with force=true', () => {
+        const root: CanvasNode = { id: 'root', text: 'Root', x: 200, y: 200, w: 100, h: 40, color: 'c-white' };
+        state.nodes = [root];
+        state.selection = new Set(['root']);
+
+        let editedElement: any = null;
+        let editedWithForce: boolean | undefined = undefined;
+
+        const fakeNodeEl = new MockElement('node', 'div');
+        (globalThis as any).document.querySelector = (selector: string) => {
+            if (selector.includes('.node[data-id=')) {
+                return fakeNodeEl;
+            }
+            return null;
+        };
+
+        handleDirectionalCreateStart('ArrowRight');
+        const callbacks = {
+            render: () => {},
+            handleNodeEdit: (el: any, force?: boolean) => {
+                editedElement = el;
+                editedWithForce = force;
+            }
+        };
+
+        handleDirectionalCreateEnd('ArrowRight', callbacks, 'arrow');
+        handleDirectionalCreateEnd('ArrowRight', callbacks, 'modifier');
+
+        // Must be called synchronously without relying on an async setTimeout gap
+        expect(editedElement).toBe(fakeNodeEl);
+        expect(editedWithForce).toBe(true);
+    });
 });
