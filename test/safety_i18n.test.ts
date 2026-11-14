@@ -8,7 +8,7 @@ describe('Safety Shield Multi-Language Link & Tooltip Localization', () => {
     it('provides correct Chinese safety blog url and tooltip', () => {
         if (getCurrentLang() !== 'zh') toggleLang();
         const texts = getTexts();
-        expect(texts.safety_url).toBe('https://blog.dango.ink/why-dango-is-secure');
+        expect(texts.safety_url).toBe('https://dango-canvas.github.io/blog/why-dango-is-secure.html');
         expect(texts.safety_tooltip).toBe('为什么 Dango 是安全的？');
     });
 
@@ -16,7 +16,7 @@ describe('Safety Shield Multi-Language Link & Tooltip Localization', () => {
         toggleLang(); // switch to en
         expect(getCurrentLang()).toBe('en');
         const texts = getTexts();
-        expect(texts.safety_url).toBe('https://blog.dango.ink/why-dango-is-secure-en');
+        expect(texts.safety_url).toBe('https://dango-canvas.github.io/blog/why-dango-is-secure-en.html');
         expect(texts.safety_tooltip).toBe('Why is Dango secure?');
 
         // Restore back to zh
@@ -40,8 +40,8 @@ describe('Safety Shield Multi-Language Link & Tooltip Localization', () => {
         // Test Chinese URLs
         if (getCurrentLang() !== 'zh') toggleLang();
         const zh = getTexts();
-        expect(zh.privacy_url).toBe('https://blog.dango.ink/privacy');
-        expect(zh.terms_url).toBe('https://blog.dango.ink/terms');
+        expect(zh.privacy_url).toBe('https://dango-canvas.github.io/blog/privacy.html');
+        expect(zh.terms_url).toBe('https://dango-canvas.github.io/blog/terms.html');
 
         // Mock anchor DOM for updateI18n
         const mockAnchors: any[] = [
@@ -59,19 +59,19 @@ describe('Safety Shield Multi-Language Link & Tooltip Localization', () => {
         };
 
         updateI18n();
-        expect(mockAnchors[0].href).toBe('https://blog.dango.ink/privacy');
-        expect(mockAnchors[1].href).toBe('https://blog.dango.ink/terms');
+        expect(mockAnchors[0].href).toBe('https://dango-canvas.github.io/blog/privacy.html');
+        expect(mockAnchors[1].href).toBe('https://dango-canvas.github.io/blog/terms.html');
 
         // Test English URLs
         toggleLang();
         expect(getCurrentLang()).toBe('en');
         const en = getTexts();
-        expect(en.privacy_url).toBe('https://blog.dango.ink/privacy-en');
-        expect(en.terms_url).toBe('https://blog.dango.ink/terms-en');
+        expect(en.privacy_url).toBe('https://dango-canvas.github.io/blog/privacy-en.html');
+        expect(en.terms_url).toBe('https://dango-canvas.github.io/blog/terms-en.html');
 
         updateI18n();
-        expect(mockAnchors[0].href).toBe('https://blog.dango.ink/privacy-en');
-        expect(mockAnchors[1].href).toBe('https://blog.dango.ink/terms-en');
+        expect(mockAnchors[0].href).toBe('https://dango-canvas.github.io/blog/privacy-en.html');
+        expect(mockAnchors[1].href).toBe('https://dango-canvas.github.io/blog/terms-en.html');
 
         toggleLang(); // restore zh
     });
