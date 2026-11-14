@@ -288,6 +288,12 @@ export function fitView(padding = 40, animated = true, duration = 400): void {
     const winW = typeof window !== 'undefined' ? window.innerWidth : 1000;
     const winH = typeof window !== 'undefined' ? window.innerHeight : 800;
 
+    // 若 iframe 尚未完成首帧排版（尺寸为 0），推迟到下一帧重试
+    if ((winW <= 0 || winH <= 0) && typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(() => fitView(padding, animated, duration));
+        return;
+    }
+
     const availableW = winW - padding * 2;
     const availableH = winH - padding * 2;
 

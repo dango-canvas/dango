@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.8] - 2026-11-14
+
+### Fixed
+- **Cross-Origin Iframe Zero-Viewport Timing Guard (`fitView`)**: Added next-frame `requestAnimationFrame` retry guard in `fitView` when initial viewport dimensions are zero (`window.innerWidth <= 0`), eliminating distorted minimum-scale 0.2x corner clustering in cross-origin embed contexts.
+
 ## [1.12.7] - 2026-10-04
 
 ### Added

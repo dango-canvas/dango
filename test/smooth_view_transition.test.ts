@@ -211,4 +211,25 @@ describe('Smooth View Transition Specification (Animated Zoom & Wheel Damping)',
 
         expect(state.view.scale).toBeCloseTo(0.96, 4); // 1.2 * 0.8
     });
+
+    it('fitView defers via requestAnimationFrame when viewport dimensions are 0 (cross-origin iframe initial timing)', () => {
+        let renderCalled = false;
+        initView(state, () => { renderCalled = true; });
+
+        state.nodes = [{ id: 'n1', text: 'Node', x: 100, y: 100, w: 100, h: 50, color: 0 }];
+        (globalThis as any).window.innerWidth = 0;
+        (globalThis as any).window.innerHeight = 0;
+
+        let scheduledRaf = false;
+        (globalThis as any).requestAnimationFrame = (cb: any) => {
+            scheduledRaf = true;
+            return 1;
+        };
+
+        const { fitView } = require('../dango/js/modules/view.js');
+        fitView(10, false);
+
+        expect(scheduledRaf).toBe(true);
+        expect(renderCalled).toBe(false);
+    });
 });
