@@ -1,0 +1,69 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Build single-file distribution
+        run: bun build.ts
+
+      - name: Run automated test suite
+        run: bun test
+
+      - name: Copy auxiliary assets for web root
+        shell: bash
+        run: |
+          mkdir -p dist/icons
+          if [ -d "dango/icons" ]; then
+            cp -r dango/icons/* dist/icons/ 2>/dev/null || true
+          fi
+          # Ensure GitHub Pages does not run Jekyll
+          touch dist/.nojekyll
+
+      # 1. Native GitHub Pages Deployment (Actions mode)
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # 2. Dual-mode fallback: Also publish to gh-pages branch (Branch mode)
+      - name: Deploy fallback to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          keep_files: false

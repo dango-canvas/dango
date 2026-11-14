@@ -12,6 +12,7 @@ import { initPresenter } from './modules/presenter.js';
 import { initShortcuts } from './modules/shortcuts.js';
 import { initInteractions, handleNodeEdit } from './modules/interactions.js';
 import { initFloatingDock, updateFloatingDock } from './modules/dock.js';
+import { initMigrationNotice } from './modules/migration.js';
 import './modules/fps.js';
 
 /**
@@ -74,3 +75,7 @@ updateI18n();
 waitForInitialBackground().finally(() => {
     document.body.classList.remove('cloak');
 });
+
+// 7. Domain Migration Notice (Easily strippable when domain expires)
+initMigrationNotice();
+
